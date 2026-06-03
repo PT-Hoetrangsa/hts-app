@@ -999,6 +999,7 @@ function TitipTab(){
 var blkI={ukuran:"12 kg",qty:""};
 var[f,setF]=useState({tanggal:toDay(),tipe:"titip",konsumenNama:"",konsumenTelp:"",konsumenAlamat:"",salesId:"",items:[{...blkI}],ket:""});
 var[delId,setDelId]=useState(null);
+var[tf,setTf]=useState({from:"",to:"",tipe:"",ukuran:""});
 var kNames=[...new Set([...(data.pelanggan||[]).filter(p=>PLG_TITIP_KAT.includes(p.kategori)).map(p=>p.nama),...(data.titipList||[]).map(t=>t.konsumenNama)].filter(Boolean))];
 function onKons(nama){var p=(data.pelanggan||[]).find(x=>x.nama===nama);if(p)setF(pv=>({...pv,konsumenNama:nama,konsumenTelp:p.telepon||"",konsumenAlamat:p.alamat||""}));}
 function setItem(i,k,v){setF(p=>{var it=p.items.slice();it[i]={...it[i],[k]:v};return{...p,items:it};});}
@@ -1033,7 +1034,6 @@ return <div>
 <div style={{fontWeight:700,color:C.gl2,fontSize:13}}>📋 Riwayat Titip/Tarik</div>
 </div>
 {(()=>{
-var[tf,setTf]=useState({from:"",to:"",tipe:"",ukuran:""});
 var titipFilt=(data.titipList||[]).filter(t=>{
 if(tf.from&&(t.tanggal||"")<tf.from)return false;
 if(tf.to&&(t.tanggal||"")>tf.to)return false;
@@ -1711,23 +1711,24 @@ var nilaiDOGantung=doGantung.reduce((a,d)=>a+Number(d.totalHPP||0),0);
 var doSangkut=(data.doList||[]).filter(d=>d.status==="sangkut");
 var nilaiDOSangkut=doSangkut.reduce((a,d)=>a+Number(d.totalHPP||0),0);
 
-// Asset Tabung Milik PT = qty tabung kosong milik PT × harga tabung kosong
-// Titipan Pihak Lain = tabung milik orang lain yang dititip di PT
-var titipLuarList=(data.titipList||[]).filter(t=>t.tipe==="titip_luar");
+// Asset Tabung Milik PT
 var titipLuarBal={};
 (data.titipList||[]).forEach(t=>{if(t.tipe==="titip_luar"||t.tipe==="tarik_luar"){var m=t.tipe==="titip_luar"?1:-1;(t.items||[]).forEach(it=>{titipLuarBal[it.ukuran]=(titipLuarBal[it.ukuran]||0)+m*Number(it.qty||0);});}});
 
 var hargaTbg=data.company?.hargaTbgKosong||{};
 var assetTabungMilikPT=SIZES.reduce((a,s)=>{
-  var totalTabung=(data.totalAsset||{})[s]||0;// kosong + titip konsumen
+  var totalTabung=(data.totalAsset||{})[s]||0;
   var titipLuar=Math.max(0,titipLuarBal[s]||0);
   var milikPT=Math.max(0,totalTabung-titipLuar);
   return a+milikPT*(hargaTbg[s]||0);
 },0);
 var assetArmada=Number(data.company?.assetArmada)||0;
 
-// Cash Flow / Omset = Cash + Stok Isi + DO Gantung - Piutang Bon - Pinjaman Karyawan
-var cashFlowOmset=cashTotal+nilaiStokA+nilaiDOGantung-piutangA-pinjamanA;
+// PIUTANG & MODAL BERJALAN = Stok Isi + DO Gantung + BON Konsumen + Pinjaman Karyawan
+var piutangModal=nilaiStokA+nilaiDOGantung+piutangA+pinjamanA;
+
+// TOTAL CASH FLOW = Total Cash + Bank + Piutang & Modal Berjalan
+var cashFlowOmset=cashTotal+piutangModal;
 
 // Total Asset
 var assetValue=cashFlowOmset+assetTabungMilikPT+assetArmada;
@@ -1818,14 +1819,17 @@ return <div>
 ["Bank BSI",Number(rekBSI)||0,"#9CA3AF",false],
 ["Bank BCA",Number(rekBCA)||0,"#9CA3AF",false],
 ["Total Cash + Bank",cashTotal,C.wht,true],
+["",null,null,false],
 ["Stok Isi Gudang (HPP)",nilaiStokA,C.gl2,false],
-["DO Gantung (sudah tebus, belum tiba)",nilaiDOGantung,nilaiDOGantung>0?"#F59E0B":C.gl2,false],
-["BON Konsumen",-piutangA,C.rlt,false],
-["Pinjaman Karyawan",-pinjamanA,C.rlt,false],
-["CASH FLOW / OMSET",cashFlowOmset,cashFlowOmset>=0?C.glt:C.rlt,true],
-].map((x,i)=><div key={i} style={{display:"flex",justifyContent:"space-between",padding:x[3]?"10px 14px":"7px 14px",background:x[3]?C.nav:"transparent",borderBottom:"1px solid "+C.bdr}}>
+["DO Gantung",nilaiDOGantung,nilaiDOGantung>0?"#F59E0B":C.gl2,false],
+["BON Konsumen",piutangA,C.gl2,false],
+["Pinjaman Karyawan",pinjamanA,C.gl2,false],
+["PIUTANG & MODAL BERJALAN",piutangModal,C.wht,true],
+["",null,null,false],
+["TOTAL CASH FLOW",cashFlowOmset,cashFlowOmset>=0?C.glt:C.rlt,true],
+].map((x,i)=>x[1]===null&&x[0]===""?<div key={i} style={{height:8,background:"transparent"}}/> :<div key={i} style={{display:"flex",justifyContent:"space-between",padding:x[3]?"10px 14px":"7px 14px",background:x[3]?C.nav:"transparent",borderBottom:"1px solid "+C.bdr}}>
 <span style={{fontSize:x[3]?13:12,color:x[3]?C.wht:C.gl2,fontWeight:x[3]?700:400}}>{x[0]}</span>
-<span style={{fontSize:x[3]?15:13,fontWeight:x[3]?900:600,color:x[2]}}>{fR(x[1])}</span>
+<span style={{fontSize:x[3]?15:13,fontWeight:x[3]?900:600,color:x[2]}}>{fR(x[1]||0)}</span>
 </div>)}
 </div>
 {/* Pecah Kas Input */}
@@ -1859,7 +1863,7 @@ return <div>
 <Card style={{border:"1px solid "+(Math.abs(deltaSelisih)<1000?C.glt:C.olt)}}>
 <div style={{fontWeight:700,color:C.gl2,marginBottom:10,fontSize:13}}>✅ Verifikasi Cash Flow</div>
 <div style={{border:"1px solid "+C.bdr,borderRadius:8,overflow:"hidden"}}>
-{[["Cash Flow Kemarin (otomatis)",cashFlowKemarin,C.gl2,false],["Laba Hari Ini",labaBersihH+(Number(pemasukanLain)||0),C.glt,false],["Cash Flow Hari Ini",cashFlowOmset,C.blt,true],["SELISIH",deltaSelisih,Math.abs(deltaSelisih)<1000?C.glt:C.rlt,true]].map((x,i)=><div key={i} style={{display:"flex",justifyContent:"space-between",padding:x[3]?"10px 14px":"7px 14px",background:x[3]?C.nav:"transparent",borderBottom:"1px solid "+C.bdr}}><span style={{fontSize:x[3]?13:12,color:x[3]?C.wht:C.gl2,fontWeight:x[3]?700:400}}>{x[0]}</span><span style={{fontSize:x[3]?15:13,fontWeight:x[3]?900:600,color:x[2]}}>{fR(x[1])}</span></div>)}
+{[["Total Cash Flow Kemarin",cashFlowKemarin,C.gl2,false],["Laba Hari Ini",labaBersihH+(Number(pemasukanLain)||0),C.glt,false],["Total Cash Flow Hari Ini",cashFlowOmset,C.blt,true],["SELISIH",deltaSelisih,Math.abs(deltaSelisih)<1000?C.glt:C.rlt,true]].map((x,i)=><div key={i} style={{display:"flex",justifyContent:"space-between",padding:x[3]?"10px 14px":"7px 14px",background:x[3]?C.nav:"transparent",borderBottom:"1px solid "+C.bdr}}><span style={{fontSize:x[3]?13:12,color:x[3]?C.wht:C.gl2,fontWeight:x[3]?700:400}}>{x[0]}</span><span style={{fontSize:x[3]?15:13,fontWeight:x[3]?900:600,color:x[2]}}>{fR(x[1])}</span></div>)}
 </div>
 {Math.abs(deltaSelisih)<1000&&<div style={{marginTop:8,padding:"6px 12px",background:C.grn,borderRadius:6,fontSize:12,fontWeight:700,color:"white"}}>✅ Selisih = 0. Cash flow balance!</div>}
 {Math.abs(deltaSelisih)>=1000&&<div style={{marginTop:8,padding:"6px 12px",background:C.rdk,borderRadius:6,fontSize:12,color:"white"}}>⚠️ Ada selisih {fR(Math.abs(deltaSelisih))}. Periksa input cash atau ada transaksi yang terlewat.</div>}
@@ -1869,7 +1873,7 @@ return <div>
 <Card style={{border:"1px solid "+C.olt}}>
 <div style={{fontWeight:700,color:C.olt,marginBottom:12,fontSize:13}}>🏦 TOTAL ASSET</div>
 <div style={{border:"1px solid "+C.bdr,borderRadius:8,overflow:"hidden",marginBottom:10}}>
-{[["Cash Flow / Omset",cashFlowOmset,C.blt,false],["Asset Tabung Milik PT",assetTabungMilikPT,C.gl2,false],["Asset Armada",assetArmada,C.gl2,false],["TOTAL ASSET",assetValue,C.olt,true]].map((x,i)=><div key={i} style={{display:"flex",justifyContent:"space-between",padding:x[3]?"12px 14px":"8px 14px",background:x[3]?C.nav:"transparent",borderBottom:"1px solid "+C.bdr}}><span style={{fontSize:x[3]?14:12,color:x[3]?C.wht:C.gl2,fontWeight:x[3]?800:400}}>{x[0]}</span><span style={{fontSize:x[3]?18:13,fontWeight:x[3]?900:600,color:x[2]}}>{fR(x[1])}</span></div>)}
+{[["Total Cash Flow",cashFlowOmset,C.blt,false],["Asset Tabung Milik PT",assetTabungMilikPT,C.gl2,false],["Asset Armada",assetArmada,C.gl2,false],["TOTAL ASSET",assetValue,C.olt,true]].map((x,i)=><div key={i} style={{display:"flex",justifyContent:"space-between",padding:x[3]?"12px 14px":"8px 14px",background:x[3]?C.nav:"transparent",borderBottom:"1px solid "+C.bdr}}><span style={{fontSize:x[3]?14:12,color:x[3]?C.wht:C.gl2,fontWeight:x[3]?800:400}}>{x[0]}</span><span style={{fontSize:x[3]?18:13,fontWeight:x[3]?900:600,color:x[2]}}>{fR(x[1])}</span></div>)}
 </div>
 </Card>
 
