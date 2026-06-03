@@ -112,7 +112,7 @@ async function pushAll(data,setSyncStatus){
     tasks.push(gasWrite("setoranLog",data.setoranLog||[]));
     tasks.push(gasWrite("tutupBuku",data.tutupBuku||[]));
     // stok & config sebagai object → wrap dalam array
-    tasks.push(gasWrite("stok",[{key:"stok",val:JSON.stringify({stock:data.stock,totalAsset:data.totalAsset,stockLog:data.stockLog,modalHistory:data.modalHistory,hetPrices:data.hetPrices,counters:data.counters,theme:data.theme})}]));
+    tasks.push(gasWrite("stok",[{key:"stok",val:JSON.stringify({stock:data.stock,totalTabung:data.totalTabung,stockLog:data.stockLog,modalHistory:data.modalHistory,hetPrices:data.hetPrices,counters:data.counters,theme:data.theme})}]));
     tasks.push(gasWrite("config",[{key:"company",val:JSON.stringify(data.company||{})}]));
     await Promise.all(tasks);
     setSyncStatus("ok");
@@ -145,7 +145,7 @@ async function pullAll(setSyncStatus){
 }
 
 var INIT={
-stock:{"5.5 kg":0,"12 kg":0,"50 kg":0},stokKosong:{"5.5 kg":0,"12 kg":0,"50 kg":0},totalAsset:{"5.5 kg":0,"12 kg":0,"50 kg":0},
+stock:{"5.5 kg":0,"12 kg":0,"50 kg":0},stokKosong:{"5.5 kg":0,"12 kg":0,"50 kg":0},totalTabung:{"5.5 kg":0,"12 kg":0,"50 kg":0},
 stockLog:[],doList:[],modalHistory:[],hetPrices:{},titipList:[],
 penjualan:[],bon:[],pengeluaran:[],employees:DEF_EMP.slice(),
 tutupBuku:[],pelanggan:[],setoranSales:[],setoranLog:[],absensi:[],ambilan:[],payrollLog:[],
@@ -739,7 +739,7 @@ return <div>
 <SC label="Bon Aktif" value={bonAktif.length+" bon"} icon="📃" color={C.gl2}/>
 </div>
 <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(190px,1fr))",gap:12,marginBottom:14}}>
-{SIZES.map(s=>{var isi=(data.stock||{})[s]||0;var asset=(data.totalAsset||{})[s]||0;var titip=getTitipTotal(data.titipList,s);var kosong=getKosong(data,s);return <Card key={s} style={{marginBottom:0}}><div style={{fontWeight:700,color:C.gl2,marginBottom:8,fontSize:12}}>📦 LPG {s}</div><div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:5}}>{[["Isi",isi,C.glt],["Titip",titip,C.blt],["Kosong",kosong,C.gl2],["Asset",asset,C.olt]].map(x=><div key={x[0]} style={{background:C.nav,borderRadius:6,padding:"5px 6px",textAlign:"center",border:"1px solid "+C.bdr}}><div style={{fontSize:9,color:C.gl2}}>{x[0]}</div><div style={{fontSize:15,fontWeight:900,color:x[2]}}>{x[1]}</div></div>)}</div></Card>;})}
+{SIZES.map(s=>{var isi=(data.stock||{})[s]||0;var titip=getTitipTotal(data.titipList,s);var kosong=getKosong(data,s);var totalS=isi+kosong+titip;return <Card key={s} style={{marginBottom:0}}><div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}><div style={{fontWeight:700,color:C.gl2,fontSize:12}}>📦 LPG {s}</div><div style={{fontSize:13,fontWeight:900,color:C.olt}}>{totalS} tab</div></div><div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:4}}>{[["Tbg+Isi",isi,C.glt],["Titip",titip,C.blt],["Kosong",kosong,C.gl2]].map(x=><div key={x[0]} style={{background:C.nav,borderRadius:6,padding:"5px 4px",textAlign:"center",border:"1px solid "+C.bdr}}><div style={{fontSize:8,color:C.gl2}}>{x[0]}</div><div style={{fontSize:15,fontWeight:900,color:x[2]}}>{x[1]}</div></div>)}</div></Card>;})}
 </div>
 <Card style={{marginBottom:14}}>
 <div style={{fontWeight:700,color:C.gl2,marginBottom:8,fontSize:13}}>📊 Mutasi Stok Hari Ini — {fDs(td)}</div>
@@ -769,14 +769,14 @@ function doSave(withPrint){
 if(!valid.length||!f.konsumen)return;
 var ns={...data.stock};
 var nk={...(data.stokKosong||{})};
-var na={...(data.totalAsset||{})};
+var na={...(data.totalTabung||{})};
 var stokLogs=[];
 valid.forEach(it=>{
   var q=Number(it.qty||0);var uk=it.ukuran;
   ns[uk]=Math.max(0,(ns[uk]||0)-q);
   if(it.jenis==="Tabung+Isi"){
     nk[uk]=Math.max(0,(nk[uk]||0)-q);
-    na[uk]=Math.max(0,(na[uk]||0)-q);
+    na[uk]=Math.max(0,(na[uk]||0)-q);// totalTabung berkurang karena tabung terjual
     stokLogs.push({id:uid(),tanggal:f.tanggal,ukuran:uk,jenis:"Tbg+Isi Keluar",qty:q,ket:"Inv - "+f.konsumen,sumber:"Penjualan"});
   } else {
     nk[uk]=(nk[uk]||0)+q;
@@ -788,7 +788,7 @@ var newCounters={...(data.counters||{inv:{},sg:{},reg:0})};if(!newCounters.inv)n
 var entry={id:uid(),noInv:invInfo.no,tanggal:f.tanggal,waktu:new Date().toLocaleTimeString("id-ID",{hour:"2-digit",minute:"2-digit"}),salesId:f.salesId,konsumen:f.konsumen,konsumenId:f.konsumenId,items:valid.map(it=>({...it,qty:Number(it.qty),price:Number(it.price)})),total,margin,bayar:f.bayar,bank:f.bank,deadline:f.deadline,ket:f.ket};
 var nb=(data.bon||[]).slice();
 if(f.bayar==="bon")nb.unshift({id:uid(),noInv:invInfo.no,tanggal:f.tanggal,konsumen:f.konsumen,konsumenId:f.konsumenId,salesId:f.salesId,items:valid,total,sisaTagihan:total,deadline:f.deadline,status:"belum",pembayaran:[],ket:f.ket,bank:f.bank});
-setData(d=>({...d,penjualan:[entry,...(d.penjualan||[])],stock:ns,stokKosong:nk,totalAsset:na,bon:nb,counters:newCounters,stockLog:[...stokLogs,...(d.stockLog||[])].slice(0,500)}));
+setData(d=>({...d,penjualan:[entry,...(d.penjualan||[])],stock:ns,stokKosong:nk,totalTabung:na,bon:nb,counters:newCounters,stockLog:[...stokLogs,...(d.stockLog||[])].slice(0,500)}));
 if(withPrint)setInv(makeInvObj(entry));
 setF(p=>({...p,konsumen:"",konsumenId:"",items:[{...blk}],ket:"",deadline:""}));
 toast("✓ Tersimpan! No: "+invInfo.no);
@@ -876,7 +876,7 @@ function RekapTab(){
 var[initMode,setInitMode]=useState(false);var[asF,setAsF]=useState({"5.5 kg":"","12 kg":"","50 kg":""});
 return <div>
 <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(240px,1fr))",gap:12,marginBottom:14}}>
-{SIZES.map(s=>{var isi=(data.stock||{})[s]||0;var asset=(data.totalAsset||{})[s]||0;var titip=getTitipTotal(data.titipList,s);var kosong=getKosong(data,s);var pI=asset>0?Math.round(isi/asset*100):0;var pT=asset>0?Math.round(titip/asset*100):0;var pK=asset>0?Math.round(kosong/asset*100):0;return <Card key={s} style={{marginBottom:0}}><div style={{display:"flex",justifyContent:"space-between",marginBottom:10}}><div style={{fontWeight:800,color:C.wht,fontSize:15}}>📦 LPG {s}</div><div style={{textAlign:"right"}}><div style={{fontSize:10,color:C.gl2}}>Total Asset</div><div style={{fontSize:18,fontWeight:900,color:C.olt}}>{asset}</div></div></div><div style={{height:8,borderRadius:4,background:C.bdr,display:"flex",overflow:"hidden",marginBottom:10}}><div style={{width:pI+"%",background:C.glt}}/><div style={{width:pT+"%",background:C.blt}}/><div style={{width:pK+"%",background:C.gl2}}/></div><div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:6}}>{[["🟢 Isi",isi,C.glt],["🔵 Titip",titip,C.blt],["⚫ Kosong",kosong,C.gl2]].map(x=><div key={x[0]} style={{background:C.nav,borderRadius:8,padding:"7px 6px",textAlign:"center",border:"1px solid "+C.bdr}}><div style={{fontSize:9,color:C.gl2}}>{x[0]}</div><div style={{fontSize:20,fontWeight:900,color:x[2]}}>{x[1]}</div></div>)}</div></Card>;})}
+{SIZES.map(s=>{var isi=(data.stock||{})[s]||0;var asset=(data.totalTabung||{})[s]||0;var titip=getTitipTotal(data.titipList,s);var kosong=getKosong(data,s);var pI=asset>0?Math.round(isi/asset*100):0;var pT=asset>0?Math.round(titip/asset*100):0;var pK=asset>0?Math.round(kosong/asset*100):0;return <Card key={s} style={{marginBottom:0}}><div style={{display:"flex",justifyContent:"space-between",marginBottom:10}}><div style={{fontWeight:800,color:C.wht,fontSize:15}}>📦 LPG {s}</div><div style={{textAlign:"right"}}><div style={{fontSize:10,color:C.gl2}}>Total Asset</div><div style={{fontSize:18,fontWeight:900,color:C.olt}}>{asset}</div></div></div><div style={{height:8,borderRadius:4,background:C.bdr,display:"flex",overflow:"hidden",marginBottom:10}}><div style={{width:pI+"%",background:C.glt}}/><div style={{width:pT+"%",background:C.blt}}/><div style={{width:pK+"%",background:C.gl2}}/></div><div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:6}}>{[["🟢 Isi",isi,C.glt],["🔵 Titip",titip,C.blt],["⚫ Kosong",kosong,C.gl2]].map(x=><div key={x[0]} style={{background:C.nav,borderRadius:8,padding:"7px 6px",textAlign:"center",border:"1px solid "+C.bdr}}><div style={{fontSize:9,color:C.gl2}}>{x[0]}</div><div style={{fontSize:20,fontWeight:900,color:x[2]}}>{x[1]}</div></div>)}</div></Card>;})}
 </div>
 <Card><div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}><div style={{fontWeight:700,color:C.gl2,fontSize:13}}>🏭 Setup Total Asset</div><Btn sm color={initMode?"gray":"blue"} onClick={()=>setInitMode(!initMode)}>{initMode?"Batal":"⚙️ Set"}</Btn></div>
 {initMode&&<div><div style={{fontSize:11,color:C.gl2,marginBottom:8}}>Input stok fisik awal per ukuran:</div>
@@ -893,7 +893,7 @@ if(asF["isi_"+s]!=="")ns[s]=Number(asF["isi_"+s]);
 if(asF["kos_"+s]!=="")nk[s]=Number(asF["kos_"+s]);
 });
 var na={};SIZES.forEach(s=>{na[s]=(nk[s]||0)+getTitipTotal(data.titipList,s);});
-setData(d=>({...d,stock:ns,stokKosong:nk,totalAsset:na}));
+setData(d=>({...d,stock:ns,stokKosong:nk,totalTabung:na}));
 setInitMode(false);toast("✓ Stok awal disimpan!");
 }}>💾 Simpan Stok Awal</Btn></div>}
 </Card>
@@ -904,14 +904,14 @@ var[f,setF]=useState({ukuran:"12 kg",jenis:"return_isi",qty:"",ket:"",tanggal:to
 function save(){
 if(!f.qty||Number(f.qty)<=0)return;
 var qty=Number(f.qty);var s=f.ukuran;
-var ns={...(data.stock||{})};var nk={...(data.stokKosong||{})};var na={...(data.totalAsset||{})};
+var ns={...(data.stock||{})};var nk={...(data.stokKosong||{})};var na={...(data.totalTabung||{})};
 var jDesc="";
 if(f.jenis==="return_isi"){ns[s]=(ns[s]||0)+qty;jDesc="↩️ Return (+Isi)";}
 else if(f.jenis==="pancung"){ns[s]=(ns[s]||0)+qty;jDesc="✂️ Pancung (+Isi)";}
 else if(f.jenis==="beli_tbg"){nk[s]=(nk[s]||0)+qty;na[s]=(na[s]||0)+qty;jDesc="🛒 Beli Tabung (+Tbg)";}
 else if(f.jenis==="rusak"){ns[s]=Math.max(0,(ns[s]||0)-qty);jDesc="💥 Rusak/Bocor (-Isi)";}
 var log={id:uid(),tanggal:f.tanggal,ukuran:s,jenis:jDesc,qty,ket:f.ket,user:user?.nama||"",sumber:"Manual"};
-setData(d=>({...d,stock:ns,stokKosong:nk,totalAsset:na,stockLog:[log,...(d.stockLog||[])].slice(0,500)}));
+setData(d=>({...d,stock:ns,stokKosong:nk,totalTabung:na,stockLog:[log,...(d.stockLog||[])].slice(0,500)}));
 setF(p=>({...p,qty:"",ket:""}));
 toast("✓ Mutasi dicatat!");
 }
@@ -1717,9 +1717,12 @@ var titipLuarBal={};
 
 var hargaTbg=data.company?.hargaTbgKosong||{};
 var assetTabungMilikPT=SIZES.reduce((a,s)=>{
-  var totalTabung=(data.totalAsset||{})[s]||0;
+  var isiS=(data.stock||{})[s]||0;
+  var kosS=getKosong(data,s);
+  var titipS=getTitipTotal(data.titipList,s);
+  var totalS=isiS+kosS+titipS;
   var titipLuar=Math.max(0,titipLuarBal[s]||0);
-  var milikPT=Math.max(0,totalTabung-titipLuar);
+  var milikPT=Math.max(0,totalS-titipLuar);
   return a+milikPT*(hargaTbg[s]||0);
 },0);
 var assetArmada=Number(data.company?.assetArmada)||0;
@@ -1897,9 +1900,9 @@ return <div>
 ["Di Gudang (Isi)",(data.stock||{})["12 kg"]||0,(data.stock||{})["5.5 kg"]||0,(data.stock||{})["50 kg"]||0,C.glt],
 ["Kosong di Gudang",kosong12,kosong55,kosong50,C.gl2],
 ["Titip ke Konsumen",getTitipTotal(data.titipList,"12 kg"),getTitipTotal(data.titipList,"5.5 kg"),getTitipTotal(data.titipList,"50 kg"),C.blt],
-["Total Keseluruhan Milik PT",((data.totalAsset||{})["12 kg"]||0),((data.totalAsset||{})["5.5 kg"]||0),((data.totalAsset||{})["50 kg"]||0),C.olt,true],
+["Total Keseluruhan Tabung",((data.stock||{})["12 kg"]||0)+kosong12+getTitipTotal(data.titipList,"12 kg"),((data.stock||{})["5.5 kg"]||0)+kosong55+getTitipTotal(data.titipList,"5.5 kg"),((data.stock||{})["50 kg"]||0)+kosong50+getTitipTotal(data.titipList,"50 kg"),C.olt,true],
 ["Titipan Pihak Lain di PT",Math.max(0,titipLuarBal["12 kg"]||0),Math.max(0,titipLuarBal["5.5 kg"]||0),Math.max(0,titipLuarBal["50 kg"]||0),"#6B7280"],
-["MILIK PT HOE TRANGSA",Math.max(0,((data.totalAsset||{})["12 kg"]||0)-(titipLuarBal["12 kg"]||0)),Math.max(0,((data.totalAsset||{})["5.5 kg"]||0)-(titipLuarBal["5.5 kg"]||0)),Math.max(0,((data.totalAsset||{})["50 kg"]||0)-(titipLuarBal["50 kg"]||0)),C.wht,true],
+["MILIK PT HOE TRANGSA",Math.max(0,((data.totalTabung||{})["12 kg"]||0)-(titipLuarBal["12 kg"]||0)),Math.max(0,((data.totalTabung||{})["5.5 kg"]||0)-(titipLuarBal["5.5 kg"]||0)),Math.max(0,((data.totalTabung||{})["50 kg"]||0)-(titipLuarBal["50 kg"]||0)),C.wht,true],
 ].map((r,i)=><tr key={i} style={{borderBottom:"1px solid "+C.bdr,background:r[5]?C.nav:"transparent"}}>
 <td style={{padding:"7px 10px",color:r[5]?C.wht:C.gl2,fontWeight:r[5]?700:400}}>{r[0]}</td>
 {[r[1],r[2],r[3]].map((v,j)=><td key={j} style={{padding:"7px 10px",textAlign:"center",color:r[4],fontWeight:r[5]?800:600,fontSize:r[5]?14:12}}>{v}</td>)}
@@ -2363,8 +2366,11 @@ useEffect(()=>{try{localStorage.setItem("hts_theme",theme);}catch(e){}},[theme])
 var[data,setData]=useState(()=>{
 try{var s=localStorage.getItem("lpg_mgmt_v4");
 if(s){var d=JSON.parse(s);
-if(!d.totalAsset)d.totalAsset={"5.5 kg":0,"12 kg":0,"50 kg":0};
+
 if(!d.stokKosong)d.stokKosong={"5.5 kg":0,"12 kg":0,"50 kg":0};
+if(!d.totalTabung)d.totalTabung={"5.5 kg":0,"12 kg":0,"50 kg":0};
+// Recalc totalTabung = isi + kosong + titip (logika benar)
+(function(){var SIZES_M=["5.5 kg","12 kg","50 kg"];SIZES_M.forEach(function(s){var isi=(d.stock||{})[s]||0;var kosong=(d.stokKosong||{})[s]||0;var titip=0;(d.titipList||[]).forEach(function(t){var items=t.items&&t.items.length>0?t.items:(t.ukuran===s?[{qty:t.qty}]:[]);var m=t.tipe==="titip"?1:t.tipe==="tarik"?-1:0;items.forEach(function(it){if(!t.items||t.items.length===0?true:it.ukuran===s)titip+=m*Number(it.qty||0);});});d.totalTabung[s]=isi+kosong+Math.max(0,titip);});})();
 if(d.pelanggan)d.pelanggan=d.pelanggan.map(p=>({...p,hargaKhusus:Array.isArray(p.hargaKhusus)?p.hargaKhusus:[]}));
 // Migration titipan flat format → items array
 if(d.titipList)d.titipList=d.titipList.map(t=>{
