@@ -1683,7 +1683,9 @@ var[tgl,setTgl]=useState(toDay());var[bln,setBln]=useState(toMonth());
 var[cashLaci,setCashLaci]=useState("");var[rekBSI,setRekBSI]=useState("");var[rekBCA,setRekBCA]=useState("");
 var[pecah,setPecah]=useState(()=>{var o={};DENOMS.forEach(d=>{o[d]="";});return o;});
 var[jadikanPinjaman,setJadikanPinjaman]=useState(false);
-var[viewTB,setViewTB]=useState(null);// untuk lihat detail tutup buku
+var[viewTB,setViewTB]=useState(null);// modal lihat
+var[editTB,setEditTB]=useState(null);// record yang sedang diedit
+useEffect(()=>{if(editTB){setTgl(editTB.tanggal);setCashLaci(String(editTB.cashLaci||""));setRekBSI(String(editTB.rekBSI||""));setRekBCA(String(editTB.rekBCA||""));setPemasukanLain(String(editTB.pemasukanLain||""));}else{setTgl(toDay());setCashLaci("");setRekBSI("");setRekBCA("");}},[editTB]);
 
 // Harian P&L
 var pHari=(data.penjualan||[]).filter(e=>e.tanggal===tgl);
@@ -1769,7 +1771,8 @@ var doDetail=(data.doList||[]).filter(e=>e.tanggal===tgl).map(e=>({trip:e.trip,s
 var stokSnap={};SIZES.forEach(s=>{stokSnap[s]={isi:(data.stock||{})[s]||0,kosong:getKosong(data,s),titip:getTitipTotal(data.titipList,s)};});
 var katPenH={};penH.forEach(p=>{katPenH[p.kategori]=(katPenH[p.kategori]||0)+Number(p.nominal||0);});
 var rec={
-  id:uid(),tanggal:tgl,
+  id:editTB?editTB.id:uid(),
+  tanggal:tgl,
   omzet:omzetH,hpp:hppH,labaKotor:marginH,totalOut:totalOutH,
   pemasukanLain:Number(pemasukanLain)||0,
   labaBersih:labaBersihH+(Number(pemasukanLain)||0),
@@ -1779,10 +1782,19 @@ var rec={
   nilaiDOGantung,nilaiDOSangkut,
   cashFlowOmset,assetTabungMilikPT,assetArmada,assetValue,
   cashFlowKemarin,deltaSelisih,
+  lastEdited:editTB?new Date().toISOString():undefined,
   detail:{penjualan:penjualanDetail,pengeluaran:pengeluaranDetail,doMasuk:doDetail,stokSnapshot:stokSnap,katPengeluaran:katPenH,jumlahTransaksi:penjualanDetail.length,jumlahDO:doDetail.length}
 };
-setData(d=>({...d,tutupBuku:[rec,...(d.tutupBuku||[])]}));
-toast("✓ Tutup buku harian tersimpan!");
+if(editTB){
+  // Replace record lama
+  setData(d=>({...d,tutupBuku:(d.tutupBuku||[]).map(x=>x.id===editTB.id?rec:x)}));
+  setEditTB(null);
+  toast("✓ Tutup buku diperbarui! Data hari berikutnya otomatis sinkron.");
+}else{
+  // Hapus record lama dengan tanggal yang sama (hanya 1 per tanggal)
+  setData(d=>({...d,tutupBuku:[rec,...(d.tutupBuku||[]).filter(x=>x.tanggal!==tgl)]}));
+  toast("✓ Tutup buku harian tersimpan!");
+}
 }
 function saveBulanan(){
 var rec={id:uid(),bulan:bln,tanggal:bln+"-28",omzet:omzetB,labaKotor:marginB,totalOut:totalOutB,labaBersih:labaBersihB,assetValue,piutangA,nilaiStokA,pinjamanA,cashLaci:Number(cashLaci)||0,rekBSI:Number(rekBSI)||0,rekBCA:Number(rekBCA)||0};
@@ -1814,7 +1826,15 @@ return <div>
 <div style={{display:"flex",gap:6,marginBottom:14}}>{[["harian","📅 Harian"],["bulanan","📆 Bulanan"]].map(x=><button key={x[0]} onClick={()=>setTab(x[0])} style={{background:tab===x[0]?C.blu:C.nav,color:tab===x[0]?"white":C.wht,border:"1px solid "+(tab===x[0]?C.blt:C.bdr),borderRadius:8,padding:"8px 18px",fontWeight:700,fontSize:13,cursor:"pointer"}}>{x[1]}</button>)}</div>
 
 {tab==="harian"&&<div id="_tb_hari">
-<Card><Inp label="Tanggal" type="date" value={tgl} onChange={setTgl} style={{maxWidth:220,marginBottom:0}}/></Card>
+<Card>
+<div style={{display:"flex",alignItems:"center",gap:10,flexWrap:"wrap"}}>
+<Inp label="Tanggal" type="date" value={tgl} onChange={setTgl} style={{maxWidth:220,marginBottom:0}}/>
+{editTB&&<div style={{background:"#78350F",border:"1px solid #F59E0B",borderRadius:8,padding:"8px 14px",fontSize:12,color:"#FCD34D"}}>
+✏️ Mode Edit — {fDs(editTB.tanggal)} · <button onClick={()=>setEditTB(null)} style={{background:"none",border:"none",color:"#FCD34D",cursor:"pointer",fontSize:12,textDecoration:"underline"}}>Batalkan</button>
+</div>}
+</div>
+{editTB&&<div style={{marginTop:8,padding:"8px 12px",background:"#7C2D12",borderRadius:6,fontSize:11,color:"#FCA5A5"}}>⚠️ Mengedit tutup buku akan mempengaruhi perhitungan hari berikutnya. Pastikan data sudah benar sebelum simpan.</div>}
+</Card>
 
 {/* CASH FLOW / OMSET */}
 <Card style={{border:"1px solid "+C.blt}}>
@@ -1913,7 +1933,7 @@ return <div>
 </Card>
 
 <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-<Btn color="green" onClick={saveHarian}>💾 Simpan Tutup Buku</Btn>
+<Btn color={editTB?"orange":"green"} onClick={saveHarian}>{editTB?"💾 Simpan Perubahan":"💾 Simpan Tutup Buku"}</Btn>
 <button onClick={()=>doPrint("_tb_hari")} style={{background:C.blu,color:"#fff",border:"none",padding:"9px 16px",borderRadius:8,fontSize:13,cursor:"pointer",fontWeight:700}}>🖨️ Cetak</button>
 <span style={{fontSize:11,color:"#888",fontStyle:"italic",alignSelf:"center"}}>Pilih "Save as PDF" di dialog cetak</span>
 </div>
@@ -1986,23 +2006,65 @@ return <div>
   fR(r.omzet||0),
   <b style={{color:(r.labaBersih||0)>=0?C.glt:C.rlt}}>{fR(r.labaBersih||0)}</b>,
   fR(r.assetValue||0),
-  <button onClick={()=>setViewTB(r)} style={{background:C.inHv,border:"1px solid "+C.blt,borderRadius:6,padding:"4px 10px",color:C.blt,cursor:"pointer",fontSize:12,fontWeight:700}}>👁️ Lihat</button>
+  <div style={{display:"flex",gap:4}}>
+<button onClick={()=>setViewTB(r)} style={{background:C.inHv,border:"1px solid "+C.blt,borderRadius:6,padding:"4px 8px",color:C.blt,cursor:"pointer",fontSize:11,fontWeight:700}}>👁️ Lihat</button>
+<button onClick={()=>{setEditTB(r);setTab("harian");window.scrollTo(0,0);}} style={{background:"#78350F",border:"1px solid #F59E0B",borderRadius:6,padding:"4px 8px",color:"#FCD34D",cursor:"pointer",fontSize:11,fontWeight:700}}>✏️ Edit</button>
+<button onClick={()=>{setViewTB(r);setTimeout(()=>doPrint("_tb_view"),300);}} style={{background:C.nav,border:"1px solid "+C.bdr,borderRadius:6,padding:"4px 8px",color:C.gl2,cursor:"pointer",fontSize:11,fontWeight:700}}>🖨️ Cetak</button>
+</div>
 ])}/>
 </Card>}
 
 {/* Modal Detail Tutup Buku */}
 {viewTB&&<div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.7)",zIndex:9000,overflowY:"auto",padding:16}}>
-<div style={{maxWidth:680,margin:"0 auto",background:C.card,borderRadius:12,border:"1px solid "+C.bdr,padding:20}}>
+<div id="_tb_view" style={{maxWidth:680,margin:"0 auto",background:C.card,borderRadius:12,border:"1px solid "+C.bdr,padding:20}}>
 <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
 <div><div style={{fontSize:16,fontWeight:800,color:C.wht}}>📒 Laporan Tutup Buku</div><div style={{fontSize:12,color:C.gl2}}>{viewTB.bulan?BULAN_ID[Number(viewTB.bulan.split("-")[1])-1]+" "+viewTB.bulan.split("-")[0]:fDs(viewTB.tanggal)}</div></div>
 <button onClick={()=>setViewTB(null)} style={{background:C.nav,border:"1px solid "+C.bdr,borderRadius:8,padding:"6px 14px",color:C.wht,cursor:"pointer",fontWeight:700}}>✕ Tutup</button>
 </div>
 
 {/* Ringkasan P&L */}
+
+{/* SECTION 1: CASH FLOW */}
 <div style={{background:C.nav,borderRadius:8,border:"1px solid "+C.bdr,overflow:"hidden",marginBottom:12}}>
-<div style={{padding:"8px 14px",borderBottom:"1px solid "+C.bdr,fontWeight:700,color:C.blt,fontSize:12}}>📊 Ringkasan P&L</div>
-{[["Omzet",viewTB.omzet,C.wht],["HPP / Modal",viewTB.hpp,C.gl2],["Laba Kotor",viewTB.labaKotor,C.blt],["Total Pengeluaran",viewTB.totalOut,C.rlt],["LABA BERSIH",viewTB.labaBersih,viewTB.labaBersih>=0?C.glt:C.rlt]].map((x,i)=><div key={i} style={{display:"flex",justifyContent:"space-between",padding:"6px 14px",borderBottom:"1px solid "+C.bdr,background:i===4?C.nav:"transparent"}}><span style={{color:i===4?C.wht:C.gl2,fontWeight:i===4?700:400,fontSize:12}}>{x[0]}</span><span style={{color:x[2],fontWeight:700,fontSize:i===4?15:13}}>{fR(x[1]||0)}</span></div>)}
+<div style={{padding:"8px 14px",borderBottom:"1px solid "+C.bdr,fontWeight:700,color:C.blt,fontSize:12}}>💰 CASH FLOW / OMSET</div>
+{[["Cash di Laci",viewTB.cashLaci,C.wht],["Bank BSI",viewTB.rekBSI,C.gl2],["Bank BCA",viewTB.rekBCA,C.gl2],["Total Cash + Bank",(viewTB.cashLaci||0)+(viewTB.rekBSI||0)+(viewTB.rekBCA||0),C.wht,true],["Stok Isi Gudang (HPP)",viewTB.nilaiStokA,C.gl2],["DO Gantung",viewTB.nilaiDOGantung||0,"#F59E0B"],["BON Konsumen",viewTB.piutangA,C.gl2],["Pinjaman Karyawan",viewTB.pinjamanA,C.gl2],["PIUTANG & MODAL BERJALAN",(viewTB.nilaiStokA||0)+(viewTB.nilaiDOGantung||0)+(viewTB.piutangA||0)+(viewTB.pinjamanA||0),C.wht,true],["TOTAL CASH FLOW",viewTB.cashFlowOmset,C.glt,true]].map((x,i)=><div key={i} style={{display:"flex",justifyContent:"space-between",padding:x[3]?"9px 14px":"6px 14px",background:x[3]?C.card:"transparent",borderBottom:"1px solid "+C.bdr}}><span style={{color:x[3]?C.wht:C.gl2,fontWeight:x[3]?700:400,fontSize:12}}>{x[0]}</span><span style={{color:x[2],fontWeight:x[3]?800:600,fontSize:x[3]?14:12}}>{fR(x[1]||0)}</span></div>)}
 </div>
+
+{/* SECTION 2: P&L */}
+<div style={{background:C.nav,borderRadius:8,border:"1px solid "+C.bdr,overflow:"hidden",marginBottom:12}}>
+<div style={{padding:"8px 14px",borderBottom:"1px solid "+C.bdr,fontWeight:700,color:C.glt,fontSize:12}}>📊 P&L — {fDs(viewTB.tanggal)}</div>
+{[["Omzet",viewTB.omzet,C.wht],["HPP / Modal",viewTB.hpp,C.gl2],["Laba Kotor",viewTB.labaKotor,C.blt,true],["Pengeluaran Ops",viewTB.totalOut,C.rlt],["Pemasukan Lainnya",viewTB.pemasukanLain||0,"#F59E0B"],["LABA BERSIH",viewTB.labaBersih,viewTB.labaBersih>=0?C.glt:C.rlt,true]].map((x,i)=><div key={i} style={{display:"flex",justifyContent:"space-between",padding:x[3]?"9px 14px":"6px 14px",background:x[3]?C.card:"transparent",borderBottom:"1px solid "+C.bdr}}><span style={{color:x[3]?C.wht:C.gl2,fontWeight:x[3]?700:400,fontSize:12}}>{x[0]}</span><span style={{color:x[2],fontWeight:x[3]?800:600,fontSize:x[3]?14:12}}>{fR(x[1]||0)}</span></div>)}
+</div>
+
+{/* SECTION 3: VERIFIKASI */}
+<div style={{background:C.nav,borderRadius:8,border:"1px solid "+C.bdr,overflow:"hidden",marginBottom:12}}>
+<div style={{padding:"8px 14px",borderBottom:"1px solid "+C.bdr,fontWeight:700,color:C.blt,fontSize:12}}>✅ Verifikasi Cash Flow</div>
+{[["Cash Flow Kemarin",viewTB.cashFlowKemarin||0,C.gl2],["Laba Hari Ini",viewTB.labaBersih,C.glt],["Cash Flow Hari Ini",viewTB.cashFlowOmset,C.blt,true],["Selisih",viewTB.deltaSelisih||0,Math.abs(viewTB.deltaSelisih||0)<1000?C.glt:C.rlt,true]].map((x,i)=><div key={i} style={{display:"flex",justifyContent:"space-between",padding:x[3]?"9px 14px":"6px 14px",background:x[3]?C.card:"transparent",borderBottom:"1px solid "+C.bdr}}><span style={{color:x[3]?C.wht:C.gl2,fontWeight:x[3]?700:400,fontSize:12}}>{x[0]}</span><span style={{color:x[2],fontWeight:x[3]?800:600,fontSize:x[3]?14:12}}>{fR(x[1]||0)}</span></div>)}
+</div>
+
+{/* SECTION 4: TOTAL ASSET */}
+<div style={{background:C.nav,borderRadius:8,border:"1px solid "+C.bdr,overflow:"hidden",marginBottom:12}}>
+<div style={{padding:"8px 14px",borderBottom:"1px solid "+C.bdr,fontWeight:700,color:C.olt,fontSize:12}}>🏦 TOTAL ASSET</div>
+{[["Total Cash Flow",viewTB.cashFlowOmset,C.blt],["Asset Tabung Milik PT",viewTB.assetTabungMilikPT||0,C.gl2],["Asset Armada",viewTB.assetArmada||0,C.gl2],["TOTAL ASSET",viewTB.assetValue,C.olt,true]].map((x,i)=><div key={i} style={{display:"flex",justifyContent:"space-between",padding:x[3]?"9px 14px":"6px 14px",background:x[3]?C.card:"transparent",borderBottom:"1px solid "+C.bdr}}><span style={{color:x[3]?C.wht:C.gl2,fontWeight:x[3]?700:400,fontSize:12}}>{x[0]}</span><span style={{color:x[2],fontWeight:x[3]?800:600,fontSize:x[3]?14:12}}>{fR(x[1]||0)}</span></div>)}
+</div>
+
+{/* SECTION 5: REKAP TABUNG */}
+{viewTB.detail?.stokSnapshot&&<div style={{background:C.nav,borderRadius:8,border:"1px solid "+C.bdr,overflow:"hidden",marginBottom:12}}>
+<div style={{padding:"8px 14px",borderBottom:"1px solid "+C.bdr,fontWeight:700,color:C.gl2,fontSize:12}}>📦 Rekap Tabung</div>
+<table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
+<thead><tr style={{background:C.card}}>{["Keterangan","12 kg","5,5 kg","50 kg"].map(h=><th key={h} style={{padding:"6px 10px",color:C.gl2,fontWeight:700,textAlign:h==="Keterangan"?"left":"center",borderBottom:"1px solid "+C.bdr}}>{h}</th>)}</tr></thead>
+<tbody>
+{[["(Tbg+Isi) Di Gudang","isi",C.glt],["Tbg Kosong Di Gudang","kosong",C.gl2],["Titip di Konsumen","titip",C.blt]].map((row,i)=><tr key={i} style={{borderBottom:"1px solid "+C.bdr}}>
+<td style={{padding:"6px 10px",color:C.gl2}}>{row[0]}</td>
+{SIZES.map((s,j)=><td key={j} style={{padding:"6px 10px",textAlign:"center",color:row[2],fontWeight:600}}>{(viewTB.detail.stokSnapshot[s]||{})[row[1]]||0}</td>)}
+</tr>)}
+<tr style={{background:C.card,borderBottom:"1px solid "+C.bdr}}>
+<td style={{padding:"7px 10px",color:C.wht,fontWeight:700}}>Total Keseluruhan</td>
+{SIZES.map((s,j)=>{var sn=viewTB.detail.stokSnapshot[s]||{};var tot=(sn.isi||0)+(sn.kosong||0)+(sn.titip||0);return <td key={j} style={{padding:"7px 10px",textAlign:"center",color:C.olt,fontWeight:800,fontSize:14}}>{tot}</td>;})}
+</tr>
+</tbody>
+</table>
+</div>}
 
 {/* Komposisi Bayar */}
 <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:12}}>
