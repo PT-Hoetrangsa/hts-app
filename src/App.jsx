@@ -1203,8 +1203,8 @@ return <>
 {(tf.from||tf.to||tf.tipe||tf.ukuran)&&<Btn sm color="gray" onClick={()=>setTf({from:"",to:"",tipe:"",ukuran:""})}>✕ Reset</Btn>}
 </div>
 <RTbl headers={["Tgl","Tipe","Konsumen","Sales","Ukuran","Qty","Aksi"]} rows={titipFilt.slice(0,100).map(t=>{
-var items=t.items&&t.items.length>0?t.items:[{ukuran:t.ukuran,qty:t.qty}];
-var validItems=items.filter(i=>i.ukuran&&i.qty);
+var items=t.items&&t.items.length>0?t.items:(t.ukuran&&t.qty?[{ukuran:t.ukuran,qty:t.qty}]:[]);
+var validItems=items.filter(i=>i&&i.ukuran&&i.qty);
 var m=t.tipe==="titip"?1:-1;
 return[
 fDs(t.tanggal),
@@ -1227,7 +1227,7 @@ return <div>
 {tab==="rekap"&&<RekapTab/>}
 {tab==="mutasi"&&<MutasiTab/>}
 {tab==="opname"&&<OpnameTab/>}
-{tab==="titip"&&<TitipTab/>}
+{tab==="titip"&&(()=>{try{return <TitipTab/>;}catch(e){return <Card><div style={{color:C.rlt,padding:12}}>Error: {e.message}</div></Card>;}})()}
 {ba&&<BeritaAcaraView ba={ba} company={data.company} onClose={()=>setBa(null)}/>}
 </div>;
 }
@@ -1885,10 +1885,14 @@ function TabelStokHarian({data,tgl}){
 var C=useTheme();
 var prevTB=(data.tutupBuku||[]).filter(r=>r.tanggal&&r.tanggal<tgl).sort((a,b)=>b.tanggal.localeCompare(a.tanggal))[0];
 var rows=SIZES.map(s=>{
-  var stokAwal=prevTB?.detail?.stokSnapshot?.[s]?.isi??((data.stock||{})[s]||0);
+  var sisaAkhir=(data.stock||{})[s]||0;
   var doMasuk=(data.doList||[]).filter(d=>d.tanggal===tgl&&d.ukuran===s&&(d.status||"diterima")==="diterima").reduce((a,d)=>a+Number(d.qty||0),0);
   var terjual=(data.penjualan||[]).filter(p=>p.tanggal===tgl).reduce((a,p)=>a+(p.items||[]).filter(it=>it.ukuran===s).reduce((b,it)=>b+Number(it.qty||0),0),0);
-  var sisaAkhir=(data.stock||{})[s]||0;
+  // stokAwal = hitung mundur dari realita (lebih akurat)
+  var stokAwalCalc=sisaAkhir+terjual-doMasuk;
+  // Kalau ada tutup buku kemarin, pakai sebagai referensi verifikasi
+  var stokAwalTB=prevTB?.detail?.stokSnapshot?.[s]?.isi;
+  var stokAwal=stokAwalTB!==undefined?stokAwalTB:Math.max(0,stokAwalCalc);
   var totalHariIni=stokAwal+doMasuk;
   return{s,stokAwal,doMasuk,totalHariIni,terjual,sisaAkhir};
 });
