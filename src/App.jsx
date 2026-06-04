@@ -11,7 +11,11 @@ var DENOMS=[100000,50000,20000,10000,5000,2000,1000];
 var ROLE_ORDER=["admin","akuntan","sales_driver","sales_freelance","checker","driver_truck","owner"];
 function sortEmp(emps){return(emps||[]).slice().sort((a,b)=>{var ia=ROLE_ORDER.indexOf(a.role);var ib=ROLE_ORDER.indexOf(b.role);if(ia!==ib)return ia-ib;return(a.nama||"").localeCompare(b.nama||"");});}
 // Load Plus Jakarta Sans font
-(function(){if(typeof document!=="undefined"&&!document.getElementById("pjs-font")){var l=document.createElement("link");l.id="pjs-font";l.rel="stylesheet";l.href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap";document.head.appendChild(l);}})();
+(function(){
+if(typeof document!=="undefined"){
+if(!document.getElementById("pjs-font")){var l=document.createElement("link");l.id="pjs-font";l.rel="stylesheet";l.href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap";document.head.appendChild(l);}
+if(!document.getElementById("h2c-script")){var s=document.createElement("script");s.id="h2c-script";s.src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js";document.head.appendChild(s);}
+}})();
 var UANG_MAKAN_DEFAULT=15000;
 var SPBE_LOC={"SPPBE KCR":25000,"SPPBE MGL":115000};
 var KAT_K=["BBM","Gaji","Uang Makan Karyawan","Perbaikan","Administrasi","Sewa","Parkir","Service Kendaraan","Fee LPG 50kg","Uang Jalan SPBE","Uang Bongkar DO","Pancung 12kg","Pancung 5.5kg","Listrik PLN","Internet Wi-Fi","Air Galon","Lainnya"];
@@ -205,7 +209,20 @@ function calcTotalPiutang(data){return(data.bon||[]).filter(b=>b.status!=="lunas
 // ─── PRINT HELPER (Simpan PDF via dialog browser) ─────────────────────────────
 // Tidak butuh CDN. User pilih "Save as PDF" di dialog print browser.
 
-function doPrint(id){
+// Buat nama file otomatis
+function makeFileName(type,label1,label2,ext){
+  var d=new Date();
+  var tgl=d.getDate().toString().padStart(2,"0")+"-"+["Jan","Feb","Mar","Apr","Mei","Jun","Jul","Ags","Sep","Okt","Nov","Des"][d.getMonth()]+"-"+d.getFullYear();
+  var clean=function(s){return(s||"").toUpperCase().replace(/[^A-Z0-9]/g,"-").replace(/-+/g,"-").replace(/^-|-$/g,"").slice(0,30);};
+  if(type==="inv")return clean(label1)+"_"+clean(label2)+"_"+tgl+"."+ext;
+  if(type==="slip")return clean(label1)+"_Slip-Gaji_"+clean(label2)+"."+ext;
+  if(type==="tb")return "Tutup-Buku_"+clean(label1)+"."+ext;
+  if(type==="do")return "Laporan-DO_"+clean(label1)+"."+ext;
+  return clean(label1)+"_"+tgl+"."+ext;
+}
+
+// Cetak PDF dengan saran nama file
+function doPrint(id,fileName){
 var e=document.getElementById("__pst");if(e)e.remove();
 var st=document.createElement("style");st.id="__pst";
 st.textContent=[
@@ -227,6 +244,45 @@ st.textContent=[
 document.head.appendChild(st);
 window.print();
 setTimeout(()=>{var e=document.getElementById("__pst");if(e)e.remove();},2000);
+}
+
+// Download PNG
+function doDownloadPNG(id,fileName,onDone){
+var el=document.getElementById(id);
+if(!el){alert("Element tidak ditemukan");return;}
+if(typeof html2canvas==="undefined"){alert("html2canvas belum dimuat, coba lagi sebentar");return;}
+html2canvas(el,{scale:2,useCORS:true,backgroundColor:"#ffffff",logging:false}).then(function(canvas){
+  var a=document.createElement("a");
+  a.href=canvas.toDataURL("image/png");
+  a.download=fileName||"dokumen.png";
+  a.click();
+  if(onDone)onDone();
+}).catch(function(e){alert("Gagal buat PNG: "+e.message);});
+}
+
+// Copy PNG ke clipboard
+function doCopyPNG(id,onDone){
+var el=document.getElementById(id);
+if(!el){alert("Element tidak ditemukan");return;}
+if(typeof html2canvas==="undefined"){alert("html2canvas belum dimuat, coba lagi sebentar");return;}
+html2canvas(el,{scale:2,useCORS:true,backgroundColor:"#ffffff",logging:false}).then(function(canvas){
+  canvas.toBlob(function(blob){
+    if(!blob){alert("Gagal membuat gambar");return;}
+    try{
+      navigator.clipboard.write([new ClipboardItem({"image/png":blob})]).then(function(){
+        if(onDone)onDone("copy");
+        alert("✅ Gambar ter-copy! Sekarang paste ke WhatsApp atau chat.");
+      }).catch(function(){
+        // Fallback: download saja
+        var a=document.createElement("a");
+        a.href=canvas.toDataURL("image/png");
+        a.download="dokumen.png";
+        a.click();
+        alert("Copy tidak didukung browser ini, otomatis download.");
+      });
+    }catch(e){alert("Copy gagal: "+e.message);}
+  },"image/png");
+}).catch(function(e){alert("Gagal buat PNG: "+e.message);});
 }
 
 // ─── THEME ────────────────────────────────────────────────────────────────────
@@ -504,9 +560,17 @@ return <tr key={i} style={{background:i%2===0?WHITE:G100}}>
 
 </div>
 <div style={{maxWidth:700,margin:"12px auto",display:"flex",gap:8,justifyContent:"center",flexWrap:"wrap"}}>
-<button onClick={()=>doPrint("_inv")} style={{background:NAVY,color:WHITE,border:"none",padding:"10px 28px",borderRadius:7,fontSize:13,cursor:"pointer",fontWeight:700,fontFamily:FONT}}>🖨️ Cetak / Simpan PDF</button>
-<span style={{fontSize:11,color:"#888",alignSelf:"center",fontStyle:"italic"}}>Pilih "Save as PDF" di dialog print</span>
-<button onClick={onClose} style={{background:"#566573",color:WHITE,border:"none",padding:"10px 22px",borderRadius:7,fontSize:13,cursor:"pointer",fontWeight:700,fontFamily:FONT}}>✕ Tutup</button>
+<div style={{display:"flex",flexDirection:"column",gap:6,alignItems:"center"}}>
+<div style={{display:"flex",gap:6,flexWrap:"wrap",justifyContent:"center"}}>
+{(()=>{var fn=makeFileName("inv",inv.konsumen,inv.noInv,"");return <>
+<button onClick={()=>doPrint("_inv",fn+".pdf")} style={{background:NAVY,color:WHITE,border:"none",padding:"9px 20px",borderRadius:7,fontSize:13,cursor:"pointer",fontWeight:700,fontFamily:FONT}}>🖨️ Cetak / PDF</button>
+<button onClick={()=>doDownloadPNG("_inv",fn+".png")} style={{background:"#1D6A96",color:WHITE,border:"none",padding:"9px 16px",borderRadius:7,fontSize:13,cursor:"pointer",fontWeight:700,fontFamily:FONT}}>💾 Download PNG</button>
+<button onClick={()=>doCopyPNG("_inv")} style={{background:"#145A32",color:WHITE,border:"none",padding:"9px 16px",borderRadius:7,fontSize:13,cursor:"pointer",fontWeight:700,fontFamily:FONT}}>📋 Copy PNG</button>
+<button onClick={onClose} style={{background:"#566573",color:WHITE,border:"none",padding:"9px 16px",borderRadius:7,fontSize:13,cursor:"pointer",fontWeight:700,fontFamily:FONT}}>✕ Tutup</button>
+</>;})()}
+</div>
+<div style={{fontSize:10,color:"#888",fontStyle:"italic"}}>💡 Nama file PDF: <b style={{color:"#aaa"}}>{makeFileName("inv",inv.konsumen,inv.noInv,"pdf")}</b></div>
+</div>
 </div>
 </div>;
 }
@@ -642,9 +706,17 @@ return <div id="_slip_wrap" style={{position:"fixed",inset:0,background:"#cdd3db
 </div>
 </div>
 <div style={{maxWidth:680,margin:"12px auto",display:"flex",gap:8,justifyContent:"center",flexWrap:"wrap"}}>
-<button onClick={()=>doPrint("_slip")} style={{background:SNAVY,color:SWHITE,border:"none",padding:"10px 28px",borderRadius:7,fontSize:13,cursor:"pointer",fontWeight:700,fontFamily:SFONT}}>🖨️ Cetak / Simpan PDF</button>
-<span style={{fontSize:11,color:"#888",alignSelf:"center",fontStyle:"italic"}}>Pilih "Save as PDF" di dialog print</span>
-<button onClick={onClose} style={{background:"#566573",color:SWHITE,border:"none",padding:"10px 22px",borderRadius:7,fontSize:13,cursor:"pointer",fontWeight:700,fontFamily:SFONT}}>✕ Tutup</button>
+<div style={{display:"flex",flexDirection:"column",gap:6,alignItems:"center"}}>
+<div style={{display:"flex",gap:6,flexWrap:"wrap",justifyContent:"center"}}>
+{(()=>{var fn=makeFileName("slip",slip.nama,"Gaji-"+(slip.bulan||""),"");return <>
+<button onClick={()=>doPrint("_slip",fn+".pdf")} style={{background:SNAVY,color:SWHITE,border:"none",padding:"9px 18px",borderRadius:7,fontSize:13,cursor:"pointer",fontWeight:700,fontFamily:SFONT}}>🖨️ Cetak / PDF</button>
+<button onClick={()=>doDownloadPNG("_slip",fn+".png")} style={{background:"#1D6A96",color:SWHITE,border:"none",padding:"9px 14px",borderRadius:7,fontSize:13,cursor:"pointer",fontWeight:700,fontFamily:SFONT}}>💾 Download PNG</button>
+<button onClick={()=>doCopyPNG("_slip")} style={{background:"#145A32",color:SWHITE,border:"none",padding:"9px 14px",borderRadius:7,fontSize:13,cursor:"pointer",fontWeight:700,fontFamily:SFONT}}>📋 Copy PNG</button>
+<button onClick={onClose} style={{background:"#566573",color:SWHITE,border:"none",padding:"9px 14px",borderRadius:7,fontSize:13,cursor:"pointer",fontWeight:700,fontFamily:SFONT}}>✕ Tutup</button>
+</>;})()}
+</div>
+<div style={{fontSize:10,color:"#888",fontStyle:"italic"}}>💡 Nama file PDF: <b style={{color:"#aaa"}}>{makeFileName("slip",slip.nama,"Gaji-"+(slip.bulan||""),"pdf")}</b></div>
+</div>
 </div>
 </div>;
 }
@@ -1935,8 +2007,10 @@ return <div>
 
 <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
 <Btn color={editTB?"orange":"green"} onClick={saveHarian}>{editTB?"💾 Simpan Perubahan":"💾 Simpan Tutup Buku"}</Btn>
-<button onClick={()=>doPrint("_tb_hari")} style={{background:C.blu,color:"#fff",border:"none",padding:"9px 16px",borderRadius:8,fontSize:13,cursor:"pointer",fontWeight:700}}>🖨️ Cetak</button>
-<span style={{fontSize:11,color:"#888",fontStyle:"italic",alignSelf:"center"}}>Pilih "Save as PDF" di dialog cetak</span>
+<button onClick={()=>doPrint("_tb_hari")} style={{background:C.blu,color:"#fff",border:"none",padding:"9px 16px",borderRadius:8,fontSize:13,cursor:"pointer",fontWeight:700}}>🖨️ Cetak / PDF</button>
+<button onClick={()=>doDownloadPNG("_tb_hari",makeFileName("tb",tgl,"","png"))} style={{background:"#1D6A96",color:"#fff",border:"none",padding:"9px 14px",borderRadius:8,fontSize:13,cursor:"pointer",fontWeight:700}}>💾 PNG</button>
+<button onClick={()=>doCopyPNG("_tb_hari")} style={{background:"#145A32",color:"#fff",border:"none",padding:"9px 14px",borderRadius:8,fontSize:13,cursor:"pointer",fontWeight:700}}>📋 Copy</button>
+<span style={{fontSize:10,color:"#888",fontStyle:"italic",alignSelf:"center"}}>💡 PDF: <b>{makeFileName("tb",tgl,"","pdf")}</b></span>
 </div>
 </div>}
 
@@ -2110,8 +2184,13 @@ return <div>
 </div>
 </div>}
 
-<div style={{marginTop:14,display:"flex",gap:8}}>
-<button onClick={()=>setViewTB(null)} style={{background:C.nav,border:"1px solid "+C.bdr,borderRadius:8,padding:"8px 18px",color:C.wht,cursor:"pointer",fontWeight:700}}>✕ Tutup</button>
+<div style={{marginTop:14,display:"flex",gap:8,flexWrap:"wrap"}}>
+{(()=>{var fn=makeFileName("tb",viewTB.tanggal,"","");return <>
+<button onClick={()=>doPrint("_tb_view",fn+".pdf")} style={{background:C.blu,border:"none",borderRadius:8,padding:"8px 16px",color:"#fff",cursor:"pointer",fontWeight:700,fontSize:12}}>🖨️ Cetak / PDF</button>
+<button onClick={()=>doDownloadPNG("_tb_view",fn+".png")} style={{background:"#1D6A96",border:"none",borderRadius:8,padding:"8px 14px",color:"#fff",cursor:"pointer",fontWeight:700,fontSize:12}}>💾 Download PNG</button>
+<button onClick={()=>doCopyPNG("_tb_view")} style={{background:"#145A32",border:"none",borderRadius:8,padding:"8px 14px",color:"#fff",cursor:"pointer",fontWeight:700,fontSize:12}}>📋 Copy PNG</button>
+<button onClick={()=>setViewTB(null)} style={{background:C.nav,border:"1px solid "+C.bdr,borderRadius:8,padding:"8px 14px",color:C.wht,cursor:"pointer",fontWeight:700,fontSize:12}}>✕ Tutup</button>
+</>;})()}
 </div>
 </div>
 </div>}
