@@ -167,6 +167,102 @@ function fR(n){return"Rp "+Number(n||0).toLocaleString("id-ID");}
 function dLeft(ds){if(!ds)return null;var t=new Date();t.setHours(0,0,0,0);return Math.ceil((new Date(ds+"T00:00:00")-t)/86400000);}
 function iTotal(its){return its.reduce((a,it)=>a+Number(it.qty||0)*Number(it.price||0),0);}
 function daysInMonth(ym){var[y,m]=ym.split("-").map(Number);return new Date(y,m,0).getDate();}
+
+// ── buildStokHarian: rekonstruksi tabel stok per hari dalam sebulan ──
+function buildStokHarian(data,bulan){
+  var dim=daysInMonth(bulan);
+  var rows=[];
+  // Stok inject manual (titik awal)
+  var injectMap={};
+  (data.stokHarian||[]).forEach(function(r){injectMap[r.tanggal]=r;});
+
+  // State berjalan per ukuran
+  var curIsi={};var curTK={};
+  SIZES.forEach(function(s){curIsi[s]=null;curTK[s]=null;});
+
+  for(var d=1;d<=dim;d++){
+    var tgl=bulan+"-"+String(d).padStart(2,"0");
+    var dayName=["Minggu","Senin","Selasa","Rabu","Kamis","Jumat","Sabtu"][new Date(tgl+"T00:00:00").getDay()];
+
+    // Cek inject manual untuk hari ini
+    var inject=injectMap[tgl];
+    if(inject){
+      SIZES.forEach(function(s){curIsi[s]=Number(inject["isi_"+s]||0);curTK[s]=Number(inject["tk_"+s]||0);});
+    }
+
+    // Stok awal = nilai berjalan (null kalau belum ada inject)
+    var awalIsi={};var awalTK={};
+    SIZES.forEach(function(s){awalIsi[s]=curIsi[s]!==null?curIsi[s]:0;awalTK[s]=curTK[s]!==null?curTK[s]:0;});
+
+    // Tabung Masuk: DO diterima + Return/Pancung hari ini
+    var doHari=(data.doList||[]).filter(function(d_){return d_.tanggal===tgl&&(d_.status||"diterima")==="diterima";});
+    // Mutasi manual masuk (Return, Pancung, Beli Tabung)
+    var mutasiMasuk=(data.stockLog||[]).filter(function(l){return l.tanggal===tgl&&l.sumber==="Manual"&&(l.jenis||"").includes("Masuk")||l.tanggal===tgl&&(l.jenis||"").includes("Return")||l.tanggal===tgl&&(l.jenis||"").includes("Pancung");});
+
+    var masukIsi={};var masukTK={};
+    SIZES.forEach(function(s){
+      var doQty=doHari.filter(function(d_){return d_.ukuran===s;}).reduce(function(a,d_){return a+Number(d_.qty||0);},0);
+      var mutQty=mutasiMasuk.filter(function(l){return l.ukuran===s;}).reduce(function(a,l){return a+Number(l.qty||0);},0);
+      masukIsi[s]=doQty+mutQty;
+      masukTK[s]=doQty;// DO: tabung kosong keluar ke SPPBE (TK berkurang)
+    });
+
+    // Tabung Keluar: Penjualan + Mutasi Manual rusak/hilang
+    var penjHari=(data.penjualan||[]).filter(function(p){return p.tanggal===tgl;});
+    var mutasiKeluar=(data.stockLog||[]).filter(function(l){return l.tanggal===tgl&&l.sumber==="Manual"&&((l.jenis||"").includes("Rusak")||(l.jenis||"").includes("Hilang"));});
+
+    var keluarIsi={};var keluarTK={};
+    SIZES.forEach(function(s){
+      var refillQty=0;var tbgIsiQty=0;
+      penjHari.forEach(function(p){
+        (p.items||[]).forEach(function(it){
+          if(it.ukuran!==s)return;
+          var q=Number(it.qty||0);
+          if(it.jenis==="Tabung+Isi"){tbgIsiQty+=q;}
+          else{refillQty+=q;}
+        });
+      });
+      var rusakQty=mutasiKeluar.filter(function(l){return l.ukuran===s;}).reduce(function(a,l){return a+Number(l.qty||0);},0);
+      keluarIsi[s]=refillQty+tbgIsiQty+rusakQty;
+      // TK: refill +kosong kembali, tbg+isi -kosong keluar
+      keluarTK[s]=tbgIsiQty-refillQty;// positif = net berkurang, negatif = net bertambah
+    });
+
+    // Stok Akhir
+    var akhirIsi={};var akhirTK={};
+    SIZES.forEach(function(s){
+      akhirIsi[s]=Math.max(0,awalIsi[s]+masukIsi[s]-keluarIsi[s]);
+      akhirTK[s]=Math.max(0,awalTK[s]-masukTK[s]+(-keluarTK[s]));
+    });
+
+    // Titip per hari: transaksi titip/tarik yang tanggalnya <= tgl ini
+    var titipSnap={};
+    SIZES.forEach(function(s){
+      var bal=0;
+      (data.titipList||[]).filter(function(t){return(t.tanggal||"")<=tgl;}).forEach(function(t){
+        var items=t.items&&t.items.length>0?t.items:(t.ukuran===s?[{ukuran:s,qty:t.qty}]:[]);
+        var m=t.tipe==="titip"?1:t.tipe==="tarik"?-1:0;
+        items.filter(function(i){return i.ukuran===s;}).forEach(function(i){bal+=m*Number(i.qty||0);});
+      });
+      titipSnap[s]=Math.max(0,bal);
+    });
+
+    // Total per ukuran
+    var total={};
+    SIZES.forEach(function(s){total[s]=akhirIsi[s]+akhirTK[s]+titipSnap[s];});
+
+    // Cek ada transaksi hari ini
+    var adaTransaksi=doHari.length>0||penjHari.length>0;
+
+    rows.push({tgl,dayName,d,adaTransaksi,inject:!!inject,
+      awalIsi,awalTK,masukIsi,masukTK,keluarIsi,keluarTK,
+      akhirIsi,akhirTK,titipSnap,total});
+
+    // Update state berjalan
+    SIZES.forEach(function(s){curIsi[s]=akhirIsi[s];curTK[s]=akhirTK[s];});
+  }
+  return rows;
+}
 function safeFileName(s){return(s||"file").replace(/[\/\\?%*:|"<>]/g,"_").replace(/\s+/g,"_").slice(0,80);}
 function getModal(data,ukuran,jenis,tgl){tgl=tgl||toDay();var h=(data.modalHistory||[]).filter(x=>x.ukuran===ukuran&&x.jenis===jenis&&x.tanggal<=tgl);if(!h.length)return(DEF_MODAL[jenis]||{})[ukuran]||0;return h.slice().sort((a,b)=>b.tanggal.localeCompare(a.tanggal))[0].harga;}
 function getHET(data,ukuran,jenis){var hp=data.hetPrices;if(hp&&hp[jenis]&&hp[jenis][ukuran]!=null)return hp[jenis][ukuran];return(DEF_HET[jenis]||{})[ukuran]||0;}
@@ -814,8 +910,37 @@ return <div>
 {SIZES.map(s=>{var isi=(data.stock||{})[s]||0;var titip=getTitipTotal(data.titipList,s);var kosong=getKosong(data,s);var totalS=isi+kosong+titip;return <Card key={s} style={{marginBottom:0}}><div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}><div style={{fontWeight:700,color:C.gl2,fontSize:12}}>📦 LPG {s}</div><div style={{fontSize:13,fontWeight:900,color:C.olt}}>{totalS} tab</div></div><div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:4}}>{[["Tbg+Isi",isi,C.glt],["Titip",titip,C.blt],["Kosong",kosong,C.gl2]].map(x=><div key={x[0]} style={{background:C.nav,borderRadius:6,padding:"5px 4px",textAlign:"center",border:"1px solid "+C.bdr}}><div style={{fontSize:8,color:C.gl2}}>{x[0]}</div><div style={{fontSize:15,fontWeight:900,color:x[2]}}>{x[1]}</div></div>)}</div></Card>;})}
 </div>
 <Card style={{marginBottom:14}}>
-<div style={{fontWeight:700,color:C.gl2,marginBottom:8,fontSize:13}}>📊 Mutasi Stok Hari Ini — {fDs(td)}</div>
-<TabelStokHarian data={data} tgl={td}/>
+<div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+<div style={{fontWeight:700,color:C.gl2,fontSize:13}}>📊 Laporan Stok 7 Hari Terakhir</div>
+</div>
+{(()=>{
+  var bulanIni=toMonth();
+  var rows7=buildStokHarian(data,bulanIni).filter(r=>r.tgl<=td).slice(-7);
+  var uk=["12 kg","5.5 kg","50 kg"];var ukL=["12kg","5,5kg","50kg"];
+  var C2=C;
+  return <div style={{overflowX:"auto"}}>
+  <table style={{borderCollapse:"collapse",width:"100%",fontSize:10}}>
+  <thead><tr style={{background:C2.nav}}>
+    <th style={{padding:"5px 8px",color:C2.gl2,textAlign:"left",borderBottom:"1px solid "+C2.bdr,whiteSpace:"nowrap"}}>Hari/Tgl</th>
+    {uk.map((s,i)=><th key={s} colSpan={4} style={{padding:"5px 6px",color:"white",textAlign:"center",borderBottom:"1px solid "+C2.bdr,borderLeft:"2px solid "+C2.bdr,background:"#1E3A5F",fontSize:9}}>{ukL[i]}: isi | TK | Titip | Total</th>)}
+  </tr></thead>
+  <tbody>
+  {rows7.map((r,i)=><tr key={r.tgl} style={{background:i%2===0?C2.nav:C2.bg,borderBottom:"1px solid "+C2.bdr}}>
+    <td style={{padding:"4px 8px",whiteSpace:"nowrap"}}>
+      <div style={{fontWeight:700,color:r.tgl===td?C2.blt:C2.wht,fontSize:11}}>{r.dayName}</div>
+      <div style={{fontSize:9,color:C2.gl2}}>{fDs(r.tgl)}</div>
+    </td>
+    {uk.map(s=>[
+      <td key={"i"+s} style={{padding:"4px 6px",textAlign:"center",color:C2.glt,fontWeight:700,borderLeft:"2px solid "+C2.bdr}}>{r.akhirIsi[s]}</td>,
+      <td key={"k"+s} style={{padding:"4px 6px",textAlign:"center",color:C2.gl2}}>{r.akhirTK[s]}</td>,
+      <td key={"t"+s} style={{padding:"4px 6px",textAlign:"center",color:C2.blt}}>{r.titipSnap[s]}</td>,
+      <td key={"o"+s} style={{padding:"4px 6px",textAlign:"center",color:C2.olt,fontWeight:700}}>{r.total[s]}</td>
+    ])}
+  </tr>)}
+  </tbody>
+  </table>
+  </div>;
+})()}
 </Card>
 <Card><div style={{fontWeight:700,color:C.gl2,fontSize:12,marginBottom:10}}>⚡ Akses Cepat</div><div style={{display:"flex",gap:8,flexWrap:"wrap"}}>{[["penjualan","🧾","Penjualan"],["stok","📦","Stok"],["piutang","💳","Piutang"],["absensi","📅","Absensi"],["payroll","💼","Payroll"],["laporan","📊","Laporan"]].map(x=><Btn key={x[0]} onClick={()=>setTab(x[0])} sm>{x[1]} {x[2]}</Btn>)}</div></Card>
 </div>;
@@ -955,6 +1080,10 @@ setDelId(null);toast("✓ Invoice dihapus & stok dikembalikan!");
 // ─── STOK ─────────────────────────────────────────────────────────────────────
 function StokMod({data,setData,user,toast}){
 var C=useTheme();var[tab,setTab]=useState("rekap");var[ba,setBa]=useState(null);
+var[stokBln,setStokBln]=useState(toMonth());
+var[showInject,setShowInject]=useState(false);
+var[injectTgl,setInjectTgl]=useState(toDay());
+var[injectF,setInjectF]=useState({});
 function RekapTab(){
 var[initMode,setInitMode]=useState(false);var[asF,setAsF]=useState({"5.5 kg":"","12 kg":"","50 kg":""});
 return <div>
@@ -1153,7 +1282,7 @@ t.salesPengantar||t.salesNama||"-",
 }
 return <div>
 <STitle icon="📦" children="Stok & Mutasi"/>
-<div style={{display:"flex",gap:6,marginBottom:14,flexWrap:"wrap"}}>{[["rekap","📊 Rekap"],["mutasi","✏️ Mutasi Manual"],["opname","🔍 Opname"],["titip","🏪 Titip/Tarik"]].map(x=><button key={x[0]} onClick={()=>setTab(x[0])} style={{background:tab===x[0]?C.blu:C.nav,color:tab===x[0]?"white":C.wht,border:"1px solid "+(tab===x[0]?C.blt:C.bdr),borderRadius:8,padding:"7px 14px",fontWeight:700,fontSize:12,cursor:"pointer"}}>{x[1]}</button>)}</div>
+<div style={{display:"flex",gap:6,marginBottom:14,flexWrap:"wrap"}}>{[["rekap","📊 Rekap"],["mutasi","✏️ Mutasi Manual"],["opname","🔍 Opname"],["laporan","📋 Lap. Harian"],["titip","🏪 Titip/Tarik"]].map(x=><button key={x[0]} onClick={()=>setTab(x[0])} style={{background:tab===x[0]?C.blu:C.nav,color:tab===x[0]?"white":C.wht,border:"1px solid "+(tab===x[0]?C.blt:C.bdr),borderRadius:8,padding:"7px 14px",fontWeight:700,fontSize:12,cursor:"pointer"}}>{x[1]}</button>)}</div>
 {tab==="rekap"&&<RekapTab/>}
 {tab==="mutasi"&&<MutasiTab/>}
 {tab==="opname"&&<OpnameTab/>}
@@ -1802,6 +1931,79 @@ fR(r.totalTunai),
 }
 
 // ─── TUTUP BUKU v4 (harian + bulanan, PDF/PNG) ────────────────────────────────
+// ── TabelStokBulanan: tampil tabel per hari dalam sebulan ──
+function TabelStokBulanan({data,bulan,compact}){
+  var C=useTheme();
+  var rows=buildStokHarian(data,bulan);
+  var uk=["12 kg","5.5 kg","50 kg"];
+  var ukLabel=["12kg","5,5kg","50kg"];
+  var headerGroups=[
+    {label:"STOK AWAL",cols:["isi","TK"],color:"#1E40AF"},
+    {label:"TABUNG MASUK",cols:["isi","TK"],color:"#065F46"},
+    {label:"TABUNG KELUAR",cols:["isi","TK"],color:"#7F1D1D"},
+    {label:"STOK AKHIR",cols:["isi","TK","Titip","Total"],color:"#1E3A5F"},
+  ];
+  var thS=function(c,align){return{padding:"5px 6px",color:"white",fontWeight:700,fontSize:9,textAlign:align||"center",borderRight:"1px solid rgba(255,255,255,.15)",background:c,whiteSpace:"nowrap"};};
+  var tdS=function(color,bold){return{padding:"4px 6px",textAlign:"center",color:color||C.wht,fontWeight:bold?700:400,fontSize:11,borderRight:"1px solid "+C.bdr,borderBottom:"1px solid "+C.bdr,whiteSpace:"nowrap"};};
+
+  return <div style={{overflowX:"auto"}}>
+  <table style={{borderCollapse:"collapse",fontSize:11,width:"100%",minWidth:900}}>
+  <thead>
+  <tr>
+    <th rowSpan={3} style={{...thS("#0F172A"),padding:"6px 8px",fontSize:10,minWidth:28}}>No</th>
+    <th rowSpan={3} style={{...thS("#0F172A"),minWidth:90,textAlign:"left",padding:"6px 8px"}}>Hari/Tanggal</th>
+    {["STOK AWAL","TABUNG MASUK","TABUNG KELUAR"].map((g,gi)=><th key={g} colSpan={uk.length*2} style={{...thS(["#1E40AF","#065F46","#7F1D1D"][gi]),padding:"6px 4px",letterSpacing:.5}}>{g}</th>)}
+    <th colSpan={uk.length*4} style={{...thS("#1E3A5F"),padding:"6px 4px",letterSpacing:.5}}>STOK AKHIR</th>
+  </tr>
+  <tr>
+    {["STOK AWAL","TABUNG MASUK","TABUNG KELUAR"].map((g,gi)=>uk.map((s,si)=><th key={g+s} colSpan={2} style={{...thS(["#1E40AF","#065F46","#7F1D1D"][gi]),fontSize:9}}>{ukLabel[si]}</th>))}
+    {uk.map((s,si)=><th key={"akhir"+s} colSpan={4} style={{...thS("#1E3A5F"),fontSize:9}}>{ukLabel[si]}</th>)}
+  </tr>
+  <tr>
+    {["STOK AWAL","TABUNG MASUK","TABUNG KELUAR"].map((g,gi)=>uk.map(s=>["isi","TK"].map(c=><th key={g+s+c} style={{...thS(["#1E40AF","#065F46","#7F1D1D"][gi]),fontSize:8}}>{c}</th>)))}
+    {uk.map(s=>["isi","TK","Titip","Total"].map(c=><th key={"akhir"+s+c} style={{...thS("#1E3A5F"),fontSize:8,fontWeight:c==="Total"?900:700}}>{c}</th>))}
+  </tr>
+  </thead>
+  <tbody>
+  {rows.map((r,i)=>{
+    var isLibur=!r.adaTransaksi&&!r.inject;
+    var bg=i%2===0?C.nav:C.bg;
+    return <tr key={r.tgl} style={{background:isLibur?"rgba(100,100,100,.1)":bg}}>
+    <td style={tdS(C.gl2)}>{r.d}</td>
+    <td style={{...tdS(),textAlign:"left",padding:"4px 8px"}}>
+      <div style={{fontWeight:700,color:isLibur?C.gl2:C.wht,fontSize:11}}>{r.dayName}</div>
+      <div style={{fontSize:9,color:C.gl2}}>{fDs(r.tgl)}{r.inject?<span style={{color:"#F59E0B",marginLeft:4}}>★</span>:""}{isLibur?<span style={{color:C.gl2,marginLeft:4}}>—</span>:""}</div>
+    </td>
+    {/* STOK AWAL */}
+    {uk.map(s=>[
+      <td key={"ai"+s} style={tdS(C.blt)}>{r.awalIsi[s]}</td>,
+      <td key={"ak"+s} style={tdS(C.gl2)}>{r.awalTK[s]}</td>
+    ])}
+    {/* TABUNG MASUK */}
+    {uk.map(s=>[
+      <td key={"mi"+s} style={tdS(r.masukIsi[s]>0?C.glt:C.gl2,r.masukIsi[s]>0)}>{r.masukIsi[s]||"-"}</td>,
+      <td key={"mk"+s} style={tdS(r.masukTK[s]>0?"#F59E0B":C.gl2,r.masukTK[s]>0)}>{r.masukTK[s]||"-"}</td>
+    ])}
+    {/* TABUNG KELUAR */}
+    {uk.map(s=>[
+      <td key={"ki"+s} style={tdS(r.keluarIsi[s]>0?C.rlt:C.gl2,r.keluarIsi[s]>0)}>{r.keluarIsi[s]||"-"}</td>,
+      <td key={"kk"+s} style={tdS(r.keluarTK[s]!==0?"#F59E0B":C.gl2,r.keluarTK[s]!==0)}>{r.keluarTK[s]!==0?Math.abs(r.keluarTK[s]):"-"}</td>
+    ])}
+    {/* STOK AKHIR */}
+    {uk.map(s=>[
+      <td key={"eisi"+s} style={tdS(C.glt,true)}>{r.akhirIsi[s]}</td>,
+      <td key={"etk"+s} style={tdS(C.gl2)}>{r.akhirTK[s]}</td>,
+      <td key={"etitip"+s} style={tdS(C.blt)}>{r.titipSnap[s]}</td>,
+      <td key={"etot"+s} style={tdS(C.olt,true)}>{r.total[s]}</td>
+    ])}
+    </tr>;
+  })}
+  </tbody>
+  </table>
+  <div style={{marginTop:6,fontSize:10,color:C.gl2}}>★ = Inject manual stok awal &nbsp;|&nbsp; — = Tidak ada transaksi &nbsp;|&nbsp; TK = Tabung Kosong</div>
+  </div>;
+}
+
 function TabelStokHarian({data,tgl}){
 var C=useTheme();
 var prevTB=(data.tutupBuku||[]).filter(r=>r.tanggal&&r.tanggal<tgl).sort((a,b)=>b.tanggal.localeCompare(a.tanggal))[0];
@@ -2064,8 +2266,26 @@ return <div>
 
 {/* REKAP TABUNG */}
 <Card>
-<div style={{fontWeight:700,color:C.gl2,marginBottom:10,fontSize:13}}>📊 Mutasi Stok Hari Ini</div>
-<TabelStokHarian data={data} tgl={tgl}/>
+<div style={{fontWeight:700,color:C.gl2,marginBottom:10,fontSize:13}}>📊 Laporan Stok Harian</div>
+{(()=>{
+var bulanTgl=tgl.slice(0,7);
+var rowsTB=buildStokHarian(data,bulanTgl).filter(r=>r.tgl<=tgl).slice(-3);
+var uk=["12 kg","5.5 kg","50 kg"];var ukL=["12kg","5,5kg","50kg"];
+return <div style={{overflowX:"auto"}}>
+<table style={{borderCollapse:"collapse",width:"100%",fontSize:10}}>
+<thead><tr style={{background:C.nav}}>
+<th style={{padding:"5px 8px",color:C.gl2,textAlign:"left",borderBottom:"1px solid "+C.bdr}}>Hari/Tgl</th>
+{uk.map((s,i)=><th key={s} colSpan={4} style={{padding:"5px 6px",color:"white",textAlign:"center",borderBottom:"1px solid "+C.bdr,borderLeft:"2px solid "+C.bdr,background:"#1E3A5F",fontSize:9}}>{ukL[i]}: isi | TK | Titip | Total</th>)}
+</tr></thead>
+<tbody>
+{rowsTB.map((r,i)=><tr key={r.tgl} style={{background:r.tgl===tgl?C.nav:C.bg,borderBottom:"1px solid "+C.bdr}}>
+<td style={{padding:"4px 8px"}}><div style={{fontWeight:700,color:r.tgl===tgl?C.blt:C.gl2,fontSize:11}}>{r.dayName}</div><div style={{fontSize:9,color:C.gl2}}>{fDs(r.tgl)}</div></td>
+{uk.map(s=>[<td key={"i"+s} style={{padding:"4px 6px",textAlign:"center",color:C.glt,fontWeight:700,borderLeft:"2px solid "+C.bdr}}>{r.akhirIsi[s]}</td>,<td key={"k"+s} style={{padding:"4px 6px",textAlign:"center",color:C.gl2}}>{r.akhirTK[s]}</td>,<td key={"t"+s} style={{padding:"4px 6px",textAlign:"center",color:C.blt}}>{r.titipSnap[s]}</td>,<td key={"o"+s} style={{padding:"4px 6px",textAlign:"center",color:C.olt,fontWeight:700}}>{r.total[s]}</td>])}
+</tr>)}
+</tbody>
+</table>
+</div>;
+})()}
 </Card>
 <Card>
 <div style={{fontWeight:700,color:C.gl2,marginBottom:10,fontSize:13}}>📦 Rekap Tabung</div>
@@ -2377,7 +2597,7 @@ return <div>
 <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(160px,1fr))",gap:10,marginBottom:14}}>
 {[["Omzet",omzet,C.wht,"📈"],["Laba Kotor",margin,C.blt,"💹"],["Pengeluaran",pengeluaran,C.rlt,"💸"],["Laba Bersih",labaBersih,labaBersih>=0?C.glt:C.rlt,"🏆"],["Transaksi",penjFilt.length+" trx",C.gl2,"🧾"]].map(x=><SC key={x[0]} label={x[0]} value={typeof x[1]==="number"?fR(x[1]):x[1]} icon={x[3]} color={x[2]}/>)}
 </div>
-<div style={{display:"flex",gap:5,marginBottom:14,flexWrap:"wrap"}}>{[["ringkasan","📊 Ringkasan"],["grafik","📈 Grafik"],["pengeluaran","💸 Pengeluaran"],["sales","👤 Per Sales"],["kategori","🏷️ Per Kategori"],["produk","📦 Per Produk"],["pelanggan","👥 Per Pelanggan"],["matrix","📋 Sales×Kategori"],["detail","🔍 Detail"]].map(x=><button key={x[0]} onClick={()=>setTab(x[0])} style={{background:tab===x[0]?C.blu:C.nav,color:tab===x[0]?"white":C.wht,border:"1px solid "+(tab===x[0]?C.blt:C.bdr),borderRadius:8,padding:"6px 11px",fontWeight:700,fontSize:11,cursor:"pointer"}}>{x[1]}</button>)}</div>
+<div style={{display:"flex",gap:5,marginBottom:14,flexWrap:"wrap"}}>{[["ringkasan","📊 Ringkasan"],["grafik","📈 Grafik"],["stok","📋 Stok Harian"],["pengeluaran","💸 Pengeluaran"],["sales","👤 Per Sales"],["kategori","🏷️ Per Kategori"],["produk","📦 Per Produk"],["pelanggan","👥 Per Pelanggan"],["matrix","📋 Sales×Kategori"],["detail","🔍 Detail"]].map(x=><button key={x[0]} onClick={()=>setTab(x[0])} style={{background:tab===x[0]?C.blu:C.nav,color:tab===x[0]?"white":C.wht,border:"1px solid "+(tab===x[0]?C.blt:C.bdr),borderRadius:8,padding:"6px 11px",fontWeight:700,fontSize:11,cursor:"pointer"}}>{x[1]}</button>)}</div>
 {tab==="ringkasan"&&<>
 <Card><div style={{fontWeight:700,color:C.gl2,marginBottom:10,fontSize:13}}>💰 Komposisi Pembayaran</div><div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8}}>{[["Cash",cash,C.glt],["Transfer",tf,C.blt],["BON",bon,C.olt]].map(x=><div key={x[0]} style={{background:C.nav,borderRadius:8,padding:"10px 12px",border:"1px solid "+C.bdr,textAlign:"center"}}><div style={{fontSize:11,color:C.gl2}}>{x[0]}</div><div style={{fontSize:14,fontWeight:900,color:x[2]}}>{fR(x[1])}</div><div style={{fontSize:10,color:C.gl2,marginTop:2}}>{omzet>0?(x[1]/omzet*100).toFixed(1):0}%</div></div>)}</div></Card>
 
@@ -2389,6 +2609,12 @@ return <div>
 {tab==="matrix"&&<Card><div style={{fontWeight:700,color:C.gl2,marginBottom:10,fontSize:13}}>📋 Sales × Kategori</div><FilterTbl columns={skCols} data={skArr} empty="Tidak ada data"/></Card>}
 {tab==="detail"&&<Card><div style={{fontWeight:700,color:C.gl2,marginBottom:10,fontSize:13}}>🔍 Detail Penjualan ({penjFilt.length})</div><FilterTbl columns={detCols} data={detailRows} empty="Tidak ada data" maxRows={300}/></Card>}
 
+{tab==="stok"&&<div>
+<Card>
+<div style={{fontWeight:700,color:C.gl2,marginBottom:12,fontSize:13}}>📋 Laporan Stok Harian — {BULAN_ID[Number(bln.split("-")[1])-1]} {bln.split("-")[0]}</div>
+<TabelStokBulanan data={data} bulan={bln}/>
+</Card>
+</div>}
 {tab==="pengeluaran"&&<div>
 {/* Summary */}
 <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(150px,1fr))",gap:8,marginBottom:12}}>
