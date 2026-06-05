@@ -907,7 +907,25 @@ return <div>
 <SC label="Bon Aktif" value={bonAktif.length+" bon"} icon="📃" color={C.gl2}/>
 </div>
 <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(190px,1fr))",gap:12,marginBottom:14}}>
-{SIZES.map(s=>{var isi=(data.stock||{})[s]||0;var titip=getTitipTotal(data.titipList,s);var kosong=getKosong(data,s);var totalS=isi+kosong+titip;return <Card key={s} style={{marginBottom:0}}><div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}><div style={{fontWeight:700,color:C.gl2,fontSize:12}}>📦 LPG {s}</div><div style={{fontSize:13,fontWeight:900,color:C.olt}}>{totalS} tab</div></div><div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:4}}>{[["Tbg+Isi",isi,C.glt],["Titip",titip,C.blt],["Kosong",kosong,C.gl2]].map(x=><div key={x[0]} style={{background:C.nav,borderRadius:6,padding:"5px 4px",textAlign:"center",border:"1px solid "+C.bdr}}><div style={{fontSize:8,color:C.gl2}}>{x[0]}</div><div style={{fontSize:15,fontWeight:900,color:x[2]}}>{x[1]}</div></div>)}</div></Card>;})}
+{(()=>{
+var rowsLast=buildStokHarian(data,toMonth()).filter(r=>r.tgl<=td);
+var lastRow=rowsLast.length>0?rowsLast[rowsLast.length-1]:null;
+return <>{SIZES.map(s=>{
+var isi=lastRow?lastRow.akhirIsi[s]:((data.stock||{})[s]||0);
+var kosong=lastRow?lastRow.akhirTK[s]:getKosong(data,s);
+var titip=lastRow?lastRow.titipSnap[s]:getTitipTotal(data.titipList,s);
+var totalS=isi+kosong+titip;
+return <Card key={s} style={{marginBottom:0}}>
+<div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
+<div style={{fontWeight:700,color:C.gl2,fontSize:12}}>📦 LPG {s}</div>
+<div style={{fontSize:14,fontWeight:900,color:C.olt}}>{totalS} tab</div>
+</div>
+<div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:4}}>
+{[["Tbg+Isi",isi,C.glt],["Titip",titip,C.blt],["Kosong",kosong,C.gl2]].map(x=><div key={x[0]} style={{background:C.nav,borderRadius:6,padding:"5px 4px",textAlign:"center",border:"1px solid "+C.bdr}}><div style={{fontSize:8,color:C.gl2}}>{x[0]}</div><div style={{fontSize:15,fontWeight:900,color:x[2]}}>{x[1]}</div></div>)}
+</div>
+</Card>;
+})}</>;
+})()}
 </div>
 <Card style={{marginBottom:14}}>
 <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
