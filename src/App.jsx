@@ -318,28 +318,45 @@ function makeFileName(type,label1,label2,ext){
 }
 
 // Cetak PDF dengan saran nama file
-function doPrint(id,fileName){
+function doPrint(id){
 var e=document.getElementById("__pst");if(e)e.remove();
 var st=document.createElement("style");st.id="__pst";
 st.textContent=[
 "@media print{",
-"  *{visibility:hidden!important;margin:0!important;}",
-"  #"+id+",#"+id+" *{visibility:visible!important;}",
+"  @page{margin:12mm;size:A4;}",
+"  body>*:not(#"+id+"){display:none!important;}",
 "  #"+id+"{",
-"    position:fixed!important;inset:0!important;",
-"    padding:0!important;margin:0!important;",
-"    background:white!important;",
-"    z-index:99999!important;",
+"    display:block!important;",
+"    position:static!important;",
+"    width:100%!important;",
+"    max-width:100%!important;",
 "    overflow:visible!important;",
+"    background:white!important;",
+"    color:#111!important;",
 "    box-shadow:none!important;",
 "    border-radius:0!important;",
+"    padding:0!important;",
+"    margin:0!important;",
+"    inset:unset!important;",
+"    z-index:unset!important;",
 "  }",
-"  @page{margin:10mm;size:A4;}",
+"  #"+id+" *{",
+"    overflow:visible!important;",
+"    box-shadow:none!important;",
+"  }",
+"  #"+id+" table{",
+"    width:100%!important;",
+"    border-collapse:collapse!important;",
+"    page-break-inside:auto!important;",
+"  }",
+"  #"+id+" tr{page-break-inside:avoid!important;page-break-after:auto!important;}",
+"  #"+id+" thead{display:table-header-group!important;}",
+"  #"+id+" tfoot{display:table-footer-group!important;}",
 "}"
 ].join("");
 document.head.appendChild(st);
 window.print();
-setTimeout(()=>{var e=document.getElementById("__pst");if(e)e.remove();},2000);
+setTimeout(()=>{var e=document.getElementById("__pst");if(e)e.remove();},3000);
 }
 
 // Download PNG
