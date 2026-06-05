@@ -1103,29 +1103,67 @@ var[showInject,setShowInject]=useState(false);
 var[injectTgl,setInjectTgl]=useState(toDay());
 var[injectF,setInjectF]=useState({});
 function RekapTab(){
-var[initMode,setInitMode]=useState(false);var[asF,setAsF]=useState({"5.5 kg":"","12 kg":"","50 kg":""});
+var td2=toDay();
+var rowsRekap=buildStokHarian(data,toMonth()).filter(r=>r.tgl<=td2);
+var lastRow=rowsRekap.length>0?rowsRekap[rowsRekap.length-1]:null;
 return <div>
 <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(240px,1fr))",gap:12,marginBottom:14}}>
-{SIZES.map(s=>{var isi=(data.stock||{})[s]||0;var asset=(data.totalTabung||{})[s]||0;var titip=getTitipTotal(data.titipList,s);var kosong=getKosong(data,s);var pI=asset>0?Math.round(isi/asset*100):0;var pT=asset>0?Math.round(titip/asset*100):0;var pK=asset>0?Math.round(kosong/asset*100):0;return <Card key={s} style={{marginBottom:0}}><div style={{display:"flex",justifyContent:"space-between",marginBottom:10}}><div style={{fontWeight:800,color:C.wht,fontSize:15}}>📦 LPG {s}</div><div style={{textAlign:"right"}}><div style={{fontSize:10,color:C.gl2}}>Total Asset</div><div style={{fontSize:18,fontWeight:900,color:C.olt}}>{asset}</div></div></div><div style={{height:8,borderRadius:4,background:C.bdr,display:"flex",overflow:"hidden",marginBottom:10}}><div style={{width:pI+"%",background:C.glt}}/><div style={{width:pT+"%",background:C.blt}}/><div style={{width:pK+"%",background:C.gl2}}/></div><div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:6}}>{[["🟢 Isi",isi,C.glt],["🔵 Titip",titip,C.blt],["⚫ Kosong",kosong,C.gl2]].map(x=><div key={x[0]} style={{background:C.nav,borderRadius:8,padding:"7px 6px",textAlign:"center",border:"1px solid "+C.bdr}}><div style={{fontSize:9,color:C.gl2}}>{x[0]}</div><div style={{fontSize:20,fontWeight:900,color:x[2]}}>{x[1]}</div></div>)}</div></Card>;})}
+{SIZES.map(s=>{
+var isi=lastRow?lastRow.akhirIsi[s]:((data.stock||{})[s]||0);
+var kosong=lastRow?lastRow.akhirTK[s]:getKosong(data,s);
+var titip=lastRow?lastRow.titipSnap[s]:getTitipTotal(data.titipList,s);
+var totalS=isi+kosong+titip;
+return <Card key={s} style={{marginBottom:0}}>
+<div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+<div style={{fontWeight:800,color:C.wht,fontSize:14}}>📦 LPG {s}</div>
+<div style={{textAlign:"right"}}><div style={{fontSize:9,color:C.gl2}}>Total Tabung</div><div style={{fontSize:18,fontWeight:900,color:C.olt}}>{totalS}</div></div>
 </div>
-<Card><div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}><div style={{fontWeight:700,color:C.gl2,fontSize:13}}>🏭 Setup Total Asset</div><Btn sm color={initMode?"gray":"blue"} onClick={()=>setInitMode(!initMode)}>{initMode?"Batal":"⚙️ Set"}</Btn></div>
-{initMode&&<div><div style={{fontSize:11,color:C.gl2,marginBottom:8}}>Input stok fisik awal per ukuran:</div>
-<div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(150px,1fr))",gap:10}}>
+{totalS>0&&<div style={{height:6,borderRadius:3,background:C.bdr,display:"flex",overflow:"hidden",marginBottom:8}}>
+<div style={{width:(isi/totalS*100)+"%",background:C.glt}}/><div style={{width:(titip/totalS*100)+"%",background:C.blt}}/><div style={{width:(kosong/totalS*100)+"%",background:C.gl2}}/>
+</div>}
+<div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:5}}>
+{[["Tbg+Isi",isi,C.glt],["Titip",titip,C.blt],["Kosong",kosong,C.gl2]].map(x=><div key={x[0]} style={{background:C.nav,borderRadius:6,padding:"5px 4px",textAlign:"center",border:"1px solid "+C.bdr}}><div style={{fontSize:8,color:C.gl2}}>{x[0]}</div><div style={{fontSize:18,fontWeight:900,color:x[2]}}>{x[1]}</div></div>)}
+</div>
+</Card>;
+})}
+</div>
+<Card>
+<div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+<div style={{fontWeight:700,color:C.gl2,fontSize:13}}>📋 Laporan Stok Harian</div>
+<div style={{display:"flex",gap:8,alignItems:"center"}}>
+<Inp label="" type="month" value={stokBln} onChange={setStokBln} style={{marginBottom:0,maxWidth:160}}/>
+<Btn sm color="orange" onClick={()=>setShowInject(!showInject)}>{showInject?"✕ Tutup":"★ Inject Stok Awal"}</Btn>
+</div>
+</div>
+{showInject&&<div style={{background:C.nav,borderRadius:8,padding:12,border:"1px solid #F59E0B",marginBottom:12}}>
+<div style={{fontWeight:700,color:"#F59E0B",marginBottom:8,fontSize:12}}>★ Set Stok Awal Manual</div>
+<div style={{fontSize:11,color:C.gl2,marginBottom:8}}>Tentukan titik awal perhitungan. Sistem hitung otomatis hari berikutnya.</div>
+<div style={{display:"flex",gap:8,flexWrap:"wrap",alignItems:"flex-end",marginBottom:8}}>
+<Inp label="Tanggal" type="date" value={injectTgl} onChange={setInjectTgl} style={{maxWidth:160,marginBottom:0}}/>
 {SIZES.map(s=>[
-<Inp key={"isi_"+s} label={"Isi "+s} type="number" value={asF["isi_"+s]||""} placeholder={String((data.stock||{})[s]||0)} onChange={v=>setAsF(p=>({...p,["isi_"+s]:v}))}/>,
-<Inp key={"kos_"+s} label={"Kosong "+s} type="number" value={asF["kos_"+s]||""} placeholder={String(getKosong(data,s))} onChange={v=>setAsF(p=>({...p,["kos_"+s]:v}))}/>
+<Inp key={"ii"+s} label={"Isi "+s} type="number" value={injectF["isi_"+s]||""} onChange={v=>setInjectF(p=>({...p,["isi_"+s]:v}))} style={{maxWidth:90,marginBottom:0}}/>,
+<Inp key={"ik"+s} label={"TK "+s} type="number" value={injectF["tk_"+s]||""} onChange={v=>setInjectF(p=>({...p,["tk_"+s]:v}))} style={{maxWidth:90,marginBottom:0}}/>
 ])}
 </div>
-<Btn color="green" onClick={()=>{
-var ns={...(data.stock||{})};var nk={...(data.stokKosong||{})};
-SIZES.forEach(s=>{
-if(asF["isi_"+s]!=="")ns[s]=Number(asF["isi_"+s]);
-if(asF["kos_"+s]!=="")nk[s]=Number(asF["kos_"+s]);
-});
-var na={};SIZES.forEach(s=>{na[s]=(nk[s]||0)+getTitipTotal(data.titipList,s);});
-setData(d=>({...d,stock:ns,stokKosong:nk,totalTabung:na}));
-setInitMode(false);toast("✓ Stok awal disimpan!");
-}}>💾 Simpan Stok Awal</Btn></div>}
+<div style={{display:"flex",gap:8}}>
+<Btn color="orange" onClick={()=>{
+var rec={tanggal:injectTgl};
+SIZES.forEach(s=>{rec["isi_"+s]=Number(injectF["isi_"+s]||0);rec["tk_"+s]=Number(injectF["tk_"+s]||0);});
+var existing=(data.stokHarian||[]).filter(r=>r.tanggal!==injectTgl);
+setData(d=>({...d,stokHarian:[rec,...existing]}));
+setShowInject(false);setInjectF({});
+toast("✓ Stok awal "+fDs(injectTgl)+" disimpan!");
+}}>💾 Simpan</Btn>
+<Btn sm color="gray" onClick={()=>{setShowInject(false);setInjectF({});}}>Batal</Btn>
+</div>
+{(data.stokHarian||[]).length>0&&<div style={{marginTop:8}}>
+{(data.stokHarian||[]).sort((a,b)=>b.tanggal.localeCompare(a.tanggal)).map(r=><div key={r.tanggal} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"5px 8px",background:C.bg,borderRadius:6,marginBottom:3,fontSize:10}}>
+<span style={{color:"#F59E0B",fontWeight:700}}>★ {fDs(r.tanggal)} — {SIZES.map(s=>"isi "+s+":"+r["isi_"+s]).join(", ")}</span>
+<button onClick={()=>setData(d=>({...d,stokHarian:(d.stokHarian||[]).filter(x=>x.tanggal!==r.tanggal)}))} style={{background:C.rdk,border:"none",borderRadius:4,padding:"2px 7px",color:"white",cursor:"pointer",fontSize:10}}>✕</button>
+</div>)}
+</div>}
+</div>}
+<TabelStokBulanan data={data} bulan={stokBln}/>
 </Card>
 </div>;
 }
