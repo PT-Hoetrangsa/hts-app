@@ -1049,7 +1049,7 @@ return <div>
 <select value={it.ukuran} onChange={e=>setProduct(i,e.target.value,it.jenis)} style={{background:C.nav,border:"1px solid "+C.bdr,borderRadius:6,padding:"5px 4px",color:C.wht,fontSize:12,outline:"none"}}>{SIZES.map(s=><option key={s}>{s}</option>)}</select>
 <select value={it.jenis} onChange={e=>setProduct(i,it.ukuran,e.target.value)} style={{background:C.nav,border:"1px solid "+(it.jenis==="Tabung+Isi"?C.glt:C.bdr),borderRadius:6,padding:"5px 4px",color:C.wht,fontSize:12,outline:"none"}}>{JENIS.map(j=><option key={j}>{j}</option>)}</select>
 <input type="number" value={it.qty} placeholder="0" onChange={e=>setItem(i,"qty",e.target.value)} style={{background:C.nav,border:"1px solid "+C.bdr,borderRadius:6,padding:"5px 4px",color:C.wht,fontSize:12,outline:"none",width:"100%"}}/>
-<input type="number" value={it.price} onChange={e=>setItem(i,"price",e.target.value)} style={{background:C.nav,border:"1px solid "+C.bdr,borderRadius:6,padding:"5px 4px",color:C.wht,fontSize:12,outline:"none",width:"100%"}}/>
+<input type="number" value={it.price} step="1000" onChange={e=>setItem(i,"price",e.target.value)} style={{background:C.nav,border:"1px solid "+C.bdr,borderRadius:6,padding:"5px 4px",color:C.wht,fontSize:12,outline:"none",width:"100%"}}/>
 {!mob&&<span style={{color:C.glt,fontWeight:700,fontSize:12}}>{it.qty&&it.price?fR(Number(it.qty)*Number(it.price)):"-"}</span>}
 <button onClick={()=>setF(p=>({...p,items:p.items.filter((_,j)=>j!==i)}))} disabled={f.items.length<=1} style={{background:C.inHvE,border:"none",borderRadius:5,color:C.rlt,cursor:"pointer",fontSize:13,padding:"2px 5px",opacity:f.items.length<=1?0.3:1}}>✕</button>
 </div>)}
@@ -1178,14 +1178,27 @@ if(!f.qty||Number(f.qty)<=0)return;
 var qty=Number(f.qty);var s=f.ukuran;
 var ns={...(data.stock||{})};var nk={...(data.stokKosong||{})};var na={...(data.totalTabung||{})};
 var jDesc="";
-if(f.jenis==="return_isi"){ns[s]=(ns[s]||0)+qty;jDesc="↩️ Return (+Isi)";}
-else if(f.jenis==="pancung"){ns[s]=(ns[s]||0)+qty;jDesc="✂️ Pancung (+Isi)";}
-else if(f.jenis==="beli_tbg"){nk[s]=(nk[s]||0)+qty;na[s]=(na[s]||0)+qty;jDesc="🛒 Beli Tabung (+Tbg)";}
-else if(f.jenis==="rusak"){ns[s]=Math.max(0,(ns[s]||0)-qty);jDesc="💥 Rusak/Bocor (-Isi)";}
+if(f.jenis==="return_isi"){
+  ns[s]=(ns[s]||0)+qty;        // +isi
+  nk[s]=Math.max(0,(nk[s]||0)-qty); // -kosong
+  jDesc="↩️ Return (+Isi, -Kosong)";// total tetap
+}else if(f.jenis==="pancung"){
+  ns[s]=(ns[s]||0)+qty;        // +isi
+  nk[s]=Math.max(0,(nk[s]||0)-qty); // -kosong
+  jDesc="✂️ Pancung (+Isi, -Kosong)";// total tetap
+}else if(f.jenis==="beli_tbg"){
+  nk[s]=(nk[s]||0)+qty;        // +kosong
+  na[s]=(na[s]||0)+qty;        // total +qty
+  jDesc="🛒 Beli Tabung (+Kosong, +Total)";
+}else if(f.jenis==="rusak"){
+  ns[s]=Math.max(0,(ns[s]||0)-qty); // -isi
+  nk[s]=(nk[s]||0)+qty;        // +kosong
+  jDesc="💥 Rusak/Bocor (-Isi, +Kosong)";// total tetap
+}
 var log={id:uid(),tanggal:f.tanggal,ukuran:s,jenis:jDesc,qty,ket:f.ket,user:user?.nama||"",sumber:"Manual"};
 setData(d=>({...d,stock:ns,stokKosong:nk,totalTabung:na,stockLog:[log,...(d.stockLog||[])].slice(0,500)}));
 setF(p=>({...p,qty:"",ket:""}));
-toast("✓ Mutasi dicatat!");
+toast("✓ Mutasi dicatat! "+jDesc);
 }
 return <div><Card><div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(155px,1fr))",gap:10}}><Inp label="Tanggal" type="date" value={f.tanggal} onChange={v=>setF(p=>({...p,tanggal:v}))}/><Sel label="Ukuran" value={f.ukuran} onChange={v=>setF(p=>({...p,ukuran:v}))} opts={SIZES}/><Sel label="Jenis" value={f.jenis} onChange={v=>setF(p=>({...p,jenis:v}))} opts={[{v:"return_isi",l:"↩️ Return (+Isi)"},{v:"pancung",l:"✂️ Pancung (+Isi)"},{v:"beli_tbg",l:"🛒 Beli Tabung dr Konsumen (+Tbg)"},{v:"rusak",l:"💥 Rusak/Bocor (-Isi)"}]}/><Inp label="Qty" type="number" value={f.qty} onChange={v=>setF(p=>({...p,qty:v}))}/><Inp label="Ket" value={f.ket} onChange={v=>setF(p=>({...p,ket:v}))}/></div><Btn color="green" onClick={save} dis={!f.qty}>💾 Simpan Mutasi</Btn></Card><Card><div style={{fontWeight:700,color:C.gl2,marginBottom:10,fontSize:13}}>Log Mutasi</div><RTbl headers={["Tgl","Ukuran","Jenis","Qty","Ket","Aksi"]} rows={(data.stockLog||[]).slice(0,50).map(l=>[fDs(l.tanggal),l.ukuran,l.jenis,l.qty,l.ket||"-",<ActBtns onDel={()=>setDelId(l)}/>])}/></Card>{delId&&<ConfirmDel msg="Hapus log?" onCancel={()=>setDelId(null)} onConfirm={()=>{setData(d=>({...d,stockLog:(d.stockLog||[]).filter(x=>x.id!==delId.id)}));setDelId(null);}}/>}</div>;
 }
