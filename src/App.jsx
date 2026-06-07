@@ -319,40 +319,31 @@ function makeFileName(type,label1,label2,ext){
 
 // Cetak PDF dengan saran nama file
 function doPrint(id){
-var e=document.getElementById("__pst");if(e)e.remove();
-var st=document.createElement("style");st.id="__pst";
-st.textContent=[
-"@media print{",
-"  @page{margin:12mm;size:A4;}",
-"  body *{visibility:hidden!important;}",
-"  #"+id+",#"+id+" *{visibility:visible!important;}",
-"  #"+id+"{",
-"    position:fixed!important;",
-"    left:0!important;top:0!important;",
-"    width:100%!important;",
-"    height:auto!important;",
-"    overflow:visible!important;",
-"    background:white!important;",
-"    color:#111!important;",
-"    z-index:99999!important;",
-"    box-shadow:none!important;",
-"    border-radius:0!important;",
-"    padding:12mm!important;",
-"    margin:0!important;",
-"  }",
-"  #"+id+" table{",
-"    width:100%!important;",
-"    border-collapse:collapse!important;",
-"    page-break-inside:auto!important;",
-"  }",
-"  #"+id+" tr{page-break-inside:avoid!important;page-break-after:auto!important;}",
-"  #"+id+" thead{display:table-header-group!important;}",
-"  #"+id+" tfoot{display:table-footer-group!important;}",
-"}"
-].join("");
-document.head.appendChild(st);
-window.print();
-setTimeout(()=>{var e=document.getElementById("__pst");if(e)e.remove();},3000);
+var el=document.getElementById(id);
+if(!el){alert("Elemen tidak ditemukan: "+id);return;}
+var html=el.innerHTML;
+var pw=window.open("","_blank","width=900,height=700");
+if(!pw){alert("Popup diblokir browser. Izinkan popup untuk mencetak.");return;}
+pw.document.write(
+"<!DOCTYPE html><html><head><meta charset='utf-8'>"+
+"<title>Cetak Laporan</title>"+
+"<style>"+
+"*{box-sizing:border-box;margin:0;padding:0;}"+
+"body{font-family:'Plus Jakarta Sans',Arial,sans-serif;color:#111;background:white;padding:12mm;}"+
+"table{width:100%;border-collapse:collapse;margin-bottom:12px;}"+
+"th{background:#0a1f44;color:white;padding:6px 8px;font-size:10px;font-weight:700;text-align:center;border:1px solid #ccc;}"+
+"td{padding:5px 8px;font-size:11px;border:1px solid #ddd;vertical-align:top;}"+
+"tr{page-break-inside:avoid;}"+
+"thead{display:table-header-group;}"+
+"@page{margin:12mm;size:A4;}"+
+"@media print{body{padding:0;}}"+
+"</style></head><body>"+
+html+
+"</body></html>"
+);
+pw.document.close();
+pw.focus();
+setTimeout(function(){pw.print();},600);
 }
 
 // Download PNG
