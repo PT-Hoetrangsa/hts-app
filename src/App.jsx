@@ -202,14 +202,23 @@ function buildStokHarian(data,bulan){
     var masukIsi={};var masukTK={};
     SIZES.forEach(function(s){
       var doQty=doHari.filter(function(d_){return d_.ukuran===s;}).reduce(function(a,d_){return a+Number(d_.qty||0);},0);
-      var mutQty=mutasiMasuk.filter(function(l){return l.ukuran===s;}).reduce(function(a,l){return a+Number(l.qty||0);},0);
-      masukIsi[s]=doQty+mutQty;
-      masukTK[s]=doQty;// DO: tabung kosong keluar ke SPPBE (TK berkurang)
+      // Return/Pancung: +isi dari kosong (kosong berkurang seperti DO)
+      var retPancQty=mutasiMasuk.filter(function(l){return l.ukuran===s&&((l.jenis||"").includes("Return")||(l.jenis||"").includes("Pancung"));}).reduce(function(a,l){return a+Number(l.qty||0);},0);
+      // Mutasi masuk lain (tidak termasuk Return/Pancung)
+      var mutQtyLain=mutasiMasuk.filter(function(l){return l.ukuran===s&&!(l.jenis||"").includes("Return")&&!(l.jenis||"").includes("Pancung");}).reduce(function(a,l){return a+Number(l.qty||0);},0);
+      masukIsi[s]=doQty+retPancQty+mutQtyLain;
+      masukTK[s]=doQty+retPancQty;// DO dan Return/Pancung sama-sama kurangi kosong
     });
 
     // Tabung Keluar: Penjualan + Mutasi Manual rusak/hilang
     var penjHari=(data.penjualan||[]).filter(function(p){return p.tanggal===tgl;});
-    var mutasiKeluar=(data.stockLog||[]).filter(function(l){return l.tanggal===tgl&&l.sumber==="Manual"&&((l.jenis||"").includes("Rusak")||(l.jenis||"").includes("Hilang"));});
+    var mutasiKeluar=(data.stockLog||[]).filter(function(l){return l.tanggal===tgl&&l.sumber==="Manual"&&((l.jenis||"").includes("Rusak")||(l.jenis||"").includes("Isi Hilang")||(l.jenis||"").includes("Tbg+Isi Hilang"));});
+    // Tabung Kosong Hilang: -kosong -total
+    var mutasiTbgKosongHilang=(data.stockLog||[]).filter(function(l){return l.tanggal===tgl&&l.sumber==="Manual"&&(l.jenis||"").includes("Tbg Kosong Hilang");});
+    // Tbg+Isi Hilang: -isi -kosong -total
+    var mutasiTbgIsiHilang=(data.stockLog||[]).filter(function(l){return l.tanggal===tgl&&l.sumber==="Manual"&&(l.jenis||"").includes("Tbg+Isi Hilang");});
+    // Beli Tabung dari Konsumen: +kosong, +total
+    var mutasiBeli=(data.stockLog||[]).filter(function(l){return l.tanggal===tgl&&l.sumber==="Manual"&&(l.jenis||"").includes("Beli Tabung");});
 
     var keluarIsi={};var keluarTK={};
     SIZES.forEach(function(s){
@@ -223,9 +232,14 @@ function buildStokHarian(data,bulan){
         });
       });
       var rusakQty=mutasiKeluar.filter(function(l){return l.ukuran===s;}).reduce(function(a,l){return a+Number(l.qty||0);},0);
-      keluarIsi[s]=refillQty+tbgIsiQty+rusakQty;
-      // TK: refill +kosong kembali, tbg+isi -kosong keluar
-      keluarTK[s]=tbgIsiQty-refillQty;// positif = net berkurang, negatif = net bertambah
+      var beliQty=mutasiBeli.filter(function(l){return l.ukuran===s;}).reduce(function(a,l){return a+Number(l.qty||0);},0);
+      // keluarIsi: Refill + TbgIsi + Rusak (-isi)
+      var tbgKosongHilangQty=mutasiTbgKosongHilang.filter(function(l){return l.ukuran===s;}).reduce(function(a,l){return a+Number(l.qty||0);},0);
+      var tbgIsiHilangQty=mutasiTbgIsiHilang.filter(function(l){return l.ukuran===s;}).reduce(function(a,l){return a+Number(l.qty||0);},0);
+      // keluarIsi tambah tbgIsiHilang
+      keluarIsi[s]=refillQty+tbgIsiQty+rusakQty+tbgIsiHilangQty;
+      // keluarTK: tbgIsi(-kosong), refill(+kosong), rusak(+kosong), beli(+kosong), tbgKosongHilang(-kosong), tbgIsiHilang(-kosong)
+      keluarTK[s]=tbgIsiQty-refillQty-rusakQty-beliQty+tbgKosongHilangQty+tbgIsiHilangQty;
     });
 
     // Stok Akhir
@@ -1194,13 +1208,26 @@ if(f.jenis==="return_isi"){
   ns[s]=Math.max(0,(ns[s]||0)-qty); // -isi
   nk[s]=(nk[s]||0)+qty;        // +kosong
   jDesc="💥 Rusak/Bocor (-Isi, +Kosong)";// total tetap
+}else if(f.jenis==="tbg_kosong_hilang"){
+  nk[s]=Math.max(0,(nk[s]||0)-qty); // -kosong
+  na[s]=Math.max(0,(na[s]||0)-qty); // total -qty
+  jDesc="🕳️ Tbg Kosong Hilang (-Kosong, -Total)";
+}else if(f.jenis==="isi_hilang"){
+  ns[s]=Math.max(0,(ns[s]||0)-qty); // -isi
+  nk[s]=(nk[s]||0)+qty;        // +kosong (tabung masih ada)
+  jDesc="👻 Isi Hilang (-Isi, +Kosong)";// total tetap
+}else if(f.jenis==="tbgisi_hilang"){
+  ns[s]=Math.max(0,(ns[s]||0)-qty); // -isi
+  nk[s]=Math.max(0,(nk[s]||0)-qty); // -kosong
+  na[s]=Math.max(0,(na[s]||0)-qty); // total -qty
+  jDesc="💀 Tbg+Isi Hilang (-Isi, -Kosong, -Total)";
 }
 var log={id:uid(),tanggal:f.tanggal,ukuran:s,jenis:jDesc,qty,ket:f.ket,user:user?.nama||"",sumber:"Manual"};
 setData(d=>({...d,stock:ns,stokKosong:nk,totalTabung:na,stockLog:[log,...(d.stockLog||[])].slice(0,500)}));
 setF(p=>({...p,qty:"",ket:""}));
 toast("✓ Mutasi dicatat! "+jDesc);
 }
-return <div><Card><div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(155px,1fr))",gap:10}}><Inp label="Tanggal" type="date" value={f.tanggal} onChange={v=>setF(p=>({...p,tanggal:v}))}/><Sel label="Ukuran" value={f.ukuran} onChange={v=>setF(p=>({...p,ukuran:v}))} opts={SIZES}/><Sel label="Jenis" value={f.jenis} onChange={v=>setF(p=>({...p,jenis:v}))} opts={[{v:"return_isi",l:"↩️ Return (+Isi)"},{v:"pancung",l:"✂️ Pancung (+Isi)"},{v:"beli_tbg",l:"🛒 Beli Tabung dr Konsumen (+Tbg)"},{v:"rusak",l:"💥 Rusak/Bocor (-Isi)"}]}/><Inp label="Qty" type="number" value={f.qty} onChange={v=>setF(p=>({...p,qty:v}))}/><Inp label="Ket" value={f.ket} onChange={v=>setF(p=>({...p,ket:v}))}/></div><Btn color="green" onClick={save} dis={!f.qty}>💾 Simpan Mutasi</Btn></Card><Card><div style={{fontWeight:700,color:C.gl2,marginBottom:10,fontSize:13}}>Log Mutasi</div><RTbl headers={["Tgl","Ukuran","Jenis","Qty","Ket","Aksi"]} rows={(data.stockLog||[]).slice(0,50).map(l=>[fDs(l.tanggal),l.ukuran,l.jenis,l.qty,l.ket||"-",<ActBtns onDel={()=>setDelId(l)}/>])}/></Card>{delId&&<ConfirmDel msg="Hapus log?" onCancel={()=>setDelId(null)} onConfirm={()=>{setData(d=>({...d,stockLog:(d.stockLog||[]).filter(x=>x.id!==delId.id)}));setDelId(null);}}/>}</div>;
+return <div><Card><div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(155px,1fr))",gap:10}}><Inp label="Tanggal" type="date" value={f.tanggal} onChange={v=>setF(p=>({...p,tanggal:v}))}/><Sel label="Ukuran" value={f.ukuran} onChange={v=>setF(p=>({...p,ukuran:v}))} opts={SIZES}/><Sel label="Jenis" value={f.jenis} onChange={v=>setF(p=>({...p,jenis:v}))} opts={[{v:"return_isi",l:"↩️ Return (+Isi)"},{v:"pancung",l:"✂️ Pancung (+Isi)"},{v:"beli_tbg",l:"🛒 Beli Tabung dr Konsumen (+Tbg)"},{v:"rusak",l:"💥 Rusak/Bocor (-Isi)"},{v:"tbg_kosong_hilang",l:"🕳️ Tbg Kosong Hilang (-Kosong)"},{v:"isi_hilang",l:"👻 Isi Hilang (-Isi)"},{v:"tbgisi_hilang",l:"💀 Tbg+Isi Hilang (-Isi,-Kosong)"}]}/><Inp label="Qty" type="number" value={f.qty} onChange={v=>setF(p=>({...p,qty:v}))}/><Inp label="Ket" value={f.ket} onChange={v=>setF(p=>({...p,ket:v}))}/></div><Btn color="green" onClick={save} dis={!f.qty}>💾 Simpan Mutasi</Btn></Card><Card><div style={{fontWeight:700,color:C.gl2,marginBottom:10,fontSize:13}}>Log Mutasi</div><RTbl headers={["Tgl","Ukuran","Jenis","Qty","Ket","Aksi"]} rows={(data.stockLog||[]).slice(0,50).map(l=>[fDs(l.tanggal),l.ukuran,l.jenis,l.qty,l.ket||"-",<ActBtns onDel={()=>setDelId(l)}/>])}/></Card>{delId&&<ConfirmDel msg="Hapus log?" onCancel={()=>setDelId(null)} onConfirm={()=>{setData(d=>({...d,stockLog:(d.stockLog||[]).filter(x=>x.id!==delId.id)}));setDelId(null);}}/>}</div>;
 }
 function OpnameTab(){
 var C=useTheme();
