@@ -3332,18 +3332,18 @@ return <>
 <table style={{...PS.tbl,minWidth:700}}>
 <thead>
 <tr style={{background:"#0a1f44"}}>
-<th rowSpan={2} style={{...PS.th,textAlign:"left"}}>Sales</th>
-<th colSpan={2} style={PS.th}>5,5 kg</th>
-<th colSpan={2} style={PS.th}>12 kg</th>
-<th colSpan={2} style={PS.th}>50 kg</th>
-<th colSpan={3} style={PS.th}>Penjualan</th>
-<th colSpan={2} style={PS.th}>Bayar BON</th>
-<th rowSpan={2} style={PS.th}>Pemasukan Kas</th>
-<th rowSpan={2} style={PS.th}>Margin</th>
-<th rowSpan={2} style={PS.th}>Pengeluaran</th>
+<th rowSpan={2} style={{...PS.th,textAlign:"left",fontSize:8}}>Sales</th>
+<th colSpan={2} style={{...PS.th,fontSize:8}}>5,5 kg</th>
+<th colSpan={2} style={{...PS.th,fontSize:8}}>12 kg</th>
+<th colSpan={2} style={{...PS.th,fontSize:8}}>50 kg</th>
+<th colSpan={3} style={{...PS.th,fontSize:8}}>Penjualan</th>
+<th colSpan={2} style={{...PS.th,fontSize:8}}>Bayar BON</th>
+<th rowSpan={2} style={{...PS.th,fontSize:8}}>Pemasukan Kas</th>
+<th rowSpan={2} style={{...PS.th,fontSize:8}}>Margin</th>
+<th rowSpan={2} style={{...PS.th,fontSize:8}}>Pengeluaran</th>
 </tr>
 <tr style={{background:"#0a1f44"}}>
-{["Qty","Nominal","Qty","Nominal","Qty","Nominal","Cash","TF","BON*","Cash","TF"].map(h=><th key={h} style={{...PS.th,fontSize:9}}>{h}</th>)}
+{["Qty","Nominal","Qty","Nominal","Qty","Nominal","Cash","TF","BON*","Cash","TF"].map(h=><th key={h} style={{...PS.th,fontSize:7,padding:"3px 4px"}}>{h}</th>)}
 </tr>
 </thead>
 <tbody>
@@ -3362,21 +3362,21 @@ var bonTFS=bonBayarH.filter(b=>b.salesNama===sg.nama&&((b.metode||"").toLowerCas
 var pemasukanKasS=sgCashS+sgTFS+bonCashS+bonTFS;
 var penSales=(penPerSales[sg.nama]||0);
 return <tr key={i} style={{background:i%2===0?"white":"#f9f9f9"}}>
-<td style={{...PS.tdL,fontWeight:700}}>{sg.nama}</td>
-<td style={{...PS.td,textAlign:"center"}}>{q55s||"—"}</td>
-<td style={{...PS.td,textAlign:"right"}}>{nom55s?fR(nom55s):"—"}</td>
-<td style={{...PS.td,textAlign:"center"}}>{q12s||"—"}</td>
-<td style={{...PS.td,textAlign:"right"}}>{nom12s?fR(nom12s):"—"}</td>
-<td style={{...PS.td,textAlign:"center"}}>{q50s||"—"}</td>
-<td style={{...PS.td,textAlign:"right"}}>{nom50s?fR(nom50s):"—"}</td>
-<td style={{...PS.td,textAlign:"right"}}>{fR(sgCashS)}</td>
-<td style={{...PS.td,textAlign:"right"}}>{fR(sgTFS)}</td>
-<td style={{...PS.td,textAlign:"right",color:"#888"}}>{sgBonS?fR(sgBonS):"—"}</td>
-<td style={{...PS.td,textAlign:"right"}}>{bonCashS?fR(bonCashS):"—"}</td>
-<td style={{...PS.td,textAlign:"right"}}>{bonTFS?fR(bonTFS):"—"}</td>
-<td style={{...PS.td,textAlign:"right",fontWeight:700,color:"#0a1f44"}}>{fR(pemasukanKasS)}</td>
-<td style={{...PS.td,textAlign:"right",color:"#15803D",fontWeight:700}}>{fR(sg.margin)}</td>
-<td style={{...PS.td,textAlign:"right",color:"#DC2626"}}>{penSales?fR(penSales):"—"}</td>
+<td style={{...PS.tdL,fontWeight:700,fontSize:9,padding:"3px 5px"}}>{sg.nama}</td>
+<td style={{...PS.td,textAlign:"center",fontSize:9,padding:"3px 4px"}}>{q55s||"—"}</td>
+<td style={{...PS.td,textAlign:"right",fontSize:9,padding:"3px 4px"}}>{nom55s?fR(nom55s):"—"}</td>
+<td style={{...PS.td,textAlign:"center",fontSize:9,padding:"3px 4px"}}>{q12s||"—"}</td>
+<td style={{...PS.td,textAlign:"right",fontSize:9,padding:"3px 4px"}}>{nom12s?fR(nom12s):"—"}</td>
+<td style={{...PS.td,textAlign:"center",fontSize:9,padding:"3px 4px"}}>{q50s||"—"}</td>
+<td style={{...PS.td,textAlign:"right",fontSize:9,padding:"3px 4px"}}>{nom50s?fR(nom50s):"—"}</td>
+<td style={{...PS.td,textAlign:"right",fontSize:9,padding:"3px 4px"}}>{fR(sgCashS)}</td>
+<td style={{...PS.td,textAlign:"right",fontSize:9,padding:"3px 4px"}}>{fR(sgTFS)}</td>
+<td style={{...PS.td,textAlign:"right",color:"#888",fontSize:9,padding:"3px 4px"}}>{sgBonS?fR(sgBonS):"—"}</td>
+<td style={{...PS.td,textAlign:"right",fontSize:9,padding:"3px 4px"}}>{bonCashS?fR(bonCashS):"—"}</td>
+<td style={{...PS.td,textAlign:"right",fontSize:9,padding:"3px 4px"}}>{bonTFS?fR(bonTFS):"—"}</td>
+<td style={{...PS.td,textAlign:"right",fontWeight:700,color:"#0a1f44",fontSize:9,padding:"3px 4px"}}>{fR(pemasukanKasS)}</td>
+<td style={{...PS.td,textAlign:"right",color:"#15803D",fontWeight:700,fontSize:9,padding:"3px 4px"}}>{fR(sg.margin)}</td>
+<td style={{...PS.td,textAlign:"right",color:"#DC2626",fontSize:9,padding:"3px 4px"}}>{penSales?fR(penSales):"—"}</td>
 </tr>;})}
 {(()=>{
 var tq55=Object.values(salesGroups).reduce((a,sg)=>a+sg.items.reduce((b,p)=>b+(p.items||[]).filter(it=>it.ukuran==="5.5 kg").reduce((c,it)=>c+Number(it.qty||0),0),0),0);
@@ -3389,21 +3389,21 @@ var bonCashTotal=bonBayarH.filter(b=>(b.metode||"cash").toLowerCase()==="cash").
 var bonTFTotal=bonBayarH.filter(b=>(b.metode||"").toLowerCase()==="transfer"||(b.metode||"").toLowerCase()==="tf").reduce((a,b)=>a+Number(b.jumlah||b.nominal||0),0);
 var totalPemasukan=tCash+tTF+bonCashTotal+bonTFTotal;
 return <tr style={{background:"#0a1f44",color:"white",fontWeight:700}}>
-<td style={{...PS.tdL,color:"white"}}>TOTAL</td>
-<td style={{...PS.td,textAlign:"center",color:"white"}}>{tq55||"—"}</td>
-<td style={{...PS.td,color:"white"}}>—</td>
-<td style={{...PS.td,textAlign:"center",color:"white"}}>{tq12||"—"}</td>
-<td style={{...PS.td,color:"white"}}>—</td>
-<td style={{...PS.td,textAlign:"center",color:"white"}}>{tq50||"—"}</td>
-<td style={{...PS.td,color:"white"}}>—</td>
-<td style={{...PS.td,textAlign:"right",color:"white"}}>{fR(tCash)}</td>
-<td style={{...PS.td,textAlign:"right",color:"white"}}>{fR(tTF)}</td>
-<td style={{...PS.td,textAlign:"right",color:"#aaa"}}>{tBonPenj?fR(tBonPenj):"—"}</td>
-<td style={{...PS.td,textAlign:"right",color:"white"}}>{fR(bonCashTotal)}</td>
-<td style={{...PS.td,textAlign:"right",color:"white"}}>{fR(bonTFTotal)}</td>
-<td style={{...PS.td,textAlign:"right",color:"#86EFAC",fontSize:12}}>{fR(totalPemasukan)}</td>
-<td style={{...PS.td,textAlign:"right",color:"#86EFAC"}}>{fR(totalMarginH)}</td>
-<td style={{...PS.td,textAlign:"right",color:"#FCA5A5"}}>{fR(totalPenH)}</td>
+<td style={{...PS.tdL,color:"white",fontSize:9,padding:"4px 5px"}}>TOTAL</td>
+<td style={{...PS.td,textAlign:"center",color:"white",fontSize:9,padding:"4px"}}>{tq55||"—"}</td>
+<td style={{...PS.td,color:"white",fontSize:9,padding:"4px"}}>—</td>
+<td style={{...PS.td,textAlign:"center",color:"white",fontSize:9,padding:"4px"}}>{tq12||"—"}</td>
+<td style={{...PS.td,color:"white",fontSize:9,padding:"4px"}}>—</td>
+<td style={{...PS.td,textAlign:"center",color:"white",fontSize:9,padding:"4px"}}>{tq50||"—"}</td>
+<td style={{...PS.td,color:"white",fontSize:9,padding:"4px"}}>—</td>
+<td style={{...PS.td,textAlign:"right",color:"white",fontSize:9,padding:"4px"}}>{fR(tCash)}</td>
+<td style={{...PS.td,textAlign:"right",color:"white",fontSize:9,padding:"4px"}}>{fR(tTF)}</td>
+<td style={{...PS.td,textAlign:"right",color:"#aaa",fontSize:9,padding:"4px"}}>{tBonPenj?fR(tBonPenj):"—"}</td>
+<td style={{...PS.td,textAlign:"right",color:"white",fontSize:9,padding:"4px"}}>{fR(bonCashTotal)}</td>
+<td style={{...PS.td,textAlign:"right",color:"white",fontSize:9,padding:"4px"}}>{fR(bonTFTotal)}</td>
+<td style={{...PS.td,textAlign:"right",color:"#86EFAC",fontSize:10,padding:"4px",fontWeight:700}}>{fR(totalPemasukan)}</td>
+<td style={{...PS.td,textAlign:"right",color:"#86EFAC",fontSize:9,padding:"4px"}}>{fR(totalMarginH)}</td>
+<td style={{...PS.td,textAlign:"right",color:"#FCA5A5",fontSize:9,padding:"4px"}}>{fR(totalPenH)}</td>
 </tr>;})()} 
 </tbody>
 </table>
@@ -3832,7 +3832,7 @@ return <ThemeCtx.Provider value={C}>
 <div style={{display:"flex",gap:5,marginBottom:14,overflowX:"auto",paddingBottom:4}}>
 {tabs.map(t=><button key={t.id} onClick={()=>setTab(t.id)} style={{background:curTab?.id===t.id?C.blu:C.card,color:curTab?.id===t.id?"#FFF":C.gl2,border:"1px solid "+(curTab?.id===t.id?C.blt:C.bdr),borderRadius:8,padding:mobile?"8px 10px":"6px 13px",fontSize:mobile?11:12,fontWeight:curTab?.id===t.id?700:400,cursor:"pointer",whiteSpace:"nowrap",flexShrink:0}}>{t.icon}{!mobile&&" "+t.label}</button>)}
 </div>
-<div style={{maxWidth:1400,margin:"0 auto"}}>{renderContent()}</div>
+<div style={{maxWidth:980,margin:"0 auto"}}>{renderContent()}</div>
 </div>
 </div>
 {inv&&<InvoiceView inv={inv} company={data.company} onClose={()=>setInv(null)}/>}
