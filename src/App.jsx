@@ -3731,6 +3731,8 @@ var[bankSetor,setBankSetor]=useState("BSI");
 var[penyetor,setPenyetor]=useState("Muhammad Haekal");
 var[pecahInput,setPecahInput]=useState(()=>{var o={};DENOMS.forEach(d=>{o[d]="";});return o;});
 var[showSlip,setShowSlip]=useState(false);
+var[editSetor,setEditSetor]=useState(null);
+var[editSetorF,setEditSetorF]=useState(null);
 
 // ── Kalkulasi saldo bank ──
 function getMutasiBank(bank){
@@ -3895,15 +3897,14 @@ return <div key={d2} onClick={()=>{if(!canClick)return;setTglPilih(prev=>prev.in
 </div>
 </Card>
 
-{tglPilih.length>0&&<>
-{/* Tabel 1: Rincian per tgl */}
+{/* Tabel 1: Rincian per tgl - selalu tampil Opsi A */}
 <Card>
 <div style={{fontWeight:700,color:C.gl2,marginBottom:8,fontSize:13}}>📋 Tabel 1 — Rincian Pecahan per Tanggal (dari Tutup Buku)</div>
 <div style={{overflowX:"auto"}}>
 <table style={{width:"100%",borderCollapse:"collapse",fontSize:11}}>
 <thead><tr style={{background:C.nav}}>
 <th style={{padding:"6px 10px",color:C.gl2,textAlign:"left",border:"1px solid "+C.bdr,fontSize:10}}>Pecahan</th>
-{tglPilih.sort().map(tgl=><th key={tgl} style={{padding:"6px 8px",color:C.blt,textAlign:"center",border:"1px solid "+C.bdr,fontSize:10}}>{fDs(tgl)}</th>)}
+{tglPilih.length>0?tglPilih.sort().map(tgl=><th key={tgl} style={{padding:"6px 8px",color:C.blt,textAlign:"center",border:"1px solid "+C.bdr,fontSize:10}}>{fDs(tgl)}</th>):<th style={{padding:"6px 8px",color:C.gl2,textAlign:"center",border:"1px solid "+C.bdr,fontSize:10,fontStyle:"italic"}}>(pilih tanggal)</th>}
 <th style={{padding:"6px 10px",color:C.olt,textAlign:"center",border:"1px solid "+C.bdr,fontSize:10,fontWeight:700}}>TOTAL</th>
 </tr></thead>
 <tbody>
@@ -3911,25 +3912,28 @@ return <div key={d2} onClick={()=>{if(!canClick)return;setTglPilih(prev=>prev.in
 var totD=tglPilih.reduce((a,tgl)=>a+Number((hariData[tgl]?.pecah||{})[d]||0),0);
 return <tr key={d} style={{borderBottom:"1px solid "+C.bdr}}>
 <td style={{padding:"5px 10px",color:C.wht,fontWeight:600,border:"1px solid "+C.bdr}}>{fR(d)}</td>
-{tglPilih.sort().map(tgl=>{var v=Number((hariData[tgl]?.pecah||{})[d]||0);return <td key={tgl} style={{padding:"5px 8px",textAlign:"center",color:v>0?C.wht:C.gl2,border:"1px solid "+C.bdr}}>{v||"—"}</td>;})}
+{tglPilih.length>0?tglPilih.sort().map(tgl=>{var v=Number((hariData[tgl]?.pecah||{})[d]||0);return <td key={tgl} style={{padding:"5px 8px",textAlign:"center",color:v>0?C.wht:C.gl2,border:"1px solid "+C.bdr}}>{v||"—"}</td>;}):
+<td style={{padding:"5px 8px",textAlign:"center",color:C.gl2,border:"1px solid "+C.bdr}}>—</td>}
 <td style={{padding:"5px 10px",textAlign:"center",fontWeight:700,color:totD>0?C.olt:C.gl2,border:"1px solid "+C.bdr}}>{totD||"—"}</td>
 </tr>;})}
 <tr style={{background:C.nav,borderTop:"2px solid "+C.bdr,fontWeight:700}}>
 <td style={{padding:"6px 10px",color:C.wht,border:"1px solid "+C.bdr}}>TOTAL</td>
-{tglPilih.sort().map(tgl=><td key={tgl} style={{padding:"6px 8px",textAlign:"center",color:C.glt,border:"1px solid "+C.bdr}}>{fR(hariData[tgl]?.wajibSetor||0)}</td>)}
-<td style={{padding:"6px 10px",textAlign:"center",fontWeight:900,color:C.glt,fontSize:14,border:"1px solid "+C.bdr}}>{fR(totalPilih)}</td>
+{tglPilih.length>0?tglPilih.sort().map(tgl=><td key={tgl} style={{padding:"6px 8px",textAlign:"center",color:C.glt,border:"1px solid "+C.bdr}}>{fR(hariData[tgl]?.wajibSetor||0)}</td>):
+<td style={{padding:"6px 8px",textAlign:"center",color:C.gl2,border:"1px solid "+C.bdr}}>—</td>}
+<td style={{padding:"6px 10px",textAlign:"center",fontWeight:900,color:tglPilih.length>0?C.glt:C.gl2,fontSize:14,border:"1px solid "+C.bdr}}>{tglPilih.length>0?fR(totalPilih):"—"}</td>
 </tr>
 </tbody>
 </table>
 </div>
 </Card>
 
-{/* Tabel 2: Input manual */}
+{/* Tabel 2: selalu tampil */}
 <Card>
 <div style={{fontWeight:700,color:C.gl2,marginBottom:8,fontSize:13}}>✏️ Tabel 2 — Input Real Pecahan (bisa diedit)</div>
+{tglPilih.length===0&&<div style={{fontSize:11,color:C.gl2,marginBottom:8,fontStyle:"italic"}}>Pilih tanggal di kalender → Tabel 1 akan muncul dan Tabel 2 terisi otomatis.</div>}
 <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16}}>
 <div>
-<div style={{fontSize:11,color:C.gl2,marginBottom:8}}>Terisi dari Tabel 1 · edit sesuai fisik yang ada:</div>
+<div style={{fontSize:11,color:C.gl2,marginBottom:8}}>{tglPilih.length>0?"Terisi dari Tabel 1 · edit sesuai fisik yang ada:":"Input manual pecahan:"}</div>
 <table style={{width:"100%",borderCollapse:"collapse",fontSize:11}}>
 <thead><tr style={{background:C.nav}}>
 {["Pecahan","T1 (sistem)","T2 (real)","Selisih"].map(h=><th key={h} style={{padding:"5px 8px",color:C.gl2,textAlign:h==="Pecahan"?"left":"center",border:"1px solid "+C.bdr,fontSize:10}}>{h}</th>)}
@@ -3945,38 +3949,53 @@ return <tr key={d} style={{borderBottom:"1px solid "+C.bdr}}>
 <td style={{padding:"4px 6px",border:"1px solid "+C.bdr}}>
 <input type="number" value={pecahInput[d]} placeholder={String(sys||0)} onChange={e=>setPecahInput(u=>({...u,[d]:e.target.value}))} style={{background:C.nav,border:"none",borderRadius:4,padding:"3px 6px",color:C.wht,fontSize:11,outline:"none",width:"100%",textAlign:"center"}}/>
 </td>
-<td style={{padding:"4px 8px",textAlign:"center",color:sel>0?C.glt:sel<0?C.rlt:C.gl2,fontWeight:sel!==0?700:400,border:"1px solid "+C.bdr}}>{sel>0?"+"+sel:sel||"—"}</td>
+<td style={{padding:"4px 8px",textAlign:"center",color:sel>0?C.glt:sel<0?C.rlt:C.gl2,fontWeight:sel!==0?700:400,border:"1px solid "+C.bdr}}>{tglPilih.length>0?(sel>0?"+"+sel:sel||"—"):"—"}</td>
 </tr>;})}
+<tr style={{background:C.nav,borderTop:"2px solid "+C.bdr,fontWeight:700}}>
+<td colSpan={2} style={{padding:"6px 8px",color:C.wht,border:"1px solid "+C.bdr}}>Total T2 (real)</td>
+<td style={{padding:"6px 8px",textAlign:"center",color:C.glt,fontWeight:900,fontSize:13,border:"1px solid "+C.bdr}}>{totalFisik>0?fR(totalFisik):"—"}</td>
+<td style={{padding:"6px 8px",textAlign:"center",color:Math.abs(selisihPecah)<1000&&totalFisik>0?C.glt:C.rlt,fontWeight:700,border:"1px solid "+C.bdr}}>{tglPilih.length>0&&totalFisik>0?(selisihPecah>=0?"+":"")+fR(selisihPecah):"—"}</td>
+</tr>
 </tbody>
 </table>
 </div>
 <div>
 <div style={{background:C.nav,borderRadius:8,padding:14,border:"1px solid "+C.bdr,marginBottom:8}}>
 <div style={{fontSize:11,color:C.gl2,marginBottom:4}}>Total dari Tabel 1 (sistem)</div>
-<div style={{fontSize:16,fontWeight:700,color:C.blt,marginBottom:10}}>{fR(totalPilih)}</div>
+<div style={{fontSize:16,fontWeight:700,color:C.blt,marginBottom:10}}>{tglPilih.length>0?fR(totalPilih):"—"}</div>
 <div style={{fontSize:11,color:C.gl2,marginBottom:4}}>Total dari Tabel 2 (real)</div>
-<div style={{fontSize:16,fontWeight:700,color:C.glt,marginBottom:10}}>{fR(totalFisik)}</div>
+<div style={{fontSize:16,fontWeight:700,color:C.glt,marginBottom:10}}>{totalFisik>0?fR(totalFisik):"—"}</div>
 <div style={{height:1,background:C.bdr,marginBottom:10}}/>
 <div style={{fontSize:11,color:Math.abs(selisihPecah)<1000?C.glt:C.olt,fontWeight:700,marginBottom:4}}>Selisih T1 vs T2</div>
-<div style={{fontSize:18,fontWeight:900,color:Math.abs(selisihPecah)<1000?C.glt:C.rlt}}>{selisihPecah>=0?"+":""}{fR(selisihPecah)}</div>
+<div style={{fontSize:18,fontWeight:900,color:Math.abs(selisihPecah)<1000&&tglPilih.length>0?C.glt:C.rlt}}>{tglPilih.length>0&&totalFisik>0?(selisihPecah>=0?"+":"")+fR(selisihPecah):"—"}</div>
 </div>
 <div style={{display:"flex",flexDirection:"column",gap:8}}>
 <Sel label="Setor ke Bank" value={bankSetor} onChange={setBankSetor} opts={[{v:"BSI",l:"BSI — Bank Syariah Indonesia"},{v:"BCA",l:"BCA"}]}/>
 <Inp label="Penyetor" value={penyetor} onChange={setPenyetor}/>
-<Btn color="green" onClick={konfirmasiSetor}>✓ Konfirmasi Setoran {fR(totalPilih)} → {bankSetor}</Btn>
+<Btn color="green" onClick={konfirmasiSetor} dis={tglPilih.length===0}>✓ Konfirmasi Setoran {tglPilih.length>0?fR(totalPilih):"—"} → {bankSetor}</Btn>
 </div>
 </div>
 </div>
 </Card>
-</>}
 
 {/* Riwayat setoran bank */}
-{(data.setoranBank||[]).length>0&&<Card>
+<Card>
 <div style={{fontWeight:700,color:C.gl2,marginBottom:8,fontSize:13}}>📋 Riwayat Setoran Bank</div>
-<RTbl headers={["Tgl Setor","Bank","Nominal","Penyetor","Tgl Diambil"]} rows={(data.setoranBank||[]).slice(0,20).map(r=>[
-fDs(r.tanggal),<Bdg color="blue">{r.bank}</Bdg>,<b style={{color:C.glt}}>{fR(r.nominal)}</b>,r.penyetor,r.tglList?.map(t=>fDs(t)).join(", ")
-])}/>
-</Card>}
+{(data.setoranBank||[]).length===0?<div style={{color:C.gl2,fontSize:12,fontStyle:"italic"}}>Belum ada setoran</div>:
+<div>
+{(data.setoranBank||[]).slice(0,20).map((r,ri)=><div key={r.id||ri} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 12px",background:ri%2===0?C.nav:C.bg,borderRadius:6,marginBottom:4,border:"1px solid "+C.bdr}}>
+<div>
+<div style={{fontSize:12,fontWeight:700,color:C.wht}}>{fDs(r.tanggal)} — <Bdg color="blue">{r.bank}</Bdg> — <b style={{color:C.glt}}>{fR(r.nominal)}</b></div>
+<div style={{fontSize:10,color:C.gl2,marginTop:2}}>Penyetor: {r.penyetor} · Tgl: {r.tglList?.map(t=>fDs(t)).join(", ")}</div>
+</div>
+<div style={{display:"flex",gap:5}}>
+<button onClick={()=>{setEditSetor(r);setShowSlip(true);}} style={{background:C.nav,border:"1px solid "+C.blt,borderRadius:6,padding:"4px 8px",color:C.blt,cursor:"pointer",fontSize:11,fontWeight:700}}>👁️ View</button>
+<button onClick={()=>{setEditSetor(r);setEditSetorF({...r});}} style={{background:"#78350F",border:"1px solid #F59E0B",borderRadius:6,padding:"4px 8px",color:"#FCD34D",cursor:"pointer",fontSize:11,fontWeight:700}}>✏️ Edit</button>
+<button onClick={()=>{setEditSetor(r);setShowSlip(true);setTimeout(()=>doPrint("_slip_setor"),400);}} style={{background:C.nav,border:"1px solid "+C.gl2,borderRadius:6,padding:"4px 8px",color:C.gl2,cursor:"pointer",fontSize:11,fontWeight:700}}>🖨️ Cetak</button>
+</div>
+</div>)}
+</div>}
+</Card>
 </div>}
 
 {/* ── TAB SETUP SALDO AWAL ── */}
@@ -4000,9 +4019,45 @@ toast("✓ Saldo awal "+bank+" disimpan!");
 </Card>;})}
 </div>}
 
+{/* ── MODAL EDIT SETORAN ── */}
+{editSetor&&!showSlip&&<div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.7)",zIndex:999,display:"flex",alignItems:"center",justifyContent:"center",padding:16}}>
+<div style={{background:C.card,borderRadius:12,width:"100%",maxWidth:500,padding:20,border:"1px solid "+C.bdr}}>
+<div style={{fontWeight:700,color:C.wht,marginBottom:14,fontSize:14}}>✏️ Edit Setoran — {fDs(editSetor.tanggal)}</div>
+{(()=>{
+var ef=editSetorF||editSetor;
+var setEf=setEditSetorF;
+return <div>
+<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:10}}>
+<Inp label="Tanggal Setor" type="date" value={ef.tanggal||""} onChange={v=>setEf({...ef,tanggal:v})}/>
+<Sel label="Bank" value={ef.bank||"BSI"} onChange={v=>setEf({...ef,bank:v})} opts={[{v:"BSI",l:"BSI"},{v:"BCA",l:"BCA"}]}/>
+<Inp label="Nominal (Rp)" type="number" value={String(ef.nominal||"")} onChange={v=>setEf({...ef,nominal:Number(v)})}/>
+<Inp label="Penyetor" value={ef.penyetor||""} onChange={v=>setEf({...ef,penyetor:v})}/>
+</div>
+<div style={{fontSize:11,fontWeight:700,color:C.gl2,marginBottom:6}}>Pecahan Real (Tabel 2):</div>
+<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6,marginBottom:12}}>
+{DENOMS.map(d=><div key={d} style={{display:"flex",alignItems:"center",gap:6,background:C.nav,borderRadius:6,padding:"4px 8px",border:"1px solid "+C.bdr}}>
+<span style={{fontSize:11,color:C.gl2,minWidth:70}}>{fR(d)}</span>
+<input type="number" value={(ef.pecahReal||ef.pecah||{})[d]||""} placeholder="0" onChange={e=>{var pr={...(ef.pecahReal||ef.pecah||{})};pr[d]=Number(e.target.value)||0;setEf({...ef,pecahReal:pr});}} style={{background:"transparent",border:"none",color:C.wht,fontSize:11,outline:"none",width:60,textAlign:"center"}}/>
+</div>)}
+</div>
+<div style={{display:"flex",gap:8,justifyContent:"flex-end"}}>
+<button onClick={()=>{setEditSetor(null);setEditSetorF(null);}} style={{background:C.nav,border:"1px solid "+C.bdr,borderRadius:8,padding:"8px 14px",color:C.gl2,cursor:"pointer",fontWeight:700,fontSize:12}}>Batal</button>
+<button onClick={()=>{
+var updated=(data.setoranBank||[]).map(x=>x.id===editSetor.id?{...editSetor,...ef,id:editSetor.id}:x);
+setData(d=>({...d,setoranBank:updated}));
+setEditSetor(null);setEditSetorF(null);
+toast("✓ Setoran diperbarui!");
+}} style={{background:C.glt,border:"none",borderRadius:8,padding:"8px 14px",color:"white",cursor:"pointer",fontWeight:700,fontSize:12}}>💾 Simpan</button>
+<button onClick={()=>setShowSlip(true)} style={{background:C.blt,border:"none",borderRadius:8,padding:"8px 14px",color:"white",cursor:"pointer",fontWeight:700,fontSize:12}}>🖨️ Cetak Slip</button>
+</div>
+</div>;
+})()}
+</div>
+</div>}
+
 {/* ── MODAL SLIP SETORAN ── */}
-{showSlip&&(data.setoranBank||[]).length>0&&(()=>{
-var last=(data.setoranBank||[])[0];
+{showSlip&&(editSetor||(data.setoranBank||[]).length>0)&&(()=>{
+var last=editSetor||(data.setoranBank||[])[0];
 var tglSetor=new Date(last.tanggal+"T00:00:00");
 var hariLabel=["Minggu","Senin","Selasa","Rabu","Kamis","Jumat","Sabtu"][tglSetor.getDay()];
 var tglLabel=tglSetor.toLocaleDateString("id-ID",{day:"2-digit",month:"long",year:"numeric"});
