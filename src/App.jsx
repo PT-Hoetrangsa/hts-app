@@ -990,6 +990,7 @@ var canSelf=PENJUALAN_ROLES.includes(user?.role)&&!["owner","admin","akuntan"].i
 var[f,setF]=useState({tanggal:toDay(),salesId:canSelf?user.id:"",konsumen:"",konsumenId:"",items:[{...blk}],bayar:"cash",bank:"BSI",deadline:"",ket:""});
 var[delId,setDelId]=useState(null);
 var[barFilter,setBarFilter]=useState({from:"",to:"",salesId:"",konsumen:"",bayar:""});
+var[tglLap,setTglLap]=useState(toDay());
 var salesEmp=sortEmp((data.employees||[]).filter(e=>e.aktif&&PENJUALAN_ROLES.includes(e.role)));
 var valid=f.items.filter(it=>Number(it.qty)>0&&Number(it.price)>0);
 var total=iTotal(valid);var margin=calcMargin(valid,data,f.tanggal);
@@ -1082,6 +1083,80 @@ return <div>
 </div>
 </Card>
 <Card>
+<div style={{fontWeight:700,color:C.gl2,marginBottom:10,fontSize:13}}>📊 Laporan Harian Penjualan</div>
+{(()=>{
+var penjLap=(data.penjualan||[]).filter(p=>p.tanggal===tglLap);
+var totalOmzetLap=penjLap.reduce((a,p)=>a+(p.total||0),0);
+var totalMarginLap=penjLap.reduce((a,p)=>a+(p.margin||0),0);
+// Kelompok per sales
+var sgMap={};
+penjLap.forEach(p=>{
+var empP=(data.employees||[]).find(e=>e.id===p.salesId);
+var sNama=empP?.nama||p.salesNama||p.sales||"GUDANG / KASIR";
+if(!sgMap[sNama])sgMap[sNama]={nama:sNama,items:[],omzet:0,margin:0,cash:0,tf:0,bon:0};
+sgMap[sNama].items.push(p);
+sgMap[sNama].omzet+=(p.total||0);
+sgMap[sNama].margin+=(p.margin||0);
+var byr=(p.bayar||"").toLowerCase();
+if(byr==="cash")sgMap[sNama].cash+=(p.total||0);
+else if(byr==="transfer"||byr==="tf")sgMap[sNama].tf+=(p.total||0);
+else if(byr==="bon")sgMap[sNama].bon+=(p.total||0);
+});
+var sgList=Object.values(sgMap);
+var totCash=sgList.reduce((a,s)=>a+s.cash,0);
+var totTF=sgList.reduce((a,s)=>a+s.tf,0);
+var totBon=sgList.reduce((a,s)=>a+s.bon,0);
+return <>
+<div style={{display:"flex",alignItems:"center",gap:8,marginBottom:10,flexWrap:"wrap"}}>
+<Inp label="Tanggal" type="date" value={tglLap} onChange={setTglLap} style={{maxWidth:170,marginBottom:0}}/>
+<div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+{[["Total Omzet",fR(totalOmzetLap),C.wht],["Margin",fR(totalMarginLap),C.glt],["Invoice",penjLap.length+" trx",C.blt]].map(x=><div key={x[0]} style={{background:C.nav,borderRadius:6,padding:"4px 10px",border:"1px solid "+C.bdr}}><span style={{fontSize:10,color:C.gl2}}>{x[0]}: </span><span style={{fontSize:12,fontWeight:700,color:x[2]}}>{x[1]}</span></div>)}
+</div>
+</div>
+{penjLap.length===0?<div style={{color:C.gl2,fontSize:12,padding:"10px 0",fontStyle:"italic"}}>Tidak ada penjualan pada tanggal ini.</div>:
+<>{sgList.map((sg,gi)=><div key={gi} style={{marginBottom:12}}>
+<div style={{fontWeight:700,fontSize:12,background:C.nav,padding:"5px 10px",borderRadius:6,marginBottom:5,border:"1px solid "+C.bdr,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+<span style={{color:C.wht}}>── {sg.nama}</span>
+<span style={{color:C.gl2,fontSize:11}}>Omzet: <b style={{color:C.wht}}>{fR(sg.omzet)}</b> | Margin: <b style={{color:C.glt}}>{fR(sg.margin)}</b></span>
+</div>
+<div style={{overflowX:"auto"}}>
+<table style={{width:"100%",borderCollapse:"collapse",fontSize:11,minWidth:500}}>
+<thead><tr style={{background:C.nav}}>
+{["No. Invoice","Konsumen","5,5kg","12kg","50kg","Total","Bayar"].map(h=><th key={h} style={{padding:"5px 7px",color:C.gl2,fontWeight:700,textAlign:["5,5kg","12kg","50kg","Total"].includes(h)?"center":"left",borderBottom:"1px solid "+C.bdr,fontSize:10,whiteSpace:"nowrap"}}>{h}</th>)}
+</tr></thead>
+<tbody>
+{sg.items.map((p,i)=>{
+var q55=(p.items||[]).filter(it=>it.ukuran==="5.5 kg").reduce((a,it)=>a+Number(it.qty||0),0);
+var q12=(p.items||[]).filter(it=>it.ukuran==="12 kg").reduce((a,it)=>a+Number(it.qty||0),0);
+var q50=(p.items||[]).filter(it=>it.ukuran==="50 kg").reduce((a,it)=>a+Number(it.qty||0),0);
+var byr=(p.bayar||"").toLowerCase();
+return <tr key={p.id} style={{background:i%2===0?C.bg:C.nav,borderBottom:"1px solid "+C.bdr}}>
+<td style={{padding:"4px 7px",color:C.blt,fontSize:10}}>{p.noInv}</td>
+<td style={{padding:"4px 7px",color:C.wht,fontWeight:600}}>{p.konsumen}</td>
+<td style={{padding:"4px 7px",textAlign:"center",color:q55>0?C.glt:C.gl2}}>{q55||"—"}</td>
+<td style={{padding:"4px 7px",textAlign:"center",color:q12>0?C.blt:C.gl2}}>{q12||"—"}</td>
+<td style={{padding:"4px 7px",textAlign:"center",color:q50>0?C.olt:C.gl2}}>{q50||"—"}</td>
+<td style={{padding:"4px 7px",textAlign:"right",fontWeight:700,color:C.wht}}>{fR(p.total)}</td>
+<td style={{padding:"4px 7px",textAlign:"center"}}><Bdg color={byr==="cash"?"green":byr==="bon"?"red":"blue"}>{p.bayar}</Bdg></td>
+</tr>;
+})}
+</tbody>
+</table>
+</div>
+<div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:5,marginTop:5}}>
+{[["Cash",fR(sg.cash),C.glt],["Transfer",fR(sg.tf),C.blt],["BON (piutang)",fR(sg.bon),"#9CA3AF"],["Total Omzet",fR(sg.omzet),C.wht]].map(x=><div key={x[0]} style={{background:C.nav,borderRadius:5,padding:"5px 7px",border:"1px solid "+C.bdr}}><div style={{fontSize:9,color:C.gl2}}>{x[0]}</div><div style={{fontSize:11,fontWeight:700,color:x[2]}}>{x[1]}</div></div>)}
+</div>
+</div>)}
+<div style={{background:C.nav,borderRadius:6,padding:"8px 12px",border:"2px solid "+C.bdr,marginTop:6}}>
+<div style={{fontWeight:700,color:C.wht,fontSize:12,marginBottom:6}}>TOTAL PENJUALAN — {fDs(tglLap)}</div>
+<div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:6}}>
+{[["Total Cash",fR(totCash),C.glt],["Total Transfer",fR(totTF),C.blt],["Total BON (piutang)",fR(totBon),"#9CA3AF"],["TOTAL OMZET",fR(totalOmzetLap),C.wht]].map(x=><div key={x[0]} style={{background:C.bg,borderRadius:5,padding:"6px 8px",border:"1px solid "+C.bdr}}><div style={{fontSize:9,color:C.gl2}}>{x[0]}</div><div style={{fontSize:13,fontWeight:700,color:x[2]}}>{x[1]}</div></div>)}
+</div>
+</div>
+</>}
+</>;
+})()}
+
 <div style={{fontWeight:700,color:C.gl2,marginBottom:10,fontSize:13}}>📋 Riwayat Penjualan</div>
 <div style={{background:C.nav,borderRadius:8,padding:10,marginBottom:10,border:"1px solid "+C.bdr}}>
 <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(140px,1fr))",gap:8}}>
