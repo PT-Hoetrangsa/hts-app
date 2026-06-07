@@ -2608,7 +2608,7 @@ var rec={
   pemasukanLain:Number(pemasukanLain)||0,
   labaBersih:labaBersihH+(Number(pemasukanLain)||0),
   cashIn:cashInH,tfIn:tfInH,bonIn:bonInH,
-  cashLaci:Number(cashLaci)||0,rekBSI:Number(rekBSI)||0,rekBCA:Number(rekBCA)||0,totalPecah,
+  cashLaci:Number(cashLaci)||0,rekBSI:Number(rekBSI)||0,rekBCA:Number(rekBCA)||0,totalPecah,pecah:{...pecah},
   piutangA,nilaiStokA,pinjamanA,
   nilaiDOGantung,nilaiDOSangkut,
   cashFlowOmset,assetTabungMilikPT,assetArmada,assetValue,
@@ -2705,7 +2705,12 @@ return <Card style={{border:"2px solid "+C.glt}}>
 <div style={{fontSize:15,fontWeight:900,color:C.rlt,marginBottom:8}}>- {fR(penCashTgl)}</div>
 <div style={{height:1,background:C.bdr,marginBottom:8}}/>
 <div style={{fontSize:11,color:C.glt,fontWeight:700,marginBottom:4}}>WAJIB SETOR KE BANK</div>
-<div style={{fontSize:22,fontWeight:900,color:C.wht}}>{fR(wajibSetorKasir)}</div>
+<div style={{fontSize:22,fontWeight:900,color:C.wht,marginBottom:10}}>{fR(wajibSetorKasir)}</div>
+<div style={{height:1,background:C.bdr,marginBottom:10}}/>
+<div style={{fontSize:11,color:C.gl2,marginBottom:4}}>Total Tunai Fisik (pecahan)</div>
+<div style={{fontSize:15,fontWeight:700,color:totalPecah>=wajibSetorKasir?C.glt:C.olt,marginBottom:6}}>{fR(totalPecah)}</div>
+<div style={{fontSize:11,color:C.gl2,marginBottom:4}}>Selisih Cash</div>
+<div style={{fontSize:18,fontWeight:900,color:Math.abs(totalPecah-wajibSetorKasir)<1000?C.glt:C.rlt}}>{fR(totalPecah-wajibSetorKasir)}</div>
 </div>
 <div style={{background:C.nav,borderRadius:8,padding:12,border:"1px solid "+C.bdr}}>
 <div style={{fontSize:10,color:C.gl2,marginBottom:6,fontWeight:700}}>INFO TRANSFER (masuk rekening langsung)</div>
@@ -3775,7 +3780,10 @@ for(var di=1;di<=dim;di++){
   var tglD=bulanSetor+"-"+String(di).padStart(2,"0");
   // Cek ada tutup buku dengan pecahan
   var tb=(data.tutupBuku||[]).find(t=>t.tanggal===tglD);
-  var hasPecah=tb&&tb.totalPecah&&Object.values(tb.totalPecah).some(v=>v>0);
+  var hasPecah=tb&&(
+  (typeof tb.totalPecah==="number"&&tb.totalPecah>0)||
+  (typeof tb.totalPecah==="object"&&tb.totalPecah!==null&&Object.values(tb.totalPecah).some(v=>v>0))
+);
   var wajibSetor=0;
   if(tb){
     var cashPenj=(data.penjualan||[]).filter(p=>p.tanggal===tglD&&(p.bayar||"").toLowerCase()==="cash").reduce((a,p)=>a+(p.total||0),0);
@@ -3784,7 +3792,15 @@ for(var di=1;di<=dim;di++){
     wajibSetor=Math.max(0,cashPenj+bonCashD-penCashD);
   }
   var disetor=(data.kas||{})[tglD]?.disetor;
-  hariData[tglD]={hasTB:!!tb,hasPecah,wajibSetor,disetor,pecah:tb?.totalPecah||{},tglD};
+  // pecah object: dari field pecah (DENOMS qty) atau estimasi dari totalPecah number
+var pecahObj={};
+if(tb?.pecah&&typeof tb.pecah==="object"){pecahObj=tb.pecah;}
+else if(typeof tb?.totalPecah==="number"&&tb.totalPecah>0){
+  // estimasi dari total — bagi ke pecahan besar
+  var sisa=tb.totalPecah;
+  DENOMS.forEach(d=>{var lbr=Math.floor(sisa/d);pecahObj[d]=lbr;sisa-=lbr*d;});
+}
+hariData[tglD]={hasTB:!!tb,hasPecah,wajibSetor,disetor,pecah:pecahObj,totalPecah:typeof tb?.totalPecah==="number"?tb.totalPecah:0,tglD};
 }
 
 // Total dari tgl yang dipilih
