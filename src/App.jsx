@@ -3659,7 +3659,7 @@ return <ThemeCtx.Provider value={C}>
 <div style={{display:"flex",gap:5,marginBottom:14,overflowX:"auto",paddingBottom:4}}>
 {tabs.map(t=><button key={t.id} onClick={()=>setTab(t.id)} style={{background:curTab?.id===t.id?C.blu:C.card,color:curTab?.id===t.id?"#FFF":C.gl2,border:"1px solid "+(curTab?.id===t.id?C.blt:C.bdr),borderRadius:8,padding:mobile?"8px 10px":"6px 13px",fontSize:mobile?11:12,fontWeight:curTab?.id===t.id?700:400,cursor:"pointer",whiteSpace:"nowrap",flexShrink:0}}>{t.icon}{!mobile&&" "+t.label}</button>)}
 </div>
-<div style={{maxWidth:980,margin:"0 auto"}}>{renderContent()}</div>
+<div style={{maxWidth:1400,margin:"0 auto"}}>{renderContent()}</div>
 </div>
 </div>
 {inv&&<InvoiceView inv={inv} company={data.company} onClose={()=>setInv(null)}/>}
