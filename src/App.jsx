@@ -2327,9 +2327,11 @@ var penjHari=(data.penjualan||[]).filter(p=>p.salesId===salesId&&p.tanggal===tgl
 var penjCash=penjHari.filter(p=>(p.bayar||"").toLowerCase()==="cash");
 var penjTF=penjHari.filter(p=>(p.bayar||"").toLowerCase()==="transfer"||(p.bayar||"").toLowerCase()==="tf");
 var penjBon=penjHari.filter(p=>(p.bayar||"").toLowerCase()==="bon");
-var cashPenjualan=penjCash.reduce((a,p)=>a+(p.total||0),0);
-var tfPenjualan=penjTF.reduce((a,p)=>a+(p.total||0),0);
-var bonPenjualan=penjBon.reduce((a,p)=>a+(p.total||0),0);
+var penjSplit=penjHari.filter(p=>(p.bayar||"").toLowerCase()==="split");
+// Hitung nominal per metode — termasuk split
+var cashPenjualan=penjCash.reduce((a,p)=>a+(p.total||0),0)+penjSplit.reduce((a,p)=>a+Number((p.splitDetail||{}).cash||0),0);
+var tfPenjualan=penjTF.reduce((a,p)=>a+(p.total||0),0)+penjSplit.reduce((a,p)=>a+Number((p.splitDetail||{}).tf||0),0);
+var bonPenjualan=penjBon.reduce((a,p)=>a+(p.total||0),0)+penjSplit.reduce((a,p)=>a+Number((p.splitDetail||{}).bon||0),0);
 
 // Bayar BON hari ini
 var bonBayarList=(data.bon||[]).flatMap(b=>(b.pembayaran||[]).filter(px=>px.tanggal===tgl&&b.salesId===salesId).map(px=>({...px,konsumen:b.konsumen})));
@@ -2840,8 +2842,9 @@ return <div>
 {/* 1. CASH WAJIB SETOR KASIR */}
 {(()=>{
 var allPenTgl=(data.pengeluaran||[]).filter(p=>p.tanggal===tgl);
-var cashPenjTgl=(data.penjualan||[]).filter(p=>p.tanggal===tgl&&(p.bayar||"").toLowerCase()==="cash").reduce((a,p)=>a+(p.total||0),0);
-var tfPenjTgl=(data.penjualan||[]).filter(p=>p.tanggal===tgl&&((p.bayar||"").toLowerCase()==="transfer"||(p.bayar||"").toLowerCase()==="tf")).reduce((a,p)=>a+(p.total||0),0);
+var _penjTgl=(data.penjualan||[]).filter(p=>p.tanggal===tgl);
+var cashPenjTgl=_penjTgl.filter(p=>(p.bayar||"").toLowerCase()==="cash").reduce((a,p)=>a+(p.total||0),0)+_penjTgl.filter(p=>(p.bayar||"").toLowerCase()==="split").reduce((a,p)=>a+Number((p.splitDetail||{}).cash||0),0);
+var tfPenjTgl=_penjTgl.filter(p=>(p.bayar||"").toLowerCase()==="transfer"||(p.bayar||"").toLowerCase()==="tf").reduce((a,p)=>a+(p.total||0),0)+_penjTgl.filter(p=>(p.bayar||"").toLowerCase()==="split").reduce((a,p)=>a+Number((p.splitDetail||{}).tf||0),0);
 var bonBayarCashTgl=(data.bon||[]).reduce((a,b)=>{var px=(b.pembayaran||[]).filter(p=>p.tanggal===tgl&&(p.metode||"cash").toLowerCase()==="cash");return a+px.reduce((s,p)=>s+Number(p.jumlah||p.nominal||0),0);},0);
 var bonBayarTFTgl=(data.bon||[]).reduce((a,b)=>{var px=(b.pembayaran||[]).filter(p=>p.tanggal===tgl&&((p.metode||"").toLowerCase()==="transfer"||(p.metode||"").toLowerCase()==="tf"));return a+px.reduce((s,p)=>s+Number(p.jumlah||p.nominal||0),0);},0);
 var penCashTgl=allPenTgl.filter(p=>(p.metode||"cash").toLowerCase()==="cash").reduce((a,p)=>a+Number(p.nominal||0),0);
@@ -3912,8 +3915,10 @@ function getMutasiBank(bank){
   var saldoAwal=Number(sa.nominal||0);
   var tglAwal=sa.tanggal||"";
   // TF Penjualan masuk ke bank ini
-  (data.penjualan||[]).filter(p=>p.bayar==="transfer"&&p.bank===bank&&(!tglAwal||p.tanggal>=tglAwal)).forEach(p=>{
-    list.push({tanggal:p.tanggal,ket:"TF Penjualan — "+p.konsumen+" ("+p.noInv+")",jenis:"Masuk TF",masuk:p.total||0,keluar:0,bank});
+  (data.penjualan||[]).filter(p=>(!tglAwal||p.tanggal>=tglAwal)).forEach(p=>{
+    var byr=(p.bayar||"").toLowerCase();
+    if(byr==="transfer"&&(p.bank||"BSI")===bank){list.push({tanggal:p.tanggal,ket:"TF Penjualan — "+p.konsumen+" ("+p.noInv+")",jenis:"Masuk TF",masuk:p.total||0,keluar:0,bank});}
+    else if(byr==="split"&&Number((p.splitDetail||{}).tf||0)>0&&(p.splitBank||"BSI")===bank){list.push({tanggal:p.tanggal,ket:"TF Penjualan (Split) — "+p.konsumen+" ("+p.noInv+")",jenis:"Masuk TF",masuk:Number(p.splitDetail.tf),keluar:0,bank});}
   });
   // Bayar BON TF masuk ke bank ini
   (data.bon||[]).forEach(b=>(b.pembayaran||[]).filter(px=>((px.metode||"").toLowerCase()==="transfer"||(px.metode||"").toLowerCase()==="tf")&&(px.bank||"BSI")===bank&&(!tglAwal||px.tanggal>=tglAwal)).forEach(px=>{
