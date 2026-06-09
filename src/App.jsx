@@ -1832,7 +1832,11 @@ var plg=(data.pelanggan||[]).find(x=>x.id===bons[0]?.konsumenId);
 // items: satu row per BON, dengan tanggal DO
 var items=bons.flatMap(b=>(b.items||[]).map(it=>({...it,qty:Number(it.qty),price:Number(it.price),tglDO:b.tanggal})));
 var total=bons.reduce((a,b)=>a+(b.sisaTagihan||b.total||0),0);
-return{noInv:noInvBaru,tanggal:toDay(),konsumen:bons[0]?.konsumen||"",kota:plg?.alamat?.split(",").pop()?.trim()||"Banda Aceh",items,total,metodeBayar:"BON (GABUNGAN)",isBon:true,isGabungan:true,bonAsal:bons.map(b=>b.id),catatan:"Invoice gabungan dari "+bons.length+" BON"};}
+var allLunas=bons.every(b=>b.status==="lunas");
+var totalSisa=bons.reduce((a,b)=>a+(b.status==="lunas"?0:(b.sisaTagihan||b.total||0)),0);
+var totalAll=bons.reduce((a,b)=>a+(b.total||0),0);
+return{noInv:noInvBaru,tanggal:toDay(),konsumen:bons[0]?.konsumen||"",kota:plg?.alamat?.split(",").pop()?.trim()||"Banda Aceh",items,total:totalAll,sisaTagihan:totalSisa,metodeBayar:allLunas?"BON (LUNAS)":"BON (GABUNGAN)",isBon:!allLunas,isGabungan:true,bonLunas:allLunas,bonAsal:bons.map(b=>b.id),catatan:"Invoice gabungan dari "+bons.length+" BON"};
+}
 
 function bayar(b){
 if(!bF.nominal)return;var nom=Number(bF.nominal);
@@ -1859,10 +1863,20 @@ var invInfo=nextInvNo(data,toDay());
 var newCounters={...(data.counters||{inv:{},sg:{},reg:0})};if(!newCounters.inv)newCounters.inv={};newCounters.inv[invInfo.key]=invInfo.n;
 var noInvBaru=invInfo.no;
 // Tandai BON asal sebagai "digabung"
-var newBon=(data.bon||[]).map(b=>gabungPilih.includes(b.id)?{...b,status:"digabung",sisaTagihan:b.sisaTagihan||b.total||0}:b);
+var newBon=(data.bon||[]).map(b=>{
+  if(!gabungPilih.includes(b.id))return b;
+  // BON lunas → tetap lunas (jangan ubah status)
+  if(b.status==="lunas")return b;
+  // BON belum/sebagian → tandai digabung
+  return{...b,status:"digabung",sisaTagihan:b.sisaTagihan||b.total||0};
+});
 // Buat BON gabungan baru
-var totalGabung=bons.reduce((a,b)=>a+(b.sisaTagihan||b.total||0),0);
-var bonGabung={id:uid(),noInv:noInvBaru,tanggal:toDay(),konsumen:bons[0].konsumen,konsumenId:bons[0].konsumenId,salesId:bons[0].salesId,items:bons.flatMap(b=>(b.items||[]).map(it=>({...it,qty:Number(it.qty),price:Number(it.price),tglDO:b.tanggal}))),total:totalGabung,sisaTagihan:totalGabung,status:"belum",pembayaran:[],isGabungan:true,bonAsal:gabungPilih,ket:"Gabungan dari: "+bons.map(b=>b.noInv).join(", ")};
+// Total yang masih perlu dibayar (BON lunas tidak dihitung)
+var totalGabung=bons.reduce((a,b)=>a+(b.status==="lunas"?0:(b.sisaTagihan||b.total||0)),0);
+// Total keseluruhan untuk info
+var totalGabungAll=bons.reduce((a,b)=>a+(b.total||0),0);
+var semuaLunas=bons.every(b=>b.status==="lunas");
+var bonGabung={id:uid(),noInv:noInvBaru,tanggal:toDay(),konsumen:bons[0].konsumen,konsumenId:bons[0].konsumenId,salesId:bons[0].salesId,items:bons.flatMap(b=>(b.items||[]).map(it=>({...it,qty:Number(it.qty),price:Number(it.price),tglDO:b.tanggal,statusBon:b.status}))),total:totalGabungAll,sisaTagihan:totalGabung,status:semuaLunas?"lunas":"belum",pembayaran:[],isGabungan:true,bonAsal:gabungPilih,ket:"Gabungan dari: "+bons.map(b=>b.noInv).join(", ")};
 newBon=[bonGabung,...newBon];
 setData(d=>({...d,bon:newBon,counters:newCounters}));
 toast("✓ Invoice gabungan dibuat: "+noInvBaru);
@@ -1883,7 +1897,7 @@ return true;
 },[data.bon,data.employees,barFilter]);
 
 // BON aktif untuk modal gabung
-var bonAktifGabung=(data.bon||[]).filter(b=>b.status==="belum"||b.status==="sebagian").filter(b=>!gabungKons||b.konsumen.toLowerCase().includes(gabungKons.toLowerCase()));
+var bonAktifGabung=(data.bon||[]).filter(b=>b.status!=="digabung").filter(b=>!gabungKons||b.konsumen.toLowerCase().includes(gabungKons.toLowerCase()));
 // Konsumen unik dari BON yang dipilih (max 1 konsumen per gabungan)
 var konsumenPilih=gabungPilih.length>0?(data.bon||[]).find(b=>b.id===gabungPilih[0])?.konsumen||"":"";
 
@@ -1927,7 +1941,11 @@ return <div key={b.id} onClick={()=>{if(!sameKons)return;setGabungPilih(prev=>pr
 <input type="checkbox" checked={isPilih} onChange={()=>{}} style={{width:16,height:16,cursor:"pointer"}}/>
 <div style={{flex:1}}>
 <div style={{fontWeight:700,color:C.wht,fontSize:12}}>{b.konsumen}</div>
-<div style={{fontSize:10,color:C.gl2}}>{b.noInv} · {fDs(b.tanggal)} · {(b.items||[]).map(it=>it.qty+"×"+it.ukuran).join(", ")}</div>
+<div style={{display:"flex",gap:6,alignItems:"center",flexWrap:"wrap"}}>
+<span style={{fontSize:10,color:C.gl2}}>{b.noInv} · {fDs(b.tanggal)}</span>
+{b.status==="lunas"?<span style={{fontSize:9,fontWeight:700,color:"#065F46",background:"#D1FAE5",borderRadius:10,padding:"1px 6px"}}>✓ Lunas</span>:b.status==="sebagian"?<span style={{fontSize:9,fontWeight:700,color:"#92400E",background:"#FEF3C7",borderRadius:10,padding:"1px 6px"}}>Sebagian</span>:<span style={{fontSize:9,fontWeight:700,color:"#991B1B",background:"#FEE2E2",borderRadius:10,padding:"1px 6px"}}>Belum Bayar</span>}
+</div>
+<div style={{fontSize:10,color:C.gl2}}>{(b.items||[]).map(it=>it.qty+"×"+it.ukuran).join(", ")}</div>
 </div>
 <div style={{textAlign:"right"}}>
 <div style={{fontWeight:700,color:C.rlt,fontSize:13}}>{fR(b.sisaTagihan)}</div>
@@ -1937,9 +1955,20 @@ return <div key={b.id} onClick={()=>{if(!sameKons)return;setGabungPilih(prev=>pr
 })}
 </div>
 {gabungPilih.length>0&&<div style={{padding:"10px 18px",borderTop:"1px solid "+C.bdr,background:C.nav}}>
-<div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+<div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
 <span style={{fontSize:12,color:C.gl2}}>{gabungPilih.length} BON dipilih</span>
-<span style={{fontSize:14,fontWeight:900,color:C.wht}}>Total: {fR((data.bon||[]).filter(b=>gabungPilih.includes(b.id)).reduce((a,b)=>a+(b.sisaTagihan||0),0))}</span>
+<div style={{textAlign:"right"}}>
+{(()=>{
+var pilihBons=(data.bon||[]).filter(b=>gabungPilih.includes(b.id));
+var ttlAll=pilihBons.reduce((a,b)=>a+(b.total||0),0);
+var ttlSisa=pilihBons.reduce((a,b)=>a+(b.status==="lunas"?0:(b.sisaTagihan||0)),0);
+var adaLunas=pilihBons.some(b=>b.status==="lunas");
+return <><div style={{fontSize:14,fontWeight:900,color:C.wht}}>Total: {fR(ttlAll)}</div>
+{adaLunas&&ttlSisa>0&&<div style={{fontSize:11,color:C.rlt}}>Sisa tagihan: {fR(ttlSisa)}</div>}
+{adaLunas&&ttlSisa===0&&<div style={{fontSize:11,color:C.glt}}>✓ Semua sudah lunas</div>}
+</>;
+})()}
+</div>
 </div>
 <Btn color="blue" onClick={doGabung} dis={gabungPilih.length<2}>🔗 Gabung & Buat Invoice Baru ({gabungPilih.length} BON)</Btn>
 </div>}
