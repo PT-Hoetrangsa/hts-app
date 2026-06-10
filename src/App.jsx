@@ -2147,34 +2147,35 @@ setTimeout(function(){var e=document.getElementById("_lap_bon");if(e)e.remove();
 ?<div style={{color:C.gl2,fontSize:12,fontStyle:"italic"}}>Belum ada pembayaran</div>
 :(editPayBon.bon.pembayaran||[]).map((pay,pi)=>{
 var isEdit=editPayBon.payIdx===pi;
+var bonFresh=(data.bon||[]).find(b=>b.id===editPayBon.bon.id)||editPayBon.bon;
+var payFresh=(bonFresh.pembayaran||[])[pi]||pay;
 return <div key={pi} style={{background:isEdit?C.nav:C.bg,borderRadius:8,padding:"10px 12px",marginBottom:8,border:"2px solid "+(isEdit?C.olt:C.bdr)}}>
 <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:isEdit?8:0}}>
 <div>
-<div style={{fontSize:13,fontWeight:700,color:C.wht}}>{fR(pay.jumlah||pay.nominal||0)}</div>
-<div style={{fontSize:10,color:C.gl2}}>{fDs(pay.tanggal)} · <span style={{color:(pay.metode||"").toLowerCase()==="cash"?C.glt:C.blt,fontWeight:700}}>{pay.metode||"Cash"}</span>{pay.bank?" · "+pay.bank:""}</div>
-{pay.salesPenerimaNama&&<div style={{fontSize:10,color:C.gl2}}>Diterima: {pay.salesPenerimaNama}</div>}
+<div style={{fontSize:13,fontWeight:700,color:C.wht}}>{fR(payFresh.jumlah||payFresh.nominal||0)}</div>
+<div style={{fontSize:10,color:C.gl2}}>{fDs(payFresh.tanggal)} · <span style={{color:(payFresh.metode||"").toLowerCase()==="cash"?C.glt:C.blt,fontWeight:700}}>{payFresh.metode||"Cash"}</span>{payFresh.bank?" · "+payFresh.bank:""}</div>
+{payFresh.salesPenerimaNama&&<div style={{fontSize:10,color:C.gl2}}>Diterima: {payFresh.salesPenerimaNama}</div>}
 </div>
 <div style={{display:"flex",gap:5}}>
-<button onClick={()=>setEditPayBon(p=>({...p,payIdx:isEdit?null:pi,editForm:{...pay}}))} style={{background:isEdit?C.olt:C.nav,border:"1px solid "+(isEdit?C.olt:C.bdr),borderRadius:6,padding:"4px 9px",color:isEdit?"white":C.gl2,cursor:"pointer",fontSize:11,fontWeight:700}}>{isEdit?"▲":"✏️ Edit"}</button>
+<button onClick={()=>setEditPayBon(p=>({...p,payIdx:isEdit?null:pi,editForm:{...payFresh,jumlah:payFresh.jumlah||payFresh.nominal||0}}))} style={{background:isEdit?C.olt:C.nav,border:"1px solid "+(isEdit?C.olt:C.bdr),borderRadius:6,padding:"4px 9px",color:isEdit?"white":C.gl2,cursor:"pointer",fontSize:11,fontWeight:700}}>{isEdit?"▲":"✏️ Edit"}</button>
 <button onClick={()=>{
-var bonId=editPayBon.bon.id;
-var bon=(data.bon||[]).find(b=>b.id===bonId)||editPayBon.bon;
-var newPays=(bon.pembayaran||[]).filter((_,idx)=>idx!==pi);
-var newSisa=Math.max(0,bon.total-newPays.reduce((a,p)=>a+(Number(p.jumlah||p.nominal||0)),0));
+var b2=(data.bon||[]).find(b=>b.id===editPayBon.bon.id);
+if(!b2){toast("BON tidak ditemukan");return;}
+var newPays=(b2.pembayaran||[]).filter((_,idx)=>idx!==pi);
+var newSisa=Math.max(0,b2.total-newPays.reduce((a,p)=>a+(Number(p.jumlah||p.nominal||0)),0));
 var newStatus=newPays.length===0?"belum":newSisa<=0?"lunas":"sebagian";
-var log={id:uid(),type:"cancel_pay",by:user?.nama||"Admin",at:new Date().toISOString(),before:{jumlah:pay.jumlah||pay.nominal||0,metode:pay.metode,tanggal:pay.tanggal},note:"Pembayaran dicancel"};
-var updBon={...bon,pembayaran:newPays,sisaTagihan:newSisa,status:newStatus,editLog:[...(bon.editLog||[]),log]};
-var newBon=(data.bon||[]).map(b=>b.id===bonId?updBon:b);
-setData(d=>({...d,bon:newBon}));
+var log={id:uid(),type:"cancel_pay",by:"Admin",at:new Date().toISOString(),before:{jumlah:payFresh.jumlah||payFresh.nominal||0,metode:payFresh.metode,tanggal:payFresh.tanggal},note:"Pembayaran dicancel"};
+var updBon={...b2,pembayaran:newPays,sisaTagihan:newSisa,status:newStatus,editLog:[...(b2.editLog||[]),log]};
+setData(d=>({...d,bon:(d.bon||[]).map(b=>b.id===updBon.id?updBon:b)}));
 setEditPayBon({bon:updBon,payIdx:null,editForm:null});
-toast("✓ Pembayaran dicancel. Status: "+newStatus);
+toast("✓ Dicancel. Status: "+newStatus);
 }} style={{background:C.rdk,border:"1px solid "+C.rlt,borderRadius:6,padding:"4px 9px",color:"white",cursor:"pointer",fontSize:11,fontWeight:700}}>🗑️ Cancel</button>
 </div>
 </div>
 {isEdit&&editPayBon.editForm&&<div>
 <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:8}}>
 <div><div style={{fontSize:10,color:C.gl2,marginBottom:3}}>Nominal</div>
-<input type="number" value={editPayBon.editForm.jumlah||editPayBon.editForm.nominal||""} onChange={e=>setEditPayBon(p=>({...p,editForm:{...p.editForm,jumlah:Number(e.target.value)}}))} style={{background:C.bg,border:"1px solid "+C.bdr,borderRadius:6,padding:"7px 9px",color:C.wht,fontSize:12,outline:"none",width:"100%"}}/></div>
+<input type="number" value={editPayBon.editForm.jumlah||""} onChange={e=>setEditPayBon(p=>({...p,editForm:{...p.editForm,jumlah:Number(e.target.value)||0}}))} style={{background:C.bg,border:"1px solid "+C.bdr,borderRadius:6,padding:"7px 9px",color:C.wht,fontSize:12,outline:"none",width:"100%"}}/></div>
 <div><div style={{fontSize:10,color:C.gl2,marginBottom:3}}>Tanggal</div>
 <input type="date" value={editPayBon.editForm.tanggal||""} onChange={e=>setEditPayBon(p=>({...p,editForm:{...p.editForm,tanggal:e.target.value}}))} style={{background:C.bg,border:"1px solid "+C.bdr,borderRadius:6,padding:"7px 9px",color:C.wht,fontSize:12,outline:"none",width:"100%"}}/></div>
 </div>
@@ -2183,30 +2184,31 @@ toast("✓ Pembayaran dicancel. Status: "+newStatus);
 <div style={{display:"flex",gap:6}}>
 {[["cash","💵 Cash",C.grn],["transfer","🏦 Transfer",C.blu]].map(x=><button key={x[0]} onClick={()=>setEditPayBon(p=>({...p,editForm:{...p.editForm,metode:x[0]}}))} style={{background:(editPayBon.editForm.metode||"cash")===x[0]?x[2]:C.nav,color:(editPayBon.editForm.metode||"cash")===x[0]?"white":C.wht,border:"1px solid "+((editPayBon.editForm.metode||"cash")===x[0]?x[2]:C.bdr),borderRadius:7,padding:"5px 14px",fontWeight:700,fontSize:12,cursor:"pointer"}}>{x[1]}</button>)}
 </div>
-{(editPayBon.editForm.metode||"cash")==="transfer"&&<div style={{display:"flex",gap:6,marginTop:6}}>{["BSI","BCA"].map(b=><button key={b} onClick={()=>setEditPayBon(p=>({...p,editForm:{...p.editForm,bank:b}}))} style={{background:(editPayBon.editForm.bank||"BSI")===b?C.blu:C.nav,color:(editPayBon.editForm.bank||"BSI")===b?"white":C.wht,border:"2px solid "+((editPayBon.editForm.bank||"BSI")===b?C.blt:C.bdr),borderRadius:7,padding:"4px 14px",fontWeight:700,cursor:"pointer",fontSize:12}}>{b}</button>)}</div>}
+{(editPayBon.editForm.metode||"cash")==="transfer"&&<div style={{display:"flex",gap:6,marginTop:6}}>{["BSI","BCA"].map(bk=><button key={bk} onClick={()=>setEditPayBon(p=>({...p,editForm:{...p.editForm,bank:bk}}))} style={{background:(editPayBon.editForm.bank||"BSI")===bk?C.blu:C.nav,color:(editPayBon.editForm.bank||"BSI")===bk?"white":C.wht,border:"2px solid "+((editPayBon.editForm.bank||"BSI")===bk?C.blt:C.bdr),borderRadius:7,padding:"4px 14px",fontWeight:700,cursor:"pointer",fontSize:12}}>{bk}</button>)}</div>}
 </div>
 <button onClick={()=>{
-var bonId=editPayBon.bon.id;
-var bon=(data.bon||[]).find(b=>b.id===bonId)||editPayBon.bon;
+var b2=(data.bon||[]).find(b=>b.id===editPayBon.bon.id);
+if(!b2){toast("BON tidak ditemukan");return;}
 var pi2=editPayBon.payIdx;
 var ef2=editPayBon.editForm;
-if(pi2===null||pi2===undefined||!ef2)return;
-var log={id:uid(),type:"edit_pay",by:user?.nama||"Admin",at:new Date().toISOString(),before:{...(bon.pembayaran||[])[pi2]},note:"Pembayaran diedit"};
-var newPays=(bon.pembayaran||[]).map((p,idx)=>idx===pi2?{...p,...ef2,jumlah:Number(ef2.jumlah||ef2.nominal||p.jumlah||p.nominal||0)}:p);
-var newSisa=Math.max(0,bon.total-newPays.reduce((a,p)=>a+(Number(p.jumlah||p.nominal||0)),0));
+if(pi2===null||pi2===undefined||!ef2){toast("Pilih pembayaran yang akan diedit");return;}
+var jumlahBaru=Number(ef2.jumlah||0);
+if(jumlahBaru<=0){toast("Nominal harus lebih dari 0");return;}
+var log={id:uid(),type:"edit_pay",by:"Admin",at:new Date().toISOString(),before:{...(b2.pembayaran||[])[pi2]},note:"Pembayaran diedit: "+fR((b2.pembayaran||[])[pi2]?.jumlah||0)+" → "+fR(jumlahBaru)};
+var newPays=(b2.pembayaran||[]).map((p,idx)=>idx===pi2?{...p,jumlah:jumlahBaru,nominal:jumlahBaru,metode:ef2.metode||p.metode,bank:ef2.bank||p.bank,tanggal:ef2.tanggal||p.tanggal}:p);
+var newSisa=Math.max(0,b2.total-newPays.reduce((a,p)=>a+(Number(p.jumlah||p.nominal||0)),0));
 var newStatus=newSisa<=0?"lunas":newPays.length===0?"belum":"sebagian";
-var updBon={...bon,pembayaran:newPays,sisaTagihan:newSisa,status:newStatus,editLog:[...(bon.editLog||[]),log]};
-var newBon=(data.bon||[]).map(b=>b.id===bonId?updBon:b);
-setData(d=>({...d,bon:newBon}));
+var updBon={...b2,pembayaran:newPays,sisaTagihan:newSisa,status:newStatus,editLog:[...(b2.editLog||[]),log]};
+setData(d=>({...d,bon:(d.bon||[]).map(b=>b.id===updBon.id?updBon:b)}));
 setEditPayBon({bon:updBon,payIdx:null,editForm:null});
-toast("✓ Pembayaran diperbarui! Status: "+newStatus);
+toast("✓ Disimpan! Status: "+newStatus);
 }} style={{background:C.glt,border:"none",borderRadius:8,padding:"7px 18px",color:"white",cursor:"pointer",fontWeight:700,fontSize:12,width:"100%"}}>💾 Simpan Perubahan</button>
 </div>}
 </div>;})}
 {/* Log perubahan */}
-{(editPayBon.bon.editLog||[]).length>0&&<div style={{marginTop:10,background:C.bg,borderRadius:8,padding:10,border:"1px solid "+C.bdr}}>
+{((data.bon||[]).find(b=>b.id===editPayBon.bon.id)?.editLog||[]).length>0&&<div style={{marginTop:10,background:C.bg,borderRadius:8,padding:10,border:"1px solid "+C.bdr}}>
 <div style={{fontSize:11,fontWeight:700,color:C.gl2,marginBottom:6}}>📋 Log Perubahan</div>
-{(editPayBon.bon.editLog||[]).slice().reverse().map((lg,i)=><div key={i} style={{fontSize:10,color:C.gl2,marginBottom:4,paddingBottom:4,borderBottom:"1px solid "+C.bdr}}>
+{((data.bon||[]).find(b=>b.id===editPayBon.bon.id)?.editLog||[]).slice().reverse().map((lg,i)=><div key={i} style={{fontSize:10,color:C.gl2,marginBottom:4,paddingBottom:4,borderBottom:"1px solid "+C.bdr}}>
 <b style={{color:C.wht}}>{lg.by}</b> · {new Date(lg.at).toLocaleString("id-ID")} · <span style={{color:lg.type==="cancel_pay"?C.rlt:C.olt}}>{lg.note}</span>
 {lg.before&&<><br/><span style={{color:"#9CA3AF"}}>Sebelum: {fR(lg.before.jumlah||0)} · {lg.before.metode} · {fDs(lg.before.tanggal)}</span></>}
 </div>)}
