@@ -1003,6 +1003,7 @@ var blk={ukuran:"5.5 kg",jenis:"Isi",qty:"",price:""};
 var canSelf=PENJUALAN_ROLES.includes(user?.role)&&!["owner","admin","akuntan"].includes(user?.role);
 var[f,setF]=useState({tanggal:toDay(),salesId:canSelf?user.id:"",konsumen:"",konsumenId:"",items:[{...blk}],bayar:"cash",bank:"BSI",deadline:"",ket:"",splitDetail:{cash:0,tf:0,bon:0},splitBank:"BSI"});
 var[delId,setDelId]=useState(null);
+var[editInv,setEditInv]=useState(null);// {entry, form}
 var[barFilter,setBarFilter]=useState({from:"",to:"",salesId:"",konsumen:"",bayar:""});
 var[tglLap,setTglLap]=useState(toDay());
 var salesEmp=sortEmp((data.employees||[]).filter(e=>e.aktif&&PENJUALAN_ROLES.includes(e.role)));
@@ -1072,7 +1073,7 @@ var cols=[
 {key:"detailStr",label:"Produk & Qty",render:r=>{var items=r.items||[];var show=items.slice(0,3);var more=items.length-3;return <div style={{display:"flex",flexDirection:"column",gap:3,width:125,maxWidth:125}}>{show.map((it,i)=>{var clr=SZ_CLR[it.ukuran]||[C.gl2,C.bg];return <div key={i} style={{display:"flex",alignItems:"center",gap:4,paddingBottom:i<show.length-1?2:0,borderBottom:i<show.length-1?"1px dashed "+C.bdr:"none"}}><span style={{background:clr[1],border:"1px solid "+clr[0],borderRadius:3,padding:"1px 5px",fontSize:9,fontWeight:700,color:clr[0],whiteSpace:"nowrap",flexShrink:0,minWidth:42,textAlign:"center"}}>{it.ukuran}</span><span style={{fontSize:10.5,color:C.gl2,whiteSpace:"nowrap",flexShrink:0}}>{it.jenis==="Tabung+Isi"?"Tbg+Isi":"Refill"}</span><b style={{fontSize:12,fontWeight:800,color:C.wht,whiteSpace:"nowrap",marginLeft:"auto"}}>{it.qty}</b></div>;})}{ more>0&&<div style={{fontSize:10,color:C.gry,fontStyle:"italic"}}>+{more} item lagi</div>}</div>;},filterable:true,sortable:false},
 {key:"total",label:"Total",render:r=><b style={{color:C.wht,whiteSpace:"nowrap"}}>{fR(r.total)}</b>,filterable:false,sortVal:r=>r.total,width:98},
 {key:"bayar",label:"Bayar",render:r=>{var sd=r.splitDetail||{};if(r.bayar==="split"){var lbl=[Number(sd.cash)>0?"Cash":null,Number(sd.tf)>0?"TF":null,Number(sd.bon)>0?"BON":null].filter(Boolean).join("+");return <Bdg color="orange">{lbl}</Bdg>;}return r.bayar==="bon"?<Bdg color="red">BON</Bdg>:r.bayar==="transfer"?<Bdg color="blue">TF</Bdg>:<Bdg color="green">Cash</Bdg>;},filterable:true,filterType:"select",options:[{v:"cash",l:"Cash"},{v:"transfer",l:"Transfer"},{v:"bon",l:"BON"},{v:"split",l:"Split"}],width:60},
-{key:"_aksi",label:"Aksi",sortable:false,filterable:false,width:63,render:r=><div style={{display:"flex",gap:4}}><button onClick={()=>setInv(makeInvObj(r))} title="Cetak Invoice" style={{background:C.inHv,border:"1px solid "+C.blt,borderRadius:6,padding:"4px 7px",color:C.blt,cursor:"pointer",fontSize:12}}>🖨️</button><button onClick={()=>setDelId(r)} style={{background:C.inHvE,border:"1px solid "+C.rlt,borderRadius:6,padding:"4px 7px",color:C.rlt,cursor:"pointer",fontSize:12}}>🗑️</button></div>},
+{key:"_aksi",label:"Aksi",sortable:false,filterable:false,width:90,render:r=><div style={{display:"flex",gap:4}}><button onClick={()=>setInv(makeInvObj(r))} title="Cetak Invoice" style={{background:C.inHv,border:"1px solid "+C.blt,borderRadius:6,padding:"4px 7px",color:C.blt,cursor:"pointer",fontSize:12}}>🖨️</button><button onClick={()=>{var ef={...r,items:(r.items||[]).map(it=>({...it,qty:String(it.qty),price:String(it.price)}))};setEditInv({entry:r,form:ef});}} title="Edit Invoice" style={{background:"#78350F",border:"1px solid #F59E0B",borderRadius:6,padding:"4px 7px",color:"#FCD34D",cursor:"pointer",fontSize:12}}>✏️</button><button onClick={()=>setDelId(r)} style={{background:C.inHvE,border:"1px solid "+C.rlt,borderRadius:6,padding:"4px 7px",color:C.rlt,cursor:"pointer",fontSize:12}}>🗑️</button></div>},
 ];
 return <div>
 <STitle icon="🧾" children="Input Penjualan"/>
@@ -1258,6 +1259,85 @@ return [...sgRows, totalLakuRow];
 </div>
 <FilterTbl columns={cols} data={rows} empty="Belum ada penjualan" maxRows={150}/>
 </Card>
+
+{editInv&&(()=>{
+var ef=editInv.form;
+var setEf=newF=>setEditInv(prev=>({...prev,form:typeof newF==="function"?newF(prev.form):newF}));
+var setItem2=(i,k,v)=>setEf(p=>{var its=[...p.items];its[i]={...its[i],[k]:v};return{...p,items:its};});
+var valid2=(ef.items||[]).filter(it=>Number(it.qty)>0&&Number(it.price)>0);
+var total2=iTotal(valid2);
+var salesEmpE=sortEmp((data.employees||[]).filter(e=>e.aktif&&PENJUALAN_ROLES.includes(e.role)));
+var kNamesE=[...new Set([...(data.pelanggan||[]).map(p=>p.nama),...(data.penjualan||[]).map(e=>e.konsumen)].filter(Boolean))];
+function saveEdit(){
+var updatedEntry={...editInv.entry,...ef,items:valid2.map(it=>({...it,qty:Number(it.qty),price:Number(it.price)})),total:total2,margin:calcMargin(valid2,data,ef.tanggal),editLog:[...(editInv.entry.editLog||[]),{by:user?.nama||"",at:new Date().toISOString(),before:{konsumen:editInv.entry.konsumen,bayar:editInv.entry.bayar,total:editInv.entry.total,items:editInv.entry.items},note:"Diedit"}]};
+// Reverse stok lama lalu apply stok baru
+var ns={...(data.stock||{})};var nk={...(data.stokKosong||{})};var na={...(data.totalTabung||{})};
+// Reverse stok lama
+(editInv.entry.items||[]).forEach(it=>{var q=Number(it.qty||0);var s=it.ukuran;if(it.jenis==="Tabung+Isi"){ns[s]=(ns[s]||0)+q;nk[s]=(nk[s]||0)+q;na[s]=(na[s]||0)+q;}else{ns[s]=(ns[s]||0)+q;nk[s]=Math.max(0,(nk[s]||0)-q);}});
+// Apply stok baru
+valid2.forEach(it=>{var q=Number(it.qty||0);var s=it.ukuran;if(it.jenis==="Tabung+Isi"){ns[s]=Math.max(0,(ns[s]||0)-q);nk[s]=Math.max(0,(nk[s]||0)-q);na[s]=Math.max(0,(na[s]||0)-q);}else{ns[s]=Math.max(0,(ns[s]||0)-q);nk[s]=(nk[s]||0)+q;}});
+// Jika bayar bon berubah: update bon record
+var newBon=(data.bon||[]).map(b=>{if(b.noInv===editInv.entry.noInv&&b.konsumen===editInv.entry.konsumen){return{...b,konsumen:ef.konsumen,konsumenId:ef.konsumenId||b.konsumenId,total:total2,sisaTagihan:total2,items:valid2};}return b;});
+setData(d=>({...d,penjualan:(d.penjualan||[]).map(x=>x.id===editInv.entry.id?updatedEntry:x),stock:ns,stokKosong:nk,totalTabung:na,bon:newBon}));
+setEditInv(null);toast("✓ Invoice diperbarui! Stok disesuaikan.");
+}
+return <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.8)",zIndex:999,display:"flex",alignItems:"flex-start",justifyContent:"center",padding:16,overflowY:"auto"}}>
+<div style={{background:C.card,borderRadius:12,width:"100%",maxWidth:680,border:"1px solid "+C.bdr,marginTop:20}}>
+<div style={{padding:"14px 18px",borderBottom:"1px solid "+C.bdr,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+<div><div style={{fontWeight:700,color:C.wht,fontSize:14}}>✏️ Edit Invoice — {editInv.entry.noInv}</div>
+{(editInv.entry.editLog||[]).length>0&&<div style={{fontSize:10,color:C.gl2,marginTop:2}}>Terakhir diedit: {(editInv.entry.editLog||[]).slice(-1)[0]?.by} · {new Date((editInv.entry.editLog||[]).slice(-1)[0]?.at).toLocaleString("id-ID")}</div>}
+</div>
+<button onClick={()=>setEditInv(null)} style={{background:"transparent",border:"none",color:C.gl2,cursor:"pointer",fontSize:20}}>✕</button>
+</div>
+<div style={{padding:16}}>
+<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:10}}>
+<Inp label="Tanggal" type="date" value={ef.tanggal||""} onChange={v=>setEf(p=>({...p,tanggal:v}))}/>
+<Sel label="Sales" value={ef.salesId||""} onChange={v=>setEf(p=>({...p,salesId:v}))} opts={[{v:"",l:"-- Pilih --"},...salesEmpE.map(e=>({v:e.id,l:e.nama}))]}/>
+</div>
+<div style={{marginBottom:10}}>
+<label style={{fontSize:11,color:C.gl2,display:"block",marginBottom:4}}>Konsumen</label>
+<input list="kl2" value={ef.konsumen||""} onChange={e=>{var v=e.target.value;var p=(data.pelanggan||[]).find(x=>x.nama===v);setEf(f=>({...f,konsumen:v,konsumenId:p?.id||f.konsumenId}));}} style={{background:C.bg,border:"1px solid "+C.bdr,borderRadius:8,padding:"8px 12px",color:C.wht,fontSize:13,outline:"none",width:"100%"}}/>
+<datalist id="kl2">{kNamesE.map(n=><option key={n} value={n}/>)}</datalist>
+</div>
+{/* Items */}
+<div style={{marginBottom:10}}>
+<div style={{fontSize:11,fontWeight:700,color:C.gl2,marginBottom:6}}>Items</div>
+{(ef.items||[]).map((it,i)=><div key={i} style={{display:"grid",gridTemplateColumns:"1fr 1fr 80px 90px 32px",gap:6,marginBottom:6,alignItems:"center"}}>
+<Sel label="" value={it.ukuran||"5.5 kg"} onChange={v=>setItem2(i,"ukuran",v)} opts={SIZES.map(s=>({v:s,l:s}))}/>
+<Sel label="" value={it.jenis||"Isi"} onChange={v=>setItem2(i,"jenis",v)} opts={[{v:"Isi",l:"Isi (Refill)"},{v:"Tabung+Isi",l:"Tabung+Isi"}]}/>
+<input type="number" value={it.qty} placeholder="Qty" onChange={e=>setItem2(i,"qty",e.target.value)} style={{background:C.bg,border:"1px solid "+C.bdr,borderRadius:6,padding:"6px 8px",color:C.wht,fontSize:12,outline:"none",width:"100%"}}/>
+<input type="number" value={it.price} step="1000" placeholder="Harga" onChange={e=>setItem2(i,"price",e.target.value)} style={{background:C.bg,border:"1px solid "+C.bdr,borderRadius:6,padding:"6px 8px",color:C.wht,fontSize:12,outline:"none",width:"100%"}}/>
+<button onClick={()=>setEf(p=>({...p,items:p.items.filter((_,j)=>j!==i)}))} style={{background:"transparent",border:"none",color:C.rlt,cursor:"pointer",fontSize:16}}>−</button>
+</div>)}
+<button onClick={()=>setEf(p=>({...p,items:[...p.items,{ukuran:"5.5 kg",jenis:"Isi",qty:"",price:""}]}))} style={{background:C.nav,border:"1px solid "+C.bdr,borderRadius:6,padding:"5px 12px",color:C.gl2,cursor:"pointer",fontSize:12}}>+ Item</button>
+<div style={{textAlign:"right",marginTop:6,fontSize:13,fontWeight:700,color:C.wht}}>Total: {fR(total2)}</div>
+</div>
+{/* Metode bayar */}
+<div style={{marginBottom:10}}>
+<div style={{fontSize:11,fontWeight:700,color:C.gl2,marginBottom:6}}>Metode Bayar</div>
+<div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+{[["cash","💵 Cash",C.grn],["transfer","🏦 Transfer",C.blu],["bon","📃 BON",C.rdk],["split","✂️ Split",C.olt]].map(x=><button key={x[0]} onClick={()=>setEf(p=>({...p,bayar:x[0]}))} style={{background:ef.bayar===x[0]?x[2]:C.nav,color:ef.bayar===x[0]?"white":C.wht,border:"1px solid "+(ef.bayar===x[0]?x[2]:C.bdr),borderRadius:8,padding:"6px 12px",fontWeight:700,fontSize:12,cursor:"pointer"}}>{x[1]}</button>)}
+</div>
+{ef.bayar==="transfer"&&<div style={{display:"flex",gap:8,marginTop:8}}>{["BSI","BCA"].map(b=><button key={b} onClick={()=>setEf(p=>({...p,bank:b}))} style={{background:ef.bank===b?C.blu:C.nav,color:ef.bank===b?"white":C.wht,border:"2px solid "+(ef.bank===b?C.blt:C.bdr),borderRadius:8,padding:"5px 14px",fontWeight:700,cursor:"pointer"}}>{b}</button>)}</div>}
+</div>
+<Inp label="Keterangan (opsional)" value={ef.ket||""} onChange={v=>setEf(p=>({...p,ket:v}))} placeholder="Catatan..."/>
+{/* Log perubahan */}
+{(editInv.entry.editLog||[]).length>0&&<div style={{marginBottom:10,background:C.bg,borderRadius:8,padding:10,border:"1px solid "+C.bdr}}>
+<div style={{fontSize:11,fontWeight:700,color:C.gl2,marginBottom:6}}>📋 Log Perubahan</div>
+{(editInv.entry.editLog||[]).slice().reverse().map((lg,i)=><div key={i} style={{fontSize:10,color:C.gl2,marginBottom:4,paddingBottom:4,borderBottom:"1px solid "+C.bdr}}>
+<b style={{color:C.wht}}>{lg.by}</b> · {new Date(lg.at).toLocaleString("id-ID")} · {lg.note}<br/>
+<span style={{color:"#9CA3AF"}}>Sebelum: {lg.before?.konsumen} · {lg.before?.bayar} · {fR(lg.before?.total||0)}</span>
+</div>)}
+</div>}
+<div style={{display:"flex",gap:8,justifyContent:"flex-end",marginTop:10}}>
+<button onClick={()=>setEditInv(null)} style={{background:C.nav,border:"1px solid "+C.bdr,borderRadius:8,padding:"9px 18px",color:C.gl2,cursor:"pointer",fontWeight:700}}>Batal</button>
+<button onClick={saveEdit} style={{background:C.glt,border:"none",borderRadius:8,padding:"9px 18px",color:"white",cursor:"pointer",fontWeight:700,fontSize:13}}>💾 Simpan Perubahan</button>
+</div>
+</div>
+</div>
+</div>;
+})()}
+
 {delId&&<ConfirmDel msg={"Hapus invoice "+delId.noInv+" ("+delId.konsumen+")? Stok akan dikembalikan."} onCancel={()=>setDelId(null)} onConfirm={()=>{
 var ns={...(data.stock||{})};var nk={...(data.stokKosong||{})};var na={...(data.totalTabung||{})};
 (delId.items||[]).forEach(it=>{
@@ -1820,6 +1900,7 @@ var[openId,setOpenId]=useState(null);var[delId,setDelId]=useState(null);
 var[bF,setBF]=useState({nominal:"",metode:"cash",bank:"BSI",salesPenerimaId:""});
 var[barFilter,setBarFilter]=useState({from:"",to:"",salesId:"",konsumen:"",status:""});
 var[showGabung,setShowGabung]=useState(false);
+var[editPayBon,setEditPayBon]=useState(null);// {bon, payIdx} untuk edit/cancel pembayaran
 var[gabungPilih,setGabungPilih]=useState([]);// array bon id yang dipilih
 var[gabungKons,setGabungKons]=useState("");// filter konsumen untuk gabung
 var salesList=sortEmp((data.employees||[]).filter(e=>e.aktif));
@@ -1907,7 +1988,7 @@ var cols=[
 {key:"total",label:"Total",render:r=>fR(r.total),filterable:false},
 {key:"sisaTagihan",label:"Sisa",render:r=><b style={{color:r.status==="lunas"?C.glt:r.status==="digabung"?C.gl2:C.rlt}}>{fR(r.sisaTagihan)}</b>,filterable:false},
 {key:"status",label:"Status",render:r=>r.status==="lunas"?<Bdg color="green">Lunas</Bdg>:r.status==="sebagian"?<Bdg color="orange">Sebagian</Bdg>:r.status==="digabung"?<Bdg color="gray">Digabung</Bdg>:r.isGabungan?<Bdg color="blue">Gabungan</Bdg>:<Bdg color="red">Belum</Bdg>,filterable:true,filterType:"select",options:[{v:"lunas",l:"Lunas"},{v:"sebagian",l:"Sebagian"},{v:"belum",l:"Belum"},{v:"digabung",l:"Digabung"}]},
-{key:"_aksi",label:"Aksi",sortable:false,filterable:false,render:r=><div style={{display:"flex",gap:4}}><button onClick={()=>setInv(makeBonInvObj(r))} title="Cetak Invoice BON" style={{background:C.inHv,border:"1px solid "+C.blt,borderRadius:6,padding:"4px 7px",color:C.blt,cursor:"pointer",fontSize:12}}>🖨️</button>{(r.status==="belum"||r.status==="sebagian")&&<button onClick={()=>{setOpenId(r.id);setBF({nominal:"",metode:"cash",bank:"BSI",salesPenerimaId:r.salesId||""});}} style={{background:C.grn,border:"none",borderRadius:6,padding:"4px 7px",color:"white",cursor:"pointer",fontSize:12}}>💳</button>}<button onClick={()=>setDelId(r)} style={{background:C.inHvE,border:"1px solid "+C.rlt,borderRadius:6,padding:"4px 7px",color:C.rlt,cursor:"pointer",fontSize:12}}>🗑️</button></div>},
+{key:"_aksi",label:"Aksi",sortable:false,filterable:false,render:r=><div style={{display:"flex",gap:4}}><button onClick={()=>setInv(makeBonInvObj(r))} title="Cetak Invoice BON" style={{background:C.inHv,border:"1px solid "+C.blt,borderRadius:6,padding:"4px 7px",color:C.blt,cursor:"pointer",fontSize:12}}>🖨️</button>{(r.status==="belum"||r.status==="sebagian")&&<button onClick={()=>{setOpenId(r.id);setBF({nominal:"",metode:"cash",bank:"BSI",salesPenerimaId:r.salesId||""});}} style={{background:C.grn,border:"none",borderRadius:6,padding:"4px 7px",color:"white",cursor:"pointer",fontSize:12}}>💳</button>}{(r.pembayaran||[]).length>0&&<button onClick={()=>setEditPayBon({bon:r,payIdx:null})} title="Edit/Cancel Pembayaran" style={{background:"#78350F",border:"1px solid #F59E0B",borderRadius:6,padding:"4px 7px",color:"#FCD34D",cursor:"pointer",fontSize:12}}>✏️</button>}<button onClick={()=>setDelId(r)} style={{background:C.inHvE,border:"1px solid "+C.rlt,borderRadius:6,padding:"4px 7px",color:C.rlt,cursor:"pointer",fontSize:12}}>🗑️</button></div>},
 ];
 var bonActive=(data.bon||[]).filter(b=>b.status!=="lunas"&&b.status!=="digabung");
 var totPiutang=bonActive.reduce((a,b)=>a+b.sisaTagihan,0);
@@ -2049,6 +2130,85 @@ setTimeout(function(){var e=document.getElementById("_lap_bon");if(e)e.remove();
 <Btn color="green" onClick={()=>bayar(b)} dis={!bF.nominal}>💾 Catat Pembayaran</Btn>
 </Card>;})()}
 {delId&&<ConfirmDel msg="Hapus bon?" onCancel={()=>setDelId(null)} onConfirm={()=>{setData(d=>({...d,bon:(d.bon||[]).filter(x=>x.id!==delId.id)}));setDelId(null);}}/>}
+
+{/* ── MODAL EDIT/CANCEL PEMBAYARAN BON ── */}
+{editPayBon&&<div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.8)",zIndex:999,display:"flex",alignItems:"center",justifyContent:"center",padding:16}}>
+<div style={{background:C.card,borderRadius:12,width:"100%",maxWidth:520,border:"1px solid "+C.bdr,maxHeight:"85vh",overflowY:"auto"}}>
+<div style={{padding:"14px 18px",borderBottom:"1px solid "+C.bdr,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+<div style={{fontWeight:700,color:C.wht,fontSize:14}}>✏️ Riwayat Pembayaran — {editPayBon.bon.konsumen}</div>
+<button onClick={()=>setEditPayBon(null)} style={{background:"transparent",border:"none",color:C.gl2,cursor:"pointer",fontSize:20}}>✕</button>
+</div>
+<div style={{padding:16}}>
+<div style={{background:C.nav,borderRadius:8,padding:"8px 12px",marginBottom:12,display:"flex",justifyContent:"space-between"}}>
+<span style={{fontSize:12,color:C.gl2}}>Invoice: <b style={{color:C.wht}}>{editPayBon.bon.noInv}</b></span>
+<span style={{fontSize:12,color:C.gl2}}>Total: <b style={{color:C.rlt}}>{fR(editPayBon.bon.total)}</b></span>
+</div>
+{(editPayBon.bon.pembayaran||[]).length===0
+?<div style={{color:C.gl2,fontSize:12,fontStyle:"italic"}}>Belum ada pembayaran</div>
+:(editPayBon.bon.pembayaran||[]).map((pay,pi)=>{
+var isEdit=editPayBon.payIdx===pi;
+return <div key={pi} style={{background:isEdit?C.nav:C.bg,borderRadius:8,padding:"10px 12px",marginBottom:8,border:"2px solid "+(isEdit?C.olt:C.bdr)}}>
+<div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:isEdit?8:0}}>
+<div>
+<div style={{fontSize:13,fontWeight:700,color:C.wht}}>{fR(pay.jumlah||pay.nominal||0)}</div>
+<div style={{fontSize:10,color:C.gl2}}>{fDs(pay.tanggal)} · <span style={{color:(pay.metode||"").toLowerCase()==="cash"?C.glt:C.blt,fontWeight:700}}>{pay.metode||"Cash"}</span>{pay.bank?" · "+pay.bank:""}</div>
+{pay.salesPenerimaNama&&<div style={{fontSize:10,color:C.gl2}}>Diterima: {pay.salesPenerimaNama}</div>}
+</div>
+<div style={{display:"flex",gap:5}}>
+<button onClick={()=>setEditPayBon(p=>({...p,payIdx:isEdit?null:pi,editForm:{...pay}}))} style={{background:isEdit?C.olt:C.nav,border:"1px solid "+(isEdit?C.olt:C.bdr),borderRadius:6,padding:"4px 9px",color:isEdit?"white":C.gl2,cursor:"pointer",fontSize:11,fontWeight:700}}>{isEdit?"▲":"✏️ Edit"}</button>
+<button onClick={()=>{
+var bon=editPayBon.bon;
+var newPays=(bon.pembayaran||[]).filter((_,idx)=>idx!==pi);
+var newSisa=bon.total-newPays.reduce((a,p)=>a+(Number(p.jumlah||p.nominal)||0),0);
+var newStatus=newPays.length===0?"belum":newSisa<=0?"lunas":"sebagian";
+var log={id:uid(),type:"cancel_pay",by:user?.nama||"",at:new Date().toISOString(),before:{jumlah:pay.jumlah||pay.nominal||0,metode:pay.metode,tanggal:pay.tanggal},note:"Pembayaran dicancel"};
+var updBon={...bon,pembayaran:newPays,sisaTagihan:Math.max(0,newSisa),status:newStatus,editLog:[...(bon.editLog||[]),log]};
+var newBon=(data.bon||[]).map(b=>b.id===bon.id?updBon:b);
+setData(d=>({...d,bon:newBon}));
+setEditPayBon({bon:updBon,payIdx:null,editForm:null});
+toast("✓ Pembayaran dicancel. Status: "+newStatus);
+}} style={{background:C.rdk,border:"1px solid "+C.rlt,borderRadius:6,padding:"4px 9px",color:"white",cursor:"pointer",fontSize:11,fontWeight:700}}>🗑️ Cancel</button>
+</div>
+</div>
+{isEdit&&editPayBon.editForm&&<div>
+<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:8}}>
+<div><div style={{fontSize:10,color:C.gl2,marginBottom:3}}>Nominal</div>
+<input type="number" value={editPayBon.editForm.jumlah||editPayBon.editForm.nominal||""} onChange={e=>setEditPayBon(p=>({...p,editForm:{...p.editForm,jumlah:Number(e.target.value)}}))} style={{background:C.bg,border:"1px solid "+C.bdr,borderRadius:6,padding:"7px 9px",color:C.wht,fontSize:12,outline:"none",width:"100%"}}/></div>
+<div><div style={{fontSize:10,color:C.gl2,marginBottom:3}}>Tanggal</div>
+<input type="date" value={editPayBon.editForm.tanggal||""} onChange={e=>setEditPayBon(p=>({...p,editForm:{...p.editForm,tanggal:e.target.value}}))} style={{background:C.bg,border:"1px solid "+C.bdr,borderRadius:6,padding:"7px 9px",color:C.wht,fontSize:12,outline:"none",width:"100%"}}/></div>
+</div>
+<div style={{marginBottom:8}}>
+<div style={{fontSize:10,color:C.gl2,marginBottom:4}}>Metode</div>
+<div style={{display:"flex",gap:6}}>
+{[["cash","💵 Cash",C.grn],["transfer","🏦 Transfer",C.blu]].map(x=><button key={x[0]} onClick={()=>setEditPayBon(p=>({...p,editForm:{...p.editForm,metode:x[0]}}))} style={{background:(editPayBon.editForm.metode||"cash")===x[0]?x[2]:C.nav,color:(editPayBon.editForm.metode||"cash")===x[0]?"white":C.wht,border:"1px solid "+((editPayBon.editForm.metode||"cash")===x[0]?x[2]:C.bdr),borderRadius:7,padding:"5px 14px",fontWeight:700,fontSize:12,cursor:"pointer"}}>{x[1]}</button>)}
+</div>
+{(editPayBon.editForm.metode||"cash")==="transfer"&&<div style={{display:"flex",gap:6,marginTop:6}}>{["BSI","BCA"].map(b=><button key={b} onClick={()=>setEditPayBon(p=>({...p,editForm:{...p.editForm,bank:b}}))} style={{background:(editPayBon.editForm.bank||"BSI")===b?C.blu:C.nav,color:(editPayBon.editForm.bank||"BSI")===b?"white":C.wht,border:"2px solid "+((editPayBon.editForm.bank||"BSI")===b?C.blt:C.bdr),borderRadius:7,padding:"4px 14px",fontWeight:700,cursor:"pointer",fontSize:12}}>{b}</button>)}</div>}
+</div>
+<button onClick={()=>{
+var bon=editPayBon.bon;var pi2=editPayBon.payIdx;var ef2=editPayBon.editForm;
+var log={id:uid(),type:"edit_pay",by:user?.nama||"",at:new Date().toISOString(),before:{...(bon.pembayaran||[])[pi2]},note:"Pembayaran diedit"};
+var newPays=(bon.pembayaran||[]).map((p,idx)=>idx===pi2?{...p,...ef2}:p);
+var newSisa=bon.total-newPays.reduce((a,p)=>a+(Number(p.jumlah||p.nominal)||0),0);
+var newStatus=newSisa<=0?"lunas":"sebagian";
+var updBon={...bon,pembayaran:newPays,sisaTagihan:Math.max(0,newSisa),status:newStatus,editLog:[...(bon.editLog||[]),log]};
+var newBon=(data.bon||[]).map(b=>b.id===bon.id?updBon:b);
+setData(d=>({...d,bon:newBon}));
+setEditPayBon({bon:updBon,payIdx:null,editForm:null});
+toast("✓ Pembayaran diperbarui!");
+}} style={{background:C.glt,border:"none",borderRadius:8,padding:"7px 18px",color:"white",cursor:"pointer",fontWeight:700,fontSize:12,width:"100%"}}>💾 Simpan Perubahan</button>
+</div>}
+</div>;})}
+{/* Log perubahan */}
+{(editPayBon.bon.editLog||[]).length>0&&<div style={{marginTop:10,background:C.bg,borderRadius:8,padding:10,border:"1px solid "+C.bdr}}>
+<div style={{fontSize:11,fontWeight:700,color:C.gl2,marginBottom:6}}>📋 Log Perubahan</div>
+{(editPayBon.bon.editLog||[]).slice().reverse().map((lg,i)=><div key={i} style={{fontSize:10,color:C.gl2,marginBottom:4,paddingBottom:4,borderBottom:"1px solid "+C.bdr}}>
+<b style={{color:C.wht}}>{lg.by}</b> · {new Date(lg.at).toLocaleString("id-ID")} · <span style={{color:lg.type==="cancel_pay"?C.rlt:C.olt}}>{lg.note}</span>
+{lg.before&&<><br/><span style={{color:"#9CA3AF"}}>Sebelum: {fR(lg.before.jumlah||0)} · {lg.before.metode} · {fDs(lg.before.tanggal)}</span></>}
+</div>)}
+</div>}
+</div>
+</div>
+</div>}
 </div>;
 }
 
