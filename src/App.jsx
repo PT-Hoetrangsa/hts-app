@@ -18,7 +18,7 @@ if(!document.getElementById("h2c-script")){var s=document.createElement("script"
 }})();
 var UANG_MAKAN_DEFAULT=15000;
 var SPBE_LOC={"SPPBE KCR":25000,"SPPBE MGL":115000};
-var KAT_K=["BBM","Gaji","Uang Makan Karyawan","Perbaikan","Administrasi","Sewa","Parkir","Service Kendaraan","Fee LPG 50kg","Uang Jalan SPBE","Uang Bongkar DO","Pancung 12kg","Pancung 5.5kg","Listrik PLN","Internet Wi-Fi","Air Galon","Lainnya"];
+var KAT_K=["BBM","Gaji","Uang Makan Karyawan","Perbaikan","Administrasi","Sewa","Parkir","Service Kendaraan","Fee LPG 50kg","Uang Jalan SPBE","Uang Bongkar DO","Pancung 12kg","Pancung 5.5kg","Belanja Modal","Belanja Tabung Kosong dr Konsumen","Listrik PLN","Internet Wi-Fi","Air Galon","Lainnya"];
 var KAT_AUTO_HARGA={"Uang Bongkar DO":50000,"Pancung 12kg":200000,"Pancung 5.5kg":95000};
 var SPPBE_OPTS=["SPPBE KCR","SPPBE MGL","Lainnya"];
 var PLG_KAT_27=["Rumah Tangga","Restaurant","Cafe","Warung Kopi","Warung Nasi/Rumah Makan","Kedai Bakso/Mie Ayam","Kantin Sekolah/Kampus","Catering","SPPG","UMKM Kuliner","King Fried Chicken","Toko Roti","Pabrik Roti","Produksi Industri Makanan","Peternakan Ayam","Hotel","Rumah Sakit","Kantor Pemerintah","Kantor Swasta","Kampus/Universitas","Pesantren","Pangkalan","Agen LPG","Reseller LPG","Sub Agen LPG","Canvaser LPG","SPBU","Swalayan/Grosir","Mini Market/Kios","WO/Event Organizer","Usaha Umum","Laundry","Industri Rumahan","Lainnya"]
@@ -4218,7 +4218,9 @@ allTrx.push({tgl:d.tanggal,kat:"Belanja Modal",ket:"DO — "+d.sppbe,oleh:"—",
 // 3. Pengeluaran operasional
 (data.pengeluaran||[]).forEach(p=>{
 var m=(p.metode||"cash").toLowerCase();
-allTrx.push({tgl:p.tanggal,kat:"Pengeluaran Ops",ket:p.kategori+(p.ket?" — "+p.ket:""),oleh:p.karyawanNama||"—",debit:0,kredit:Number(p.nominal||0),metode:m==="cash"?"Cash":"TF "+(p.bank||""),ref:""});
+var BELANJA_MODAL_CATS=["belanja modal","pancung","belanja tabung"];
+var katTrx=BELANJA_MODAL_CATS.some(k=>(p.kategori||"").toLowerCase().includes(k))?"Belanja Modal":"Pengeluaran Ops";
+allTrx.push({tgl:p.tanggal,kat:katTrx,ket:p.kategori+(p.ket?" — "+p.ket:""),oleh:p.karyawanNama||"—",debit:0,kredit:Number(p.nominal||0),metode:m==="cash"?"Cash":"TF "+(p.bank||""),ref:""});
 });
 
 // 4. Bayar BON (pembayaran piutang masuk)
