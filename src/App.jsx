@@ -2449,7 +2449,13 @@ return <div>
 </div>
 <Sel label="Keperluan" value={f.keperluan} onChange={v=>setF(p=>({...p,keperluan:v}))} opts={[{v:"perusahaan",l:"🏢 Perusahaan"},...karList.map(e=>({v:e.id,l:e.nama}))]}/>
 <Inp label="Keterangan" value={f.ket} onChange={v=>setF(p=>({...p,ket:v}))} placeholder="Detail..."/>
-<Inp label="Nominal" type="number" value={f.nominal} onChange={v=>setF(p=>({...p,nominal:v}))}/>
+<div style={{display:"grid",gridTemplateColumns:"90px auto 1fr auto 1fr",gap:4,alignItems:"flex-end",marginBottom:10}}>
+<Inp label="Qty (opsional)" type="number" value={f.qty||""} onChange={v=>{var n=Number(v)||0;var h=Number(f.hargaSatuan)||0;setF(p=>({...p,qty:v,nominal:n&&h?String(n*h):p.nominal}));}} placeholder="1" style={{marginBottom:0}}/>
+<div style={{textAlign:"center",color:C.gl2,fontSize:14,paddingBottom:10}}>×</div>
+<Inp label="Harga Satuan" type="number" step="1000" value={f.hargaSatuan||""} onChange={v=>{var h=Number(v)||0;var q=Number(f.qty)||0;setF(p=>({...p,hargaSatuan:v,nominal:q&&h?String(q*h):p.nominal}));}} placeholder="opsional" style={{marginBottom:0}}/>
+<div style={{textAlign:"center",color:C.gl2,fontSize:14,paddingBottom:10}}>=</div>
+<Inp label="Total (Rp)" type="number" value={f.nominal} onChange={v=>setF(p=>({...p,nominal:v}))} style={{marginBottom:0}}/>
+</div>
 </div>
 <div style={{display:"flex",gap:8,marginBottom:10}}>{["cash","transfer"].map(m=><button key={m} onClick={()=>setF(p=>({...p,metode:m}))} style={{background:f.metode===m?C.blu:C.nav,color:f.metode===m?"white":C.wht,border:"1px solid "+(f.metode===m?C.blt:C.bdr),borderRadius:8,padding:"6px 14px",fontWeight:700,fontSize:12,cursor:"pointer"}}>{m==="cash"?"💵 Cash":"🏦 Transfer"}</button>)}</div>
 {f.metode==="transfer"&&<div style={{display:"flex",gap:8,marginBottom:10}}>{["BSI","BCA"].map(b=><button key={b} onClick={()=>setF(p=>({...p,bank:b}))} style={{background:f.bank===b?C.blu:C.nav,color:f.bank===b?"white":C.wht,border:"2px solid "+(f.bank===b?C.blt:C.bdr),borderRadius:8,padding:"6px 14px",fontWeight:700,cursor:"pointer"}}>{b}</button>)}</div>}
@@ -4176,36 +4182,191 @@ var blnIdx=Number(bulanSetor.split("-")[1])-1;
 var thnIdx=bulanSetor.split("-")[0];
 
 return <div>
-<STitle icon="🏦" children="Kas & Bank"/>
+<STitle icon="📒" children="Buku Kas"/>
 <div style={{display:"flex",gap:5,marginBottom:14,flexWrap:"wrap"}}>
-{[["saldo","📊 Saldo & Mutasi"],["setor","💵 Setoran Cash"],["setup","⚙️ Setup Saldo Awal"]].map(x=><button key={x[0]} onClick={()=>setTabK(x[0])} style={{background:tabK===x[0]?C.blu:C.nav,color:tabK===x[0]?"white":C.wht,border:"1px solid "+(tabK===x[0]?C.blt:C.bdr),borderRadius:8,padding:"7px 14px",fontWeight:700,fontSize:12,cursor:"pointer"}}>{x[1]}</button>)}
+{[["saldo","📒 Debit & Kredit"],["setor","💵 Setoran Cash"],["setup","⚙️ Setup Saldo Awal"]].map(x=><button key={x[0]} onClick={()=>setTabK(x[0])} style={{background:tabK===x[0]?C.blu:C.nav,color:tabK===x[0]?"white":C.wht,border:"1px solid "+(tabK===x[0]?C.blt:C.bdr),borderRadius:8,padding:"7px 14px",fontWeight:700,fontSize:12,cursor:"pointer"}}>{x[1]}</button>)}
 </div>
 
 {/* ── TAB SALDO & MUTASI ── */}
-{tabK==="saldo"&&<div>
-<div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:10,marginBottom:14}}>
-{[["🏦 Saldo BSI",mutBSI.saldoAkhir,C.blt],["🏦 Saldo BCA",mutBCA.saldoAkhir,"#6B7280"],["💰 Total Saldo Bank",totalBank,C.glt]].map(x=><Card key={x[0]} style={{marginBottom:0,textAlign:"center"}}>
-<div style={{fontSize:11,color:C.gl2,marginBottom:4}}>{x[0]}</div>
-<div style={{fontSize:18,fontWeight:900,color:x[2]}}>{fR(x[1])}</div>
+{tabK==="saldo"&&(()=>{
+// ── Kumpulkan semua transaksi dari semua sumber ──
+var allTrx=[];
+var tglAwalBSI=(data.saldoAwalBank||{}).BSI?.tanggal||"";
+var tglAwalBCA=(data.saldoAwalBank||{}).BCA?.tanggal||"";
+
+// 1. Penjualan
+(data.penjualan||[]).forEach(p=>{
+var emp=(data.employees||[]).find(e=>e.id===p.salesId);
+var oleh=emp?.nama||p.salesNama||p.sales||"—";
+var byr=(p.bayar||"").toLowerCase();
+var sd=p.splitDetail||{};
+if(byr==="cash"){allTrx.push({tgl:p.tanggal,kat:"Penjualan",ket:p.konsumen,oleh,debit:p.total||0,kredit:0,metode:"Cash",ref:p.noInv});}
+else if(byr==="transfer"||byr==="tf"){allTrx.push({tgl:p.tanggal,kat:"Penjualan",ket:p.konsumen,oleh,debit:p.total||0,kredit:0,metode:"TF "+(p.bank||""),ref:p.noInv});}
+else if(byr==="bon"){allTrx.push({tgl:p.tanggal,kat:"Penjualan (BON)",ket:p.konsumen,oleh,debit:0,kredit:0,metode:"BON",ref:p.noInv});}
+else if(byr==="split"){
+if(Number(sd.cash)>0)allTrx.push({tgl:p.tanggal,kat:"Penjualan",ket:p.konsumen+" (Split Cash)",oleh,debit:Number(sd.cash),kredit:0,metode:"Cash",ref:p.noInv});
+if(Number(sd.tf)>0)allTrx.push({tgl:p.tanggal,kat:"Penjualan",ket:p.konsumen+" (Split TF)",oleh,debit:Number(sd.tf),kredit:0,metode:"TF "+(p.splitBank||""),ref:p.noInv});
+if(Number(sd.bon)>0)allTrx.push({tgl:p.tanggal,kat:"Penjualan (BON)",ket:p.konsumen+" (Split BON)",oleh,debit:0,kredit:0,metode:"BON",ref:p.noInv});
+}
+});
+
+// 2. DO — bayar BSI
+(data.doList||[]).filter(d=>(d.status||"diterima")==="diterima"&&d.totalHPP>0).forEach(d=>{
+allTrx.push({tgl:d.tanggal,kat:"Belanja Modal",ket:"DO — "+d.sppbe,oleh:"—",debit:0,kredit:Number(d.totalHPP||0),metode:"TF BSI",ref:d.noDO||""});
+});
+
+// 3. Pengeluaran operasional
+(data.pengeluaran||[]).forEach(p=>{
+var m=(p.metode||"cash").toLowerCase();
+allTrx.push({tgl:p.tanggal,kat:"Pengeluaran Ops",ket:p.kategori+(p.ket?" — "+p.ket:""),oleh:p.karyawanNama||"—",debit:0,kredit:Number(p.nominal||0),metode:m==="cash"?"Cash":"TF "+(p.bank||""),ref:""});
+});
+
+// 4. Bayar BON (pembayaran piutang masuk)
+(data.bon||[]).forEach(b=>{
+var emp=(data.employees||[]).find(e=>e.id===b.salesId);
+(b.pembayaran||[]).forEach(px=>{
+var m=(px.metode||"cash").toLowerCase();
+var nom=Number(px.jumlah||px.nominal||0);
+if(nom>0)allTrx.push({tgl:px.tanggal,kat:"Bayar BON",ket:b.konsumen,oleh:px.salesPenerimaNama||emp?.nama||"—",debit:nom,kredit:0,metode:m==="cash"?"Cash":"TF "+(px.bank||""),ref:b.noInv});
+});
+});
+
+// 5. Setoran Cash ke Bank (cash keluar dari laci)
+(data.setoranBank||[]).forEach(s=>{
+allTrx.push({tgl:s.tanggal,kat:"Setoran Bank",ket:"Setor ke "+s.bank,oleh:s.penyetor||"—",debit:0,kredit:s.nominal||0,metode:"Cash→Bank",ref:""});
+});
+
+// Sort by tanggal asc
+allTrx.sort((a,b)=>a.tgl.localeCompare(b.tgl));
+
+// Running balance — mulai dari saldo awal BSI+BCA
+var saldoAwalTotal=(Number((data.saldoAwalBank||{}).BSI?.nominal||0))+(Number((data.saldoAwalBank||{}).BCA?.nominal||0));
+var runBalance=saldoAwalTotal;
+allTrx=allTrx.map(t=>{runBalance+=t.debit-t.kredit;return{...t,saldo:runBalance};});
+var totalDebit=allTrx.reduce((a,t)=>a+t.debit,0);
+var totalKredit=allTrx.reduce((a,t)=>a+t.kredit,0);
+
+// Filter states (inline)
+var[fKat,setFKat]=useState("");
+var[fMetode,setFMetode]=useState("");
+var[fOleh,setFOleh]=useState("");
+var[fFrom,setFFrom]=useState("");
+var[fTo,setFTo]=useState("");
+var[fKet,setFKet]=useState("");
+var filtered=allTrx.filter(t=>{
+if(fKat&&t.kat!==fKat)return false;
+if(fMetode&&t.metode!==fMetode)return false;
+if(fOleh&&t.oleh!==fOleh)return false;
+if(fFrom&&t.tgl<fFrom)return false;
+if(fTo&&t.tgl>fTo)return false;
+if(fKet&&!t.ket.toLowerCase().includes(fKet.toLowerCase()))return false;
+return true;
+});
+var filtTotalDebit=filtered.reduce((a,t)=>a+t.debit,0);
+var filtTotalKredit=filtered.reduce((a,t)=>a+t.kredit,0);
+
+// Unique values for filter dropdowns
+var uniKat=[...new Set(allTrx.map(t=>t.kat))];
+var uniMetode=[...new Set(allTrx.map(t=>t.metode))];
+var uniOleh=[...new Set(allTrx.map(t=>t.oleh))].filter(x=>x&&x!=="—");
+
+// Saldo ringkasan atas
+var cashLaciTerakhir=(()=>{var tbs=(data.tutupBuku||[]).slice().sort((a,b)=>b.tanggal.localeCompare(a.tanggal));return tbs.length>0?Number(tbs[0].cashLaci||0):0;})();
+
+return <div>
+{/* ── Ringkasan Saldo ── */}
+<div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:8,marginBottom:14}}>
+{[["💵 Cash di Laci",cashLaciTerakhir,C.glt],["🏦 Saldo BSI",mutBSI.saldoAkhir,C.blt],["🏦 Saldo BCA",mutBCA.saldoAkhir,"#9CA3AF"],["💰 Total",cashLaciTerakhir+totalBank,C.wht]].map(x=><Card key={x[0]} style={{marginBottom:0,textAlign:"center",padding:"10px 12px"}}>
+<div style={{fontSize:10,color:C.gl2,marginBottom:3}}>{x[0]}</div>
+<div style={{fontSize:16,fontWeight:900,color:x[2]}}>{fR(x[1])}</div>
 </Card>)}
 </div>
-{["BSI","BCA"].map(bank=>{
-var mut=bank==="BSI"?mutBSI:mutBCA;
-return <Card key={bank} style={{marginBottom:10}}>
-<div style={{fontWeight:700,color:C.blt,marginBottom:8,fontSize:13}}>🏦 Mutasi Bank {bank} — Saldo Awal ({mut.tglAwal?fDs(mut.tglAwal):"belum diset"}): {fR(mut.saldoAwal)}</div>
-{mut.list.length===0?<div style={{color:C.gl2,fontSize:12,fontStyle:"italic"}}>Belum ada mutasi</div>:
-<div style={{overflowX:"auto"}}>
-<RTbl headers={["Tgl","Keterangan","Jenis","Masuk","Keluar","Saldo"]} rows={mut.list.slice().reverse().slice(0,50).map(r=>[
-fDs(r.tanggal),
-<span style={{fontSize:11}}>{r.ket}</span>,
-<Bdg color={r.jenis.includes("Masuk")||r.jenis.includes("Setor")?"green":"red"}>{r.jenis}</Bdg>,
-r.masuk>0?<b style={{color:C.glt}}>{fR(r.masuk)}</b>:"—",
-r.keluar>0?<b style={{color:C.rlt}}>{fR(r.keluar)}</b>:"—",
-<b style={{color:r.saldo>=0?C.wht:C.rlt}}>{fR(r.saldo)}</b>
-])}/>
-</div>}
-</Card>;})}
-</div>}
+
+{/* ── Filter Bar ── */}
+<Card style={{marginBottom:8,padding:"10px 12px"}}>
+<div style={{display:"flex",gap:6,flexWrap:"wrap",alignItems:"flex-end"}}>
+<div style={{minWidth:100}}>
+<div style={{fontSize:10,color:C.gl2,marginBottom:3}}>Dari</div>
+<input type="date" value={fFrom} onChange={e=>setFFrom(e.target.value)} style={{background:C.bg,border:"1px solid "+C.bdr,borderRadius:6,padding:"5px 7px",color:C.wht,fontSize:11,outline:"none",width:"100%"}}/>
+</div>
+<div style={{minWidth:100}}>
+<div style={{fontSize:10,color:C.gl2,marginBottom:3}}>Sampai</div>
+<input type="date" value={fTo} onChange={e=>setFTo(e.target.value)} style={{background:C.bg,border:"1px solid "+C.bdr,borderRadius:6,padding:"5px 7px",color:C.wht,fontSize:11,outline:"none",width:"100%"}}/>
+</div>
+<div style={{minWidth:130}}>
+<div style={{fontSize:10,color:C.gl2,marginBottom:3}}>Kategori</div>
+<select value={fKat} onChange={e=>setFKat(e.target.value)} style={{background:C.bg,border:"1px solid "+C.bdr,borderRadius:6,padding:"5px 7px",color:C.wht,fontSize:11,outline:"none",width:"100%"}}>
+<option value="">Semua</option>{uniKat.map(k=><option key={k} value={k}>{k}</option>)}
+</select>
+</div>
+<div style={{minWidth:120}}>
+<div style={{fontSize:10,color:C.gl2,marginBottom:3}}>Metode</div>
+<select value={fMetode} onChange={e=>setFMetode(e.target.value)} style={{background:C.bg,border:"1px solid "+C.bdr,borderRadius:6,padding:"5px 7px",color:C.wht,fontSize:11,outline:"none",width:"100%"}}>
+<option value="">Semua</option>{uniMetode.map(k=><option key={k} value={k}>{k}</option>)}
+</select>
+</div>
+<div style={{minWidth:130}}>
+<div style={{fontSize:10,color:C.gl2,marginBottom:3}}>Transaksi Oleh</div>
+<select value={fOleh} onChange={e=>setFOleh(e.target.value)} style={{background:C.bg,border:"1px solid "+C.bdr,borderRadius:6,padding:"5px 7px",color:C.wht,fontSize:11,outline:"none",width:"100%"}}>
+<option value="">Semua</option>{uniOleh.map(k=><option key={k} value={k}>{k}</option>)}
+</select>
+</div>
+<div style={{minWidth:140}}>
+<div style={{fontSize:10,color:C.gl2,marginBottom:3}}>Keterangan</div>
+<input value={fKet} onChange={e=>setFKet(e.target.value)} placeholder="Cari..." style={{background:C.bg,border:"1px solid "+C.bdr,borderRadius:6,padding:"5px 7px",color:C.wht,fontSize:11,outline:"none",width:"100%"}}/>
+</div>
+{(fKat||fMetode||fOleh||fFrom||fTo||fKet)&&<button onClick={()=>{setFKat("");setFMetode("");setFOleh("");setFFrom("");setFTo("");setFKet("");}} style={{background:C.rdk,border:"1px solid "+C.rlt,borderRadius:6,padding:"5px 10px",color:"white",cursor:"pointer",fontSize:11,fontWeight:700,alignSelf:"flex-end"}}>✕ Reset</button>}
+</div>
+</Card>
+
+{/* ── Tabel Debit & Credit ── */}
+<Card style={{padding:0,overflow:"hidden"}}>
+<div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 14px",borderBottom:"1px solid "+C.bdr}}>
+<div style={{fontWeight:700,color:C.gl2,fontSize:13}}>📒 Debit & Credit — {filtered.length} transaksi</div>
+<button onClick={()=>doPrint("_buku_kas_tbl")} style={{background:C.nav,border:"1px solid "+C.bdr,borderRadius:7,padding:"5px 12px",color:C.wht,cursor:"pointer",fontSize:11,fontWeight:700}}>🖨️ Cetak</button>
+</div>
+<div id="_buku_kas_tbl" style={{overflowX:"auto"}}>
+<table style={{width:"100%",borderCollapse:"collapse",fontSize:11}}>
+<thead>
+<tr style={{background:C.nav,borderBottom:"2px solid "+C.bdr}}>
+{["Tgl","Kategori","Keterangan","Transaksi Oleh","Metode","Debit (Masuk)","Kredit (Keluar)","Saldo"].map(h=><th key={h} style={{padding:"8px 10px",color:C.gl2,fontWeight:700,textAlign:["Debit (Masuk)","Kredit (Keluar)","Saldo"].includes(h)?"right":"left",whiteSpace:"nowrap",borderBottom:"1px solid "+C.bdr,fontSize:10}}>{h}</th>)}
+</tr>
+</thead>
+<tbody>
+{filtered.length===0?<tr><td colSpan={8} style={{padding:"20px",textAlign:"center",color:C.gl2,fontStyle:"italic"}}>Tidak ada transaksi</td></tr>:
+filtered.map((t,i)=><tr key={i} style={{background:i%2===0?C.bg:C.nav,borderBottom:"1px solid "+C.bdr}}>
+<td style={{padding:"6px 10px",color:C.gl2,whiteSpace:"nowrap"}}>{fDs(t.tgl)}</td>
+<td style={{padding:"6px 10px"}}><Bdg color={t.kat.includes("Pengeluaran")||t.kat.includes("Belanja")||t.kat.includes("Setoran")?"red":t.kat.includes("BON")?"orange":"green"}>{t.kat}</Bdg></td>
+<td style={{padding:"6px 10px",color:C.wht,maxWidth:180,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{t.ket}</td>
+<td style={{padding:"6px 10px",color:C.gl2,whiteSpace:"nowrap"}}>{t.oleh}</td>
+<td style={{padding:"6px 10px",whiteSpace:"nowrap"}}><span style={{fontSize:10,fontWeight:600,color:t.metode.includes("Cash")?"#86EFAC":t.metode.includes("TF")?"#93C5FD":"#FCD34D"}}>{t.metode}</span></td>
+<td style={{padding:"6px 10px",textAlign:"right",fontWeight:t.debit>0?700:400,color:t.debit>0?C.glt:C.gl2}}>{t.debit>0?fR(t.debit):"—"}</td>
+<td style={{padding:"6px 10px",textAlign:"right",fontWeight:t.kredit>0?700:400,color:t.kredit>0?C.rlt:C.gl2}}>{t.kredit>0?fR(t.kredit):"—"}</td>
+<td style={{padding:"6px 10px",textAlign:"right",fontWeight:700,color:t.saldo>=0?C.wht:C.rlt,whiteSpace:"nowrap"}}>{fR(t.saldo)}</td>
+</tr>)}
+</tbody>
+<tfoot>
+<tr style={{background:C.nav,borderTop:"2px solid "+C.bdr}}>
+<td colSpan={5} style={{padding:"8px 10px",fontWeight:700,color:C.wht,fontSize:12}}>
+{filtered.length<allTrx.length?`Filter aktif: ${filtered.length} dari ${allTrx.length} transaksi`:`Total ${allTrx.length} transaksi`}
+</td>
+<td style={{padding:"8px 10px",textAlign:"right",fontWeight:900,color:C.glt,fontSize:13}}>{fR(filtTotalDebit)}</td>
+<td style={{padding:"8px 10px",textAlign:"right",fontWeight:900,color:C.rlt,fontSize:13}}>{fR(filtTotalKredit)}</td>
+<td style={{padding:"8px 10px",textAlign:"right",fontWeight:900,color:(filtTotalDebit-filtTotalKredit)>=0?C.glt:C.rlt,fontSize:13}}>{fR(filtTotalDebit-filtTotalKredit)}</td>
+</tr>
+</tfoot>
+</table>
+</div>
+{/* Summary bawah */}
+<div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,padding:"10px 14px",borderTop:"1px solid "+C.bdr}}>
+{[["Total Debit (Masuk)",filtTotalDebit,C.glt],["Total Kredit (Keluar)",filtTotalKredit,C.rlt],["Selisih Bersih",filtTotalDebit-filtTotalKredit,(filtTotalDebit-filtTotalKredit)>=0?C.glt:C.rlt]].map(x=><div key={x[0]} style={{background:C.nav,borderRadius:8,padding:"8px 12px",border:"1px solid "+C.bdr}}>
+<div style={{fontSize:10,color:C.gl2,marginBottom:3}}>{x[0]}</div>
+<div style={{fontSize:15,fontWeight:900,color:x[2]}}>{fR(x[1])}</div>
+</div>)}
+</div>
+</Card>
+</div>;
+})()}
 
 {/* ── TAB SETORAN CASH ── */}
 {tabK==="setor"&&<div>
@@ -4505,7 +4666,7 @@ var ALL_TABS=[
 {id:"pengeluaran",label:"Pengeluaran",icon:"💸"},{id:"tutupbuku",label:"Tutup Buku",icon:"📒"},
 {id:"pelanggan",label:"Pelanggan",icon:"👥"},{id:"karyawan",label:"Karyawan",icon:"👤"},
 {id:"absensi",label:"Absensi",icon:"📅"},{id:"payroll",label:"Payroll",icon:"💼"},
-{id:"kas",label:"Kas & Bank",icon:"🏦"},{id:"do",label:"DO",icon:"🚚"},{id:"settings",label:"Pengaturan",icon:"⚙️"},
+{id:"kas",label:"Buku Kas",icon:"📒"},{id:"do",label:"DO",icon:"🚚"},{id:"settings",label:"Pengaturan",icon:"⚙️"},
 ];
 function getVisibleTabs(user){if(!user)return[];var rt=ROLE_TABS[user.role];if(rt===null||rt===undefined)return ALL_TABS;return ALL_TABS.filter(t=>rt.includes(t.id));}
 
