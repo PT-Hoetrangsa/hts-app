@@ -4079,6 +4079,13 @@ var[pecahInput,setPecahInput]=useState(()=>{var o={};DENOMS.forEach(d=>{o[d]="";
 var[showSlip,setShowSlip]=useState(false);
 var[editSetor,setEditSetor]=useState(null);
 var[editSetorF,setEditSetorF]=useState(null);
+// Filter states untuk Debit & Kredit tab
+var[fKat,setFKat]=useState("");
+var[fMetode,setFMetode]=useState("");
+var[fOleh,setFOleh]=useState("");
+var[fFrom,setFFrom]=useState("");
+var[fTo,setFTo]=useState("");
+var[fKet,setFKet]=useState("");
 
 // ── Kalkulasi saldo bank ──
 function getMutasiBank(bank){
@@ -4248,13 +4255,7 @@ allTrx=allTrx.map(t=>{runBalance+=t.debit-t.kredit;return{...t,saldo:runBalance}
 var totalDebit=allTrx.reduce((a,t)=>a+t.debit,0);
 var totalKredit=allTrx.reduce((a,t)=>a+t.kredit,0);
 
-// Filter states (inline)
-var[fKat,setFKat]=useState("");
-var[fMetode,setFMetode]=useState("");
-var[fOleh,setFOleh]=useState("");
-var[fFrom,setFFrom]=useState("");
-var[fTo,setFTo]=useState("");
-var[fKet,setFKet]=useState("");
+// Filter states sudah di level atas komponen
 var filtered=allTrx.filter(t=>{
 if(fKat&&t.kat!==fKat)return false;
 if(fMetode&&t.metode!==fMetode)return false;
