@@ -2440,22 +2440,22 @@ var cols=[
 return <div>
 <STitle icon="💸" children="Pengeluaran"/>
 <Card>
-<div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(150px,1fr))",gap:10}}>
-<Inp label="Tanggal" type="date" value={f.tanggal} onChange={v=>setF(p=>({...p,tanggal:v}))}/>
-<div style={{marginBottom:10}}>
+<div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,marginBottom:10}}>
+<Inp label="Tanggal" type="date" value={f.tanggal} onChange={v=>setF(p=>({...p,tanggal:v}))} style={{marginBottom:0}}/>
+<div>
 <label style={{display:"block",fontSize:11,color:C.gl2,marginBottom:3,fontWeight:600}}>Kategori</label>
 <select value={f.kategori} onChange={e=>setF(p=>({...p,kategori:e.target.value}))} style={{width:"100%",border:"1px solid "+C.bdr,borderRadius:8,padding:"9px 11px",color:C.wht,fontSize:13,outline:"none",background:C.nav,boxSizing:"border-box"}}>{KAT_K.map(k=><option key={k}>{k}</option>)}</select>
 {isLainnya&&<input value={f.kategoriCustom} placeholder="Ketik kategori..." onChange={e=>setF(p=>({...p,kategoriCustom:e.target.value}))} style={{width:"100%",border:"1px solid "+C.bdr,borderRadius:8,padding:"9px 11px",color:C.wht,fontSize:13,outline:"none",background:C.nav,marginTop:4,boxSizing:"border-box"}}/>}
 </div>
-<Sel label="Keperluan" value={f.keperluan} onChange={v=>setF(p=>({...p,keperluan:v}))} opts={[{v:"perusahaan",l:"🏢 Perusahaan"},...karList.map(e=>({v:e.id,l:e.nama}))]}/>
-<Inp label="Keterangan" value={f.ket} onChange={v=>setF(p=>({...p,ket:v}))} placeholder="Detail..."/>
+<Sel label="Keperluan / Atas Nama" value={f.keperluan} onChange={v=>setF(p=>({...p,keperluan:v}))} opts={[{v:"perusahaan",l:"🏢 Perusahaan"},...karList.map(e=>({v:e.id,l:e.nama}))]} style={{marginBottom:0}}/>
+</div>
+<Inp label="Keterangan" value={f.ket} onChange={v=>setF(p=>({...p,ket:v}))} placeholder="Detail pengeluaran..." style={{marginBottom:10}}/>
 <div style={{display:"grid",gridTemplateColumns:"90px auto 1fr auto 1fr",gap:4,alignItems:"flex-end",marginBottom:10}}>
 <Inp label="Qty (opsional)" type="number" value={f.qty||""} onChange={v=>{var n=Number(v)||0;var h=Number(f.hargaSatuan)||0;setF(p=>({...p,qty:v,nominal:n&&h?String(n*h):p.nominal}));}} placeholder="1" style={{marginBottom:0}}/>
 <div style={{textAlign:"center",color:C.gl2,fontSize:14,paddingBottom:10}}>×</div>
 <Inp label="Harga Satuan" type="number" step="1000" value={f.hargaSatuan||""} onChange={v=>{var h=Number(v)||0;var q=Number(f.qty)||0;setF(p=>({...p,hargaSatuan:v,nominal:q&&h?String(q*h):p.nominal}));}} placeholder="opsional" style={{marginBottom:0}}/>
 <div style={{textAlign:"center",color:C.gl2,fontSize:14,paddingBottom:10}}>=</div>
 <Inp label="Total (Rp)" type="number" value={f.nominal} onChange={v=>setF(p=>({...p,nominal:v}))} style={{marginBottom:0}}/>
-</div>
 </div>
 <div style={{display:"flex",gap:8,marginBottom:10}}>{["cash","transfer"].map(m=><button key={m} onClick={()=>setF(p=>({...p,metode:m}))} style={{background:f.metode===m?C.blu:C.nav,color:f.metode===m?"white":C.wht,border:"1px solid "+(f.metode===m?C.blt:C.bdr),borderRadius:8,padding:"6px 14px",fontWeight:700,fontSize:12,cursor:"pointer"}}>{m==="cash"?"💵 Cash":"🏦 Transfer"}</button>)}</div>
 {f.metode==="transfer"&&<div style={{display:"flex",gap:8,marginBottom:10}}>{["BSI","BCA"].map(b=><button key={b} onClick={()=>setF(p=>({...p,bank:b}))} style={{background:f.bank===b?C.blu:C.nav,color:f.bank===b?"white":C.wht,border:"2px solid "+(f.bank===b?C.blt:C.bdr),borderRadius:8,padding:"6px 14px",fontWeight:700,cursor:"pointer"}}>{b}</button>)}</div>}
