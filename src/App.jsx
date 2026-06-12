@@ -1982,8 +1982,8 @@ var bonAktifGabung=(data.bon||[]).filter(b=>b.status!=="digabung").filter(b=>!ga
 
 var cols=[
 {key:"tanggal",label:"Tgl",render:r=>fDs(r.tanggal),sortVal:r=>r.tanggal,filterable:true},
-{key:"konsumen",label:"Konsumen",render:r=><b style={{color:C.wht,display:"block",minWidth:120}}>{r.konsumen}</b>,filterable:false,width:127},
-{key:"salesNama",label:"Sales",filterable:false},
+{key:"konsumen",label:"Konsumen",render:r=><b style={{color:C.wht,display:"block",minWidth:120}}>{r.konsumen}</b>,filterable:true,width:127},
+{key:"salesNama",label:"Sales",filterable:true},
 {key:"deadline",label:"Jatuh Tempo",render:r=>r.deadline?<span style={{color:r.dl<0&&r.status!=="lunas"?C.rlt:r.dl<=3&&r.status!=="lunas"?C.olt:C.gl2}}>{fDs(r.deadline)}{r.status!=="lunas"&&r.dl!=null?" ("+(r.dl<0?Math.abs(r.dl)+"h LEWAT":r.dl+"h)"):""}</span>:"-",filterable:false},
 {key:"total",label:"Total",render:r=>fR(r.total),filterable:false},
 {key:"sisaTagihan",label:"Sisa",render:r=><b style={{color:r.status==="lunas"?C.glt:r.status==="digabung"?C.gl2:C.rlt}}>{fR(r.sisaTagihan)}</b>,filterable:false},
@@ -2131,20 +2131,16 @@ setTimeout(function(){var e=document.getElementById("_lap_bon");if(e)e.remove();
 </Card>;})()}
 {/* Total sisa mengikuti filter */}
 {(()=>{
-var rowsFiltered=rows.filter(r=>{
-if(r.status==="lunas"||r.status==="digabung")return false;
-if(barFilter.from&&r.tanggal<barFilter.from)return false;
-if(barFilter.to&&r.tanggal>barFilter.to)return false;
-if(barFilter.salesId&&r.salesId!==barFilter.salesId)return false;
-if(barFilter.konsumen&&!r.konsumen.toLowerCase().includes(barFilter.konsumen.toLowerCase()))return false;
-if(barFilter.status&&r.status!==barFilter.status)return false;
-return true;
-});
+// rows sudah terfilter barFilter dari useMemo
+// hanya exclude lunas & digabung untuk rekap aktif
+var rowsFiltered=rows.filter(r=>r.status!=="lunas"&&r.status!=="digabung");
 var totalSisaFilter=rowsFiltered.reduce((a,r)=>a+(r.sisaTagihan||0),0);
 var totalFilter=rowsFiltered.reduce((a,r)=>a+(r.total||0),0);
-if(rowsFiltered.length===0)return null;
 return <Card style={{border:"1px solid "+C.rlt}}>
-<div style={{fontWeight:700,color:C.gl2,marginBottom:8,fontSize:13}}>📊 Rekap Piutang Aktif{barFilter.konsumen||barFilter.salesId||barFilter.status?" (filter aktif)":""}</div>
+<div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+<div style={{fontWeight:700,color:C.gl2,fontSize:13}}>📊 Rekap Piutang Aktif{barFilter.konsumen||barFilter.salesId||barFilter.from||barFilter.status?" — filter aktif":""}</div>
+<div style={{fontSize:10,color:C.gl2,fontStyle:"italic"}}>* mengikuti filter atas</div>
+</div>
 <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8}}>
 {[["Jumlah BON",rowsFiltered.length+" bon",C.wht],["Total Invoice",fR(totalFilter),C.olt],["Total Sisa Tagihan",fR(totalSisaFilter),C.rlt]].map(x=><div key={x[0]} style={{background:C.nav,borderRadius:8,padding:"10px 14px",border:"1px solid "+C.bdr}}>
 <div style={{fontSize:10,color:C.gl2,marginBottom:3}}>{x[0]}</div>
