@@ -18,7 +18,7 @@ if(!document.getElementById("h2c-script")){var s=document.createElement("script"
 }})();
 var UANG_MAKAN_DEFAULT=15000;
 var SPBE_LOC={"SPPBE KCR":25000,"SPPBE MGL":115000};
-var KAT_K=["BBM","Gaji","Uang Makan Karyawan","Perbaikan","Administrasi","Sewa","Parkir","Service Kendaraan","Fee LPG 50kg","Uang Jalan SPBE","Uang Bongkar DO","Pancung 12kg","Pancung 5.5kg","Belanja Modal","Belanja Tabung Kosong dr Konsumen","Listrik PLN","Internet Wi-Fi","Air Galon","Lainnya"];
+var KAT_K=["BBM","Gaji","Uang Makan Karyawan","Perbaikan","Administrasi","Sewa","Parkir","Service Kendaraan","Fee LPG 50kg","Uang Jalan SPBE","Uang Bongkar DO","Pancung 12kg","Pancung 5.5kg","Belanja Modal","Belanja Tabung Kosong dr Konsumen","Kasbon / Ambilan Karyawan","Listrik PLN","Internet Wi-Fi","Air Galon","Lainnya"];
 var KAT_AUTO_HARGA={"Uang Bongkar DO":50000,"Pancung 12kg":200000,"Pancung 5.5kg":95000};
 var SPPBE_OPTS=["SPPBE KCR","SPPBE MGL","Lainnya"];
 var PLG_KAT_27=["Rumah Tangga","Restaurant","Cafe","Warung Kopi","Warung Nasi/Rumah Makan","Kedai Bakso/Mie Ayam","Kantin Sekolah/Kampus","Catering","SPPG","UMKM Kuliner","King Fried Chicken","Toko Roti","Pabrik Roti","Produksi Industri Makanan","Peternakan Ayam","Hotel","Rumah Sakit","Kantor Pemerintah","Kantor Swasta","Kampus/Universitas","Pesantren","Pangkalan","Agen LPG","Reseller LPG","Sub Agen LPG","Canvaser LPG","SPBU","Swalayan/Grosir","Mini Market/Kios","WO/Event Organizer","Usaha Umum","Laundry","Industri Rumahan","Lainnya"]
@@ -992,7 +992,7 @@ return <Card key={s} style={{marginBottom:0}}>
   </div>;
 })()}
 </Card>
-<Card><div style={{fontWeight:700,color:C.gl2,fontSize:12,marginBottom:10}}>⚡ Akses Cepat</div><div style={{display:"flex",gap:8,flexWrap:"wrap"}}>{[["penjualan","🧾","Penjualan"],["stok","📦","Stok"],["piutang","💳","Piutang"],["absensi","📅","Absensi"],["payroll","💼","Payroll"],["laporan","📊","Laporan"]].map(x=><Btn key={x[0]} onClick={()=>setTab(x[0])} sm>{x[1]} {x[2]}</Btn>)}</div></Card>
+<Card><div style={{fontWeight:700,color:C.gl2,fontSize:12,marginBottom:10}}>⚡ Akses Cepat</div><div style={{display:"flex",gap:8,flexWrap:"wrap"}}>{[["penjualan","🧾","Penjualan"],["stok","📦","Stok"],["piutang","💳","Piutang"],["absensi","📅","Absensi"],["absensi","💼","Payroll"],["laporan","📊","Laporan"]].map(x=><Btn key={x[0]} onClick={()=>setTab(x[0])} sm>{x[1]} {x[2]}</Btn>)}</div></Card>
 </div>;
 }
 
@@ -3966,18 +3966,133 @@ return <div>
 }
 
 // ─── ABSENSI ──────────────────────────────────────────────────────────────────
-function AbsensiMod({data,setData,toast}){
+function AbsensiPayrollMod({data,setData,toast}){
 var C=useTheme();
-var[f,setF]=useState({tanggal:toDay(),karyawanId:"",status:"Hadir",ket:""});var[viewBln,setViewBln]=useState(toMonth());
-function save(){if(!f.karyawanId)return;var emp=(data.employees||[]).find(e=>e.id===f.karyawanId);var exists=(data.absensi||[]).find(a=>a.karyawanId===f.karyawanId&&a.tanggal===f.tanggal);var rec={id:exists?.id||uid(),karyawanId:f.karyawanId,karyawanNama:emp?.nama||"",tanggal:f.tanggal,status:f.status,ket:f.ket};setData(d=>({...d,absensi:exists?(d.absensi||[]).map(a=>a.id===exists.id?rec:a):[rec,...(d.absensi||[])]}));toast("✓ Absensi dicatat!");}
-var absBln=(data.absensi||[]).filter(a=>(a.tanggal||"").startsWith(viewBln));
-var rekapMap={};(data.employees||[]).filter(e=>e.aktif).forEach(e=>{var ea=absBln.filter(a=>a.karyawanId===e.id);var counts={};ABSENSI_STATUS.forEach(s=>{counts[s]=ea.filter(a=>a.status===s).length;});rekapMap[e.id]={nama:e.nama,counts};});
+var[tabAP,setTabAP]=useState("absensi");
+var[viewBln,setViewBln]=useState(toMonth());
+var STATUS_CYCLE=["H","I","C","A"];// Hadir, Izin, Cuti, Alpha
+var STATUS_COLOR={H:"#15803D",I:"#B45309",C:"#1D4ED8",A:"#DC2626"};
+var STATUS_BG={H:"#DCFCE7",I:"#FEF3C7",C:"#DBEAFE",A:"#FEE2E2"};
+var STATUS_LABEL={H:"Hadir",I:"Izin",C:"Cuti",A:"Alpha"};
+var karList=sortEmp((data.employees||[]).filter(e=>e.aktif));
+var dim=daysInMonth(viewBln);
+var days=Array.from({length:dim},(_,i)=>String(i+1).padStart(2,"0"));
+
+function toggleAbsensi(karyawanId,tgl,current){
+var next=current?STATUS_CYCLE[(STATUS_CYCLE.indexOf(current)+1)%STATUS_CYCLE.length]:STATUS_CYCLE[0];
+var emp=(data.employees||[]).find(e=>e.id===karyawanId);
+var fullTgl=viewBln+"-"+tgl;
+var exists=(data.absensi||[]).find(a=>a.karyawanId===karyawanId&&a.tanggal===fullTgl);
+if(next===null){// hapus
+setData(d=>({...d,absensi:(d.absensi||[]).filter(a=>!(a.karyawanId===karyawanId&&a.tanggal===fullTgl))}));
+}else{
+var rec={id:exists?.id||uid(),karyawanId,karyawanNama:emp?.nama||"",tanggal:fullTgl,status:next,ket:""};
+setData(d=>({...d,absensi:exists?(d.absensi||[]).map(a=>a.id===exists.id?rec:a):[rec,...(d.absensi||[])]}));
+}
+}
+
+// Hitung rekap per karyawan
+var rekapAbsensi=karList.map(emp=>{
+var absBln=(data.absensi||[]).filter(a=>a.karyawanId===emp.id&&(a.tanggal||"").startsWith(viewBln));
+var counts={H:0,I:0,C:0,A:0};
+absBln.forEach(a=>{if(counts[a.status]!==undefined)counts[a.status]++;});
+return{...emp,counts,absBln};
+});
+
+// Rekap ambilan dari pengeluaran
+var ambilanList=(data.pengeluaran||[]).filter(p=>(p.kategori||"").toLowerCase().includes("kasbon")||(p.kategori||"").toLowerCase().includes("ambilan")).sort((a,b)=>b.tanggal.localeCompare(a.tanggal));
+
 return <div>
-<STitle icon="📅" children="Absensi"/>
-<Card><div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(155px,1fr))",gap:10}}><Inp label="Tanggal" type="date" value={f.tanggal} onChange={v=>setF(p=>({...p,tanggal:v}))}/><Sel label="Karyawan" value={f.karyawanId} onChange={v=>setF(p=>({...p,karyawanId:v}))} opts={[{v:"",l:"-- Pilih --"},...(data.employees||[]).filter(e=>e.aktif).map(e=>({v:e.id,l:e.nama}))]}/><div><label style={{display:"block",fontSize:11,color:C.gl2,marginBottom:3,fontWeight:600}}>Status</label><div style={{display:"flex",gap:4,flexWrap:"wrap"}}>{ABSENSI_STATUS.map(s=><button key={s} onClick={()=>setF(p=>({...p,status:s}))} style={{background:f.status===s?C.blu:C.nav,color:f.status===s?"white":C.wht,border:"1px solid "+(f.status===s?C.blt:C.bdr),borderRadius:6,padding:"5px 8px",fontSize:11,fontWeight:700,cursor:"pointer"}}>{s}</button>)}</div></div><Inp label="Keterangan" value={f.ket} onChange={v=>setF(p=>({...p,ket:v}))}/></div><Btn color="green" onClick={save} dis={!f.karyawanId}>💾 Simpan</Btn></Card>
-<Card><div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12,flexWrap:"wrap",gap:8}}><div style={{fontWeight:700,color:C.gl2,fontSize:13}}>📊 Rekap Bulanan</div><MonthPicker value={viewBln} onChange={setViewBln} label=""/></div>
-<div style={{overflowX:"auto"}}><table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}><thead><tr><th style={{padding:"8px 10px",background:C.nav,color:C.gl2,fontWeight:700,textAlign:"left",borderBottom:"2px solid "+C.bdr}}>Nama</th>{ABSENSI_STATUS.map(s=><th key={s} style={{padding:"8px 6px",background:C.nav,color:C.gl2,fontWeight:700,textAlign:"center",borderBottom:"2px solid "+C.bdr,fontSize:10}}>{s}</th>)}</tr></thead><tbody>{Object.keys(rekapMap).map(id=>{var r=rekapMap[id];return <tr key={id} style={{borderBottom:"1px solid "+C.bdr}}><td style={{padding:"8px 10px",color:C.wht,fontWeight:600}}>{r.nama}</td>{ABSENSI_STATUS.map(s=><td key={s} style={{padding:"7px 6px",textAlign:"center",color:r.counts[s]>0?C.wht:C.gry,fontWeight:r.counts[s]>0?700:400}}>{r.counts[s]>0?r.counts[s]:"-"}</td>)}</tr>;})}</tbody></table></div>
+<STitle icon="📅" children="Absensi & Payroll"/>
+<div style={{display:"flex",gap:5,marginBottom:14,flexWrap:"wrap"}}>
+{[["absensi","📅 Absensi"],["payroll","💰 Payroll"],["ambilan","💸 Rekap Ambilan"]].map(x=><button key={x[0]} onClick={()=>setTabAP(x[0])} style={{background:tabAP===x[0]?C.blu:C.nav,color:tabAP===x[0]?"white":C.wht,border:"1px solid "+(tabAP===x[0]?C.blt:C.bdr),borderRadius:8,padding:"7px 14px",fontWeight:700,fontSize:12,cursor:"pointer"}}>{x[1]}</button>)}
+</div>
+
+{/* ── TAB ABSENSI ── */}
+{tabAP==="absensi"&&<div>
+<Card style={{padding:"10px 12px",marginBottom:8}}>
+<div style={{display:"flex",alignItems:"center",gap:10,flexWrap:"wrap"}}>
+<MonthPicker value={viewBln} onChange={setViewBln} label="Bulan"/>
+<div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+{Object.entries(STATUS_LABEL).map(([k,v])=><div key={k} style={{display:"flex",alignItems:"center",gap:4}}>
+<div style={{width:20,height:20,background:STATUS_BG[k],border:"1px solid "+STATUS_COLOR[k],borderRadius:4,display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,fontWeight:700,color:STATUS_COLOR[k]}}>{k}</div>
+<span style={{fontSize:11,color:C.gl2}}>{v}</span>
+</div>)}
+<span style={{fontSize:10,color:C.gl2,fontStyle:"italic"}}>Klik sel untuk input</span>
+</div>
+</div>
 </Card>
+<Card style={{padding:0,overflow:"hidden"}}>
+<div style={{overflowX:"auto"}}>
+<table style={{width:"100%",borderCollapse:"collapse",fontSize:10,minWidth:700}}>
+<thead>
+<tr style={{background:C.nav,borderBottom:"2px solid "+C.bdr}}>
+<th style={{padding:"8px 12px",color:C.gl2,textAlign:"left",fontWeight:700,fontSize:11,position:"sticky",left:0,background:C.nav,minWidth:120,zIndex:1}}>Karyawan</th>
+{days.map(d=><th key={d} style={{padding:"6px 3px",color:C.gl2,textAlign:"center",fontWeight:700,minWidth:28,borderLeft:"1px solid "+C.bdr}}>{Number(d)}</th>)}
+<th style={{padding:"6px 8px",color:"#15803D",textAlign:"center",fontWeight:700,borderLeft:"2px solid "+C.bdr,background:C.nav}}>H</th>
+<th style={{padding:"6px 8px",color:"#B45309",textAlign:"center",fontWeight:700}}>I</th>
+<th style={{padding:"6px 8px",color:"#1D4ED8",textAlign:"center",fontWeight:700}}>C</th>
+<th style={{padding:"6px 8px",color:"#DC2626",textAlign:"center",fontWeight:700}}>A</th>
+</tr>
+</thead>
+<tbody>
+{rekapAbsensi.map((emp,ri)=>{
+return <tr key={emp.id} style={{borderBottom:"1px solid "+C.bdr,background:ri%2===0?C.bg:C.nav}}>
+<td style={{padding:"6px 12px",color:C.wht,fontWeight:600,position:"sticky",left:0,background:ri%2===0?C.bg:C.nav,zIndex:1}}>{emp.nama}</td>
+{days.map(d=>{
+var fullTgl=viewBln+"-"+d;
+var abs=emp.absBln.find(a=>a.tanggal===fullTgl);
+var st=abs?.status||null;
+return <td key={d} onClick={()=>toggleAbsensi(emp.id,d,st)} style={{padding:"3px 2px",textAlign:"center",cursor:"pointer",borderLeft:"1px solid "+C.bdr,background:st?STATUS_BG[st]:"transparent"}}>
+{st&&<div style={{width:22,height:22,margin:"0 auto",background:STATUS_COLOR[st],borderRadius:4,display:"flex",alignItems:"center",justifyContent:"center",fontSize:9,fontWeight:700,color:"white"}}>{st}</div>}
+{!st&&<div style={{width:22,height:22,margin:"0 auto",borderRadius:4,border:"1px dashed "+C.bdr}}/>}
+</td>;
+})}
+<td style={{padding:"6px 8px",textAlign:"center",fontWeight:700,color:"#15803D",borderLeft:"2px solid "+C.bdr,fontSize:12}}>{emp.counts.H||"-"}</td>
+<td style={{padding:"6px 8px",textAlign:"center",fontWeight:700,color:"#B45309",fontSize:12}}>{emp.counts.I||"-"}</td>
+<td style={{padding:"6px 8px",textAlign:"center",fontWeight:700,color:"#1D4ED8",fontSize:12}}>{emp.counts.C||"-"}</td>
+<td style={{padding:"6px 8px",textAlign:"center",fontWeight:700,color:"#DC2626",fontSize:12}}>{emp.counts.A||"-"}</td>
+</tr>;
+})}
+</tbody>
+</table>
+</div>
+</Card>
+</div>}
+
+{/* ── TAB PAYROLL ── */}
+{tabAP==="payroll"&&<PayrollMod data={data} setData={setData} toast={toast}/>}
+
+{/* ── TAB REKAP AMBILAN ── */}
+{tabAP==="ambilan"&&<div>
+<Card>
+<div style={{fontWeight:700,color:C.gl2,marginBottom:10,fontSize:13}}>💸 Rekap Ambilan / Kasbon Karyawan</div>
+<div style={{fontSize:11,color:C.gl2,marginBottom:12,fontStyle:"italic"}}>Input ambilan melalui module 💸 Pengeluaran → Kategori "Kasbon / Ambilan Karyawan"</div>
+{ambilanList.length===0?<div style={{color:C.gl2,fontSize:12,fontStyle:"italic"}}>Belum ada data ambilan</div>:<>
+<div style={{overflowX:"auto"}}>
+<RTbl headers={["Tgl","Karyawan","Nominal","Metode","Keterangan"]} rows={ambilanList.map(p=>[
+fDs(p.tanggal),
+<b style={{color:C.wht}}>{p.karyawanNama||"—"}</b>,
+<b style={{color:C.rlt}}>{fR(p.nominal)}</b>,
+<Bdg color={(p.metode||"cash").toLowerCase()==="cash"?"green":"blue"}>{p.metode||"Cash"}</Bdg>,
+p.ket||"—"
+])}/>
+</div>
+{/* Rekap total per karyawan */}
+<div style={{marginTop:12,fontWeight:700,color:C.gl2,marginBottom:8,fontSize:12}}>Total per Karyawan (keseluruhan)</div>
+<div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(180px,1fr))",gap:8}}>
+{karList.map(emp=>{
+var total=ambilanList.filter(p=>p.karyawanId===emp.id||p.karyawanNama===emp.nama).reduce((a,p)=>a+Number(p.nominal||0),0);
+if(total===0)return null;
+return <div key={emp.id} style={{background:C.nav,borderRadius:8,padding:"8px 12px",border:"1px solid "+C.bdr}}>
+<div style={{fontSize:11,color:C.gl2}}>{emp.nama}</div>
+<div style={{fontSize:14,fontWeight:700,color:C.rlt}}>{fR(total)}</div>
+</div>;
+})}
+</div>
+</>}
+</Card>
+</div>}
 </div>;
 }
 
@@ -4209,11 +4324,11 @@ var byr=(p.bayar||"").toLowerCase();
 var sd=p.splitDetail||{};
 if(byr==="cash"){allTrx.push({tgl:p.tanggal,kat:"Penjualan",ket:p.konsumen,oleh,debit:p.total||0,kredit:0,metode:"Cash",ref:p.noInv});}
 else if(byr==="transfer"||byr==="tf"){allTrx.push({tgl:p.tanggal,kat:"Penjualan",ket:p.konsumen,oleh,debit:p.total||0,kredit:0,metode:"TF "+(p.bank||""),ref:p.noInv});}
-else if(byr==="bon"){allTrx.push({tgl:p.tanggal,kat:"Penjualan (BON)",ket:p.konsumen,oleh,debit:0,kredit:0,metode:"BON",ref:p.noInv});}
+else if(byr==="bon"){/* BON tidak masuk Debit & Kredit */}
 else if(byr==="split"){
 if(Number(sd.cash)>0)allTrx.push({tgl:p.tanggal,kat:"Penjualan",ket:p.konsumen+" (Split Cash)",oleh,debit:Number(sd.cash),kredit:0,metode:"Cash",ref:p.noInv});
 if(Number(sd.tf)>0)allTrx.push({tgl:p.tanggal,kat:"Penjualan",ket:p.konsumen+" (Split TF)",oleh,debit:Number(sd.tf),kredit:0,metode:"TF "+(p.splitBank||""),ref:p.noInv});
-if(Number(sd.bon)>0)allTrx.push({tgl:p.tanggal,kat:"Penjualan (BON)",ket:p.konsumen+" (Split BON)",oleh,debit:0,kredit:0,metode:"BON",ref:p.noInv});
+/* BON portion split: tidak masuk */
 }
 });
 
@@ -4240,9 +4355,12 @@ if(nom>0)allTrx.push({tgl:px.tanggal,kat:"Bayar BON",ket:b.konsumen,oleh:px.sale
 });
 });
 
-// 5. Setoran Cash ke Bank (cash keluar dari laci)
+// 5. Setoran Cash ke Bank — 2 baris (net 0, hanya perpindahan)
 (data.setoranBank||[]).forEach(s=>{
-allTrx.push({tgl:s.tanggal,kat:"Setoran Bank",ket:"Setor ke "+s.bank,oleh:s.penyetor||"—",debit:0,kredit:s.nominal||0,metode:"Cash→Bank",ref:""});
+// Baris 1: Masuk ke rekening bank (Debit)
+allTrx.push({tgl:s.tanggal,kat:"Setoran Bank",ket:"Masuk Rek "+s.bank,oleh:s.penyetor||"—",debit:s.nominal||0,kredit:0,metode:"TF Bank",ref:""});
+// Baris 2: Keluar dari laci (Kredit)
+allTrx.push({tgl:s.tanggal,kat:"Setoran Bank",ket:"Keluar Laci → "+s.bank,oleh:s.penyetor||"—",debit:0,kredit:s.nominal||0,metode:"Cash",ref:""});
 });
 
 // Sort by tanggal asc
@@ -4686,7 +4804,7 @@ var ALL_TABS=[
 {id:"laporan",label:"Laporan",icon:"📊"},{id:"stok",label:"Stok",icon:"📦"},
 {id:"pengeluaran",label:"Pengeluaran",icon:"💸"},{id:"tutupbuku",label:"Tutup Buku",icon:"📒"},
 {id:"pelanggan",label:"Pelanggan",icon:"👥"},{id:"karyawan",label:"Karyawan",icon:"👤"},
-{id:"absensi",label:"Absensi",icon:"📅"},{id:"payroll",label:"Payroll",icon:"💼"},
+{id:"absensi",label:"Absensi & Payroll",icon:"📅"},
 {id:"kas",label:"Buku Kas",icon:"📒"},{id:"do",label:"DO",icon:"🚚"},{id:"settings",label:"Pengaturan",icon:"⚙️"},
 ];
 function getVisibleTabs(user){if(!user)return[];var rt=ROLE_TABS[user.role];if(rt===null||rt===undefined)return ALL_TABS;return ALL_TABS.filter(t=>rt.includes(t.id));}
@@ -4769,8 +4887,8 @@ if(t==="pengeluaran")return <PengeluaranMod {...props}/>;
 if(t==="tutupbuku")return <TutupBukuMod {...props}/>;
 if(t==="pelanggan")return <PelangganMod {...props}/>;
 if(t==="karyawan")return <KaryawanMod {...props}/>;
-if(t==="absensi")return <AbsensiMod {...props}/>;
-if(t==="payroll")return <PayrollMod {...props}/>;
+if(t==="absensi")return <AbsensiPayrollMod {...props}/>;
+if(t==="absensi")return <PayrollMod {...props}/>;
 if(t==="kas")return <KasBankMod {...props}/>;
 if(t==="do")return <DOMod {...props}/>;
 if(t==="settings")return <SettingsMod data={data} setData={setDataP} toast={toast} theme={theme} setTheme={setTheme}/>;
