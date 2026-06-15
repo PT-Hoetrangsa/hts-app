@@ -2526,6 +2526,10 @@ var[tgl,setTgl]=useState(toDay());
 var[pecah,setPecah]=useState(()=>{var o={};DENOMS.forEach(d=>{o[d]="";});return o;});
 var[jadikanPinjaman,setJadikanPinjaman]=useState(false);
 var[checkedPen,setCheckedPen]=useState({});
+// Edit & cetak riwayat
+var[editLog,setEditLog]=useState(null);
+var[editLogF,setEditLogF]=useState(null);
+var[showPrint,setShowPrint]=useState(null); // item setoranLog yang akan dicetak
 var salesList=sortEmp((data.employees||[]).filter(e=>e.aktif));
 var emp=(data.employees||[]).find(e=>e.id===salesId);
 
@@ -2584,6 +2588,16 @@ toast("✓ Setoran dikonfirmasi! Wajib setor: "+fR(totalCashWajibSetor));
 }
 
 var riwayat=(data.setoranLog||[]).filter(s=>!salesId||s.salesId===salesId).slice(0,20);
+
+// ── Helper simpan edit log ──
+function simpanEditLog(){
+var ef=editLogF||editLog;
+var updated=(data.setoranLog||[]).map(x=>x.id===editLog.id?{...editLog,...ef,id:editLog.id,_edited:true,_editedAt:new Date().toISOString()}:x);
+setData(d=>({...d,setoranLog:updated}));
+setEditLog(null);setEditLogF(null);
+toast("✓ Riwayat setoran diperbarui!");
+}
+
 return <div>
 <STitle icon="💰" children="Setoran Sales"/>
 <Card>
@@ -2766,16 +2780,174 @@ return <tr key={p.id} style={{background:checked?(i%2===0?C.nav:C.bg):(i%2===0?C
 
 {riwayat.length>0&&<Card>
 <div style={{fontWeight:700,color:C.gl2,marginBottom:10,fontSize:13}}>📋 Riwayat Setoran</div>
-<RTbl headers={["Tgl","Sales","Cash Penj","Bayar BON","Potongan","Wajib Setor","Tunai","Selisih"]} rows={riwayat.map(r=>[
-fDs(r.tanggal),r.salesNama,
-fR(r.cashPenjualan||0),
-fR(r.bonCash||r.bonBayarHari||0),
-fR(r.totalPotongan||0),
-fR(r.totalCashWajibSetor||r.bersihSetor||0),
-fR(r.totalTunai||0),
-<b style={{color:Math.abs(r.selisih||0)<1000?C.glt:C.rlt}}>{fR(r.selisih||0)}</b>
-])}/>
+<div style={{overflowX:"auto"}}>
+<table style={{width:"100%",borderCollapse:"collapse",fontSize:11,minWidth:620}}>
+<thead><tr style={{background:C.nav}}>
+{["Tanggal","Sales","Cash Penj","Bayar BON","Potongan","Wajib Setor","Tunai","Selisih","Aksi"].map(h=><th key={h} style={{padding:"6px 8px",color:C.gl2,textAlign:h==="Selisih"||h==="Wajib Setor"||h==="Tunai"||h==="Cash Penj"||h==="Potongan"||h==="Bayar BON"?"right":"left",border:"1px solid "+C.bdr,fontSize:10,fontWeight:700}}>{h}</th>)}
+</tr></thead>
+<tbody>
+{riwayat.map((r,ri)=>{
+var ok=Math.abs(r.selisih||0)<1000;
+return <tr key={r.id||ri} style={{background:ri%2===0?C.bg:C.nav,borderBottom:"1px solid "+C.bdr}}>
+<td style={{padding:"5px 8px",color:C.wht,border:"1px solid "+C.bdr,fontWeight:600,whiteSpace:"nowrap"}}>{fDs(r.tanggal)}{r._edited&&<span style={{fontSize:8,color:C.olt,marginLeft:4,fontWeight:700}}>✏️</span>}</td>
+<td style={{padding:"5px 8px",color:C.wht,border:"1px solid "+C.bdr}}>{r.salesNama}</td>
+<td style={{padding:"5px 8px",textAlign:"right",color:C.glt,border:"1px solid "+C.bdr}}>{fR(r.cashPenjualan||0)}</td>
+<td style={{padding:"5px 8px",textAlign:"right",color:C.olt,border:"1px solid "+C.bdr}}>{fR(r.bonCash||r.bonBayarHari||0)}</td>
+<td style={{padding:"5px 8px",textAlign:"right",color:C.rlt,border:"1px solid "+C.bdr}}>{fR(r.totalPotongan||0)}</td>
+<td style={{padding:"5px 8px",textAlign:"right",color:C.wht,fontWeight:700,border:"1px solid "+C.bdr}}>{fR(r.totalCashWajibSetor||r.bersihSetor||0)}</td>
+<td style={{padding:"5px 8px",textAlign:"right",color:C.glt,border:"1px solid "+C.bdr}}>{fR(r.totalTunai||0)}</td>
+<td style={{padding:"5px 8px",textAlign:"right",border:"1px solid "+C.bdr}}><b style={{color:ok?C.glt:C.rlt}}>{fR(r.selisih||0)}</b></td>
+<td style={{padding:"4px 6px",border:"1px solid "+C.bdr,whiteSpace:"nowrap"}}>
+<div style={{display:"flex",gap:4}}>
+<button onClick={()=>{setEditLog(r);setEditLogF({...r});}} style={{background:C.blu,border:"none",borderRadius:5,padding:"3px 8px",color:"white",cursor:"pointer",fontSize:10,fontWeight:700}}>✏️</button>
+<button onClick={()=>setShowPrint(r)} style={{background:C.grn,border:"none",borderRadius:5,padding:"3px 8px",color:"white",cursor:"pointer",fontSize:10,fontWeight:700}}>🖨️</button>
+</div>
+</td>
+</tr>;
+})}
+</tbody>
+</table>
+</div>
 </Card>}
+
+{/* ── MODAL EDIT RIWAYAT SETORAN ── */}
+{editLog&&!showPrint&&(()=>{
+var ef=editLogF||editLog;
+var setEf=setEditLogF;
+var totalTunaiEdit=DENOMS.reduce((a,d)=>a+Number((ef.pecah||{})[d]||0)*d,0);
+var selisihEdit=totalTunaiEdit-(ef.totalCashWajibSetor||0);
+return <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.75)",zIndex:999,display:"flex",alignItems:"center",justifyContent:"center",padding:16,overflowY:"auto"}}>
+<div style={{background:C.card,borderRadius:12,width:"100%",maxWidth:520,padding:20,border:"1px solid "+C.bdr,maxHeight:"90vh",overflowY:"auto"}}>
+<div style={{fontWeight:800,color:C.wht,marginBottom:14,fontSize:14}}>✏️ Edit Riwayat Setoran — {fDs(editLog.tanggal)}</div>
+<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:10}}>
+<Inp label="Tanggal" type="date" value={ef.tanggal||""} onChange={v=>setEf({...ef,tanggal:v})}/>
+<Inp label="Nama Sales" value={ef.salesNama||""} onChange={v=>setEf({...ef,salesNama:v})}/>
+<Inp label="Cash Penjualan" type="number" value={String(ef.cashPenjualan||0)} onChange={v=>setEf({...ef,cashPenjualan:Number(v)||0})}/>
+<Inp label="Bayar BON Cash" type="number" value={String(ef.bonCash||0)} onChange={v=>setEf({...ef,bonCash:Number(v)||0})}/>
+<Inp label="Total Potongan" type="number" value={String(ef.totalPotongan||0)} onChange={v=>setEf({...ef,totalPotongan:Number(v)||0})}/>
+<Inp label="Wajib Setor" type="number" value={String(ef.totalCashWajibSetor||0)} onChange={v=>setEf({...ef,totalCashWajibSetor:Number(v)||0})}/>
+</div>
+<div style={{fontWeight:700,color:C.gl2,marginBottom:6,fontSize:12}}>💵 Pecahan Kas yang Disetor:</div>
+<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:5,marginBottom:10}}>
+{DENOMS.map(d=><div key={d} style={{display:"flex",alignItems:"center",gap:6,background:C.nav,borderRadius:6,padding:"4px 8px",border:"1px solid "+C.bdr}}>
+<span style={{fontSize:10,color:C.gl2,minWidth:72}}>{fR(d)}</span>
+<input type="number" value={(ef.pecah||{})[d]||""} placeholder="0" onChange={e=>{var p={...(ef.pecah||{})};p[d]=Number(e.target.value)||0;setEf({...ef,pecah:p,totalTunai:DENOMS.reduce((a,dd)=>a+Number({...p}[dd]||0)*dd,0)});}} style={{background:"transparent",border:"none",color:C.wht,fontSize:11,outline:"none",width:55,textAlign:"center"}}/>
+<span style={{fontSize:10,color:C.olt,minWidth:20}}>{Number((ef.pecah||{})[d]||0)>0?"×"+Number((ef.pecah||{})[d]):"—"}</span>
+</div>)}
+</div>
+<div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:6,marginBottom:12}}>
+{[["Wajib Setor",ef.totalCashWajibSetor||0,C.wht],["Tunai Fisik",totalTunaiEdit,C.glt],["Selisih",selisihEdit,selisihEdit>=0?C.glt:C.rlt]].map(x=><div key={x[0]} style={{background:C.nav,borderRadius:6,padding:"6px 8px",border:"1px solid "+C.bdr,textAlign:"center"}}><div style={{fontSize:9,color:C.gl2}}>{x[0]}</div><div style={{fontSize:12,fontWeight:800,color:x[2]}}>{fR(x[1])}</div></div>)}
+</div>
+<div style={{display:"flex",gap:8,justifyContent:"flex-end",flexWrap:"wrap"}}>
+<button onClick={()=>{setEditLog(null);setEditLogF(null);}} style={{background:C.gry,border:"none",borderRadius:8,padding:"8px 14px",color:C.gl2,cursor:"pointer",fontWeight:700,fontSize:12}}>✕ Batal</button>
+<button onClick={()=>{setShowPrint({...ef,totalTunai:totalTunaiEdit,selisih:selisihEdit});}} style={{background:C.grn,border:"none",borderRadius:8,padding:"8px 14px",color:"white",cursor:"pointer",fontWeight:700,fontSize:12}}>🖨️ Cetak</button>
+<button onClick={simpanEditLog} style={{background:C.blt,border:"none",borderRadius:8,padding:"8px 14px",color:"white",cursor:"pointer",fontWeight:700,fontSize:12}}>💾 Simpan</button>
+</div>
+</div>
+</div>;
+})()}
+
+{/* ── MODAL SLIP CETAK SETORAN SALES ── */}
+{showPrint&&(()=>{
+var r=showPrint;
+var totalTunaiSlip=r.totalTunai||DENOMS.reduce((a,d)=>a+Number((r.pecah||{})[d]||0)*d,0);
+var selisihSlip=r.selisih!=null?r.selisih:totalTunaiSlip-(r.totalCashWajibSetor||0);
+var tglD=new Date((r.tanggal||toDay())+"T00:00:00");
+var hariLabel=["Minggu","Senin","Selasa","Rabu","Kamis","Jumat","Sabtu"][tglD.getDay()];
+var tglLabel=tglD.toLocaleDateString("id-ID",{day:"2-digit",month:"long",year:"numeric"});
+var logoSrc=data.company?.logo||null;
+return <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.8)",zIndex:1000,display:"flex",alignItems:"center",justifyContent:"center",padding:16,overflowY:"auto"}}>
+<div style={{background:"white",borderRadius:12,width:"100%",maxWidth:430,boxShadow:"0 20px 60px rgba(0,0,0,.5)",overflow:"hidden"}}>
+<div id="_slip_setoran_sales" style={{background:"white",padding:20,fontFamily:"Arial,sans-serif",color:"#111",borderRadius:12}}>
+{/* Header */}
+<div style={{background:"linear-gradient(135deg,#0a1f44 0%,#122d5e 100%)",padding:"14px 18px 12px",display:"flex",justifyContent:"space-between",alignItems:"center",margin:-20,marginBottom:0}}>
+<div style={{display:"flex",alignItems:"center",gap:10}}>
+{logoSrc?<img src={logoSrc} style={{height:44,objectFit:"contain"}} alt="Logo"/>:
+<div style={{display:"flex",alignItems:"center",gap:10}}>
+<div style={{display:"flex",gap:2,alignItems:"flex-end"}}>
+<div style={{width:7,height:22,background:"#e53935",borderRadius:2}}/>
+<div style={{width:7,height:16,background:"#1e88e5",borderRadius:2}}/>
+<div style={{width:7,height:22,background:"#6ab04c",borderRadius:2}}/>
+</div>
+<div>
+<div style={{fontSize:14,fontWeight:800,color:"white",letterSpacing:.3,lineHeight:1.1}}>{data.company?.nama||"PT. HOE TRANG SA"}</div>
+<div style={{fontSize:8,fontWeight:600,color:"#e53935",letterSpacing:1.5,textTransform:"uppercase",marginTop:2}}>{data.company?.slogan||"DEALER LPG PERTAMINA"}</div>
+</div>
+</div>}
+</div>
+<div style={{display:"flex",alignItems:"center",gap:5}}>
+<svg width={38} height={28} viewBox="0 0 60 42" fill="none"><polygon points="18,0 32,14 18,28 4,14" fill="#E53935"/><polygon points="14,28 28,14 14,0 0,14" fill="#1565C0" opacity="0.85"/><polygon points="22,28 36,14 22,0 8,14" fill="#6AB04C" opacity="0.9"/></svg>
+<span style={{fontSize:11,fontWeight:800,color:"white",letterSpacing:.4}}>PERTAMINA</span>
+</div>
+</div>
+{/* 3-color divider */}
+<div style={{height:3,display:"flex",margin:"0 -20px 14px"}}><div style={{flex:1,background:"#1565c0"}}/><div style={{flex:1,background:"#6ab04c"}}/><div style={{flex:1,background:"#e53935"}}/></div>
+{/* Judul */}
+<div style={{textAlign:"center",marginBottom:12}}>
+<div style={{fontSize:13,fontWeight:700,color:"#0a1f44",letterSpacing:.5}}>BUKTI SETORAN SALES</div>
+<div style={{fontSize:12,color:"#555"}}>{hariLabel} &nbsp;|&nbsp; {tglLabel}</div>
+</div>
+{/* Info Sales */}
+<div style={{width:"90%",margin:"0 auto 10px",background:"#F0F7FF",borderRadius:8,border:"1.5px solid #BFDBFE",overflow:"hidden"}}>
+<div style={{background:"#0a1f44",padding:"7px 14px"}}><span style={{fontSize:11,color:"#93C5FD",fontWeight:700,letterSpacing:1}}>SALES: {r.salesNama||"—"}</span></div>
+<div style={{padding:"10px 14px",display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+{[["Cash Penjualan",r.cashPenjualan||0,"#166534"],["Bayar BON Cash",r.bonCash||r.bonBayarHari||0,"#854d0e"],["Potongan Operasional",r.totalPotongan||0,"#991b1b"],["WAJIB SETOR",r.totalCashWajibSetor||r.bersihSetor||0,"#0a1f44"]].map(x=><div key={x[0]} style={{background:"white",borderRadius:6,padding:"7px 10px",border:"1px solid #DBEAFE"}}>
+<div style={{fontSize:9,color:"#475569",marginBottom:2}}>{x[0]}</div>
+<div style={{fontSize:12,fontWeight:700,color:x[2]}}>Rp {Number(x[1]).toLocaleString("id-ID")}</div>
+</div>)}
+</div>
+</div>
+{/* Tabel Pecahan */}
+<table style={{width:"90%",margin:"0 auto",borderCollapse:"collapse",fontSize:12,marginBottom:12}}>
+<thead><tr style={{background:"#0a1f44"}}>
+{["PECAHAN","LBR","JUMLAH"].map(h=><th key={h} style={{padding:"7px 10px",color:"white",textAlign:h==="JUMLAH"?"right":"left",border:"1px solid #1e3a5f",fontSize:10,letterSpacing:.8}}>{h}</th>)}
+</tr></thead>
+<tbody>
+{(()=>{
+return <>
+{DENOMS.map(d=>{
+var lbr=Number((r.pecah||{})[d]||0);
+var jml=lbr*d;
+return <tr key={d} style={{borderBottom:"1px solid #E5E7EB",background:lbr>0?"white":"#FAFAFA"}}>
+<td style={{padding:"6px 10px",color:"#111",border:"1px solid #E2E8F0",fontSize:12}}>Rp {Number(d).toLocaleString("id-ID")}</td>
+<td style={{padding:"6px 8px",textAlign:"left",color:lbr>0?"#0a1f44":"#CBD5E1",fontWeight:lbr>0?700:400,border:"1px solid #E2E8F0",fontSize:13}}>{lbr||"—"}</td>
+<td style={{padding:"6px 10px",textAlign:"right",color:jml>0?"#0a1f44":"#CBD5E1",fontWeight:jml>0?700:400,border:"1px solid #E2E8F0",fontSize:12}}>{jml>0?"Rp "+jml.toLocaleString("id-ID"):"—"}</td>
+</tr>;})}
+<tr style={{background:"#0a1f44",fontWeight:700}}>
+<td colSpan={2} style={{padding:"8px 10px",color:"white",border:"1px solid #1e3a5f",fontSize:12}}>TOTAL TUNAI</td>
+<td style={{padding:"8px 10px",textAlign:"right",color:"white",fontSize:14,border:"1px solid #1e3a5f",fontWeight:900}}>Rp {totalTunaiSlip.toLocaleString("id-ID")}</td>
+</tr>
+{/* Selisih */}
+<tr style={{background:Math.abs(selisihSlip)<1000?"#f0fdf4":"#fef2f2"}}>
+<td colSpan={2} style={{padding:"7px 10px",color:Math.abs(selisihSlip)<1000?"#166534":"#991b1b",border:"1px solid #E2E8F0",fontSize:11,fontWeight:700}}>SELISIH {selisihSlip>=0?"(LEBIH)":"(KURANG)"}</td>
+<td style={{padding:"7px 10px",textAlign:"right",color:Math.abs(selisihSlip)<1000?"#166534":"#991b1b",border:"1px solid #E2E8F0",fontSize:13,fontWeight:900}}>Rp {Math.abs(selisihSlip).toLocaleString("id-ID")}</td>
+</tr>
+</>;
+})()}
+</tbody>
+</table>
+{/* Tanda tangan */}
+<div style={{width:"90%",margin:"0 auto 10px",display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+{["Disetor Oleh","Diterima Oleh"].map(lb=><div key={lb} style={{border:"1px solid #DBEAFE",borderRadius:6,padding:"6px 10px",textAlign:"center",background:"#F8FAFF"}}>
+<div style={{fontSize:9,color:"#94A3B8",marginBottom:20}}>{lb}</div>
+<div style={{borderTop:"1px solid #CBD5E1",paddingTop:4,fontSize:9,color:"#475569"}}>{lb==="Disetor Oleh"?r.salesNama||"—":"Kasir"}</div>
+</div>)}
+</div>
+<div style={{textAlign:"center",fontSize:9,color:"#94A3B8",marginBottom:4}}>
+Jl. Jendral Sudirman No. 80 · Banda Aceh &nbsp;|&nbsp; 081269002121 / (0651) 21221
+</div>
+</div>
+{/* Tombol aksi */}
+<div style={{padding:"10px 16px",display:"flex",gap:8,flexWrap:"wrap",justifyContent:"center",background:"#f8faff"}}>
+<button onClick={()=>doPrint("_slip_setoran_sales")} style={{background:"#0a1f44",color:"white",border:"none",padding:"8px 16px",borderRadius:7,fontSize:12,cursor:"pointer",fontWeight:700}}>🖨️ Cetak / PDF</button>
+<button onClick={()=>doDownloadPNG("_slip_setoran_sales","Slip-Setoran-"+r.salesNama+"-"+r.tanggal+".png")} style={{background:"#1D6A96",color:"white",border:"none",padding:"8px 14px",borderRadius:7,fontSize:12,cursor:"pointer",fontWeight:700}}>💾 Download PNG</button>
+<button onClick={()=>doCopyPNG("_slip_setoran_sales")} style={{background:"#145A32",color:"white",border:"none",padding:"8px 14px",borderRadius:7,fontSize:12,cursor:"pointer",fontWeight:700}}>📋 Copy PNG</button>
+<button onClick={()=>setShowPrint(null)} style={{background:"#6B7280",color:"white",border:"none",padding:"8px 14px",borderRadius:7,fontSize:12,cursor:"pointer",fontWeight:700}}>✕ Tutup</button>
+</div>
+</div>
+</div>;
+})()}
+
 </div>;
 }
 
