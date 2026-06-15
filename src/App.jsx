@@ -2526,10 +2526,10 @@ var[tgl,setTgl]=useState(toDay());
 var[pecah,setPecah]=useState(()=>{var o={};DENOMS.forEach(d=>{o[d]="";});return o;});
 var[jadikanPinjaman,setJadikanPinjaman]=useState(false);
 var[checkedPen,setCheckedPen]=useState({});
-// Edit & cetak riwayat
-var[editLog,setEditLog]=useState(null);
-var[editLogF,setEditLogF]=useState(null);
-var[showPrint,setShowPrint]=useState(null); // item setoranLog yang akan dicetak
+// Mode edit riwayat inline
+var[editingLogId,setEditingLogId]=useState(null);
+var[showPrint,setShowPrint]=useState(null);
+var formRef=useRef(null);
 var salesList=sortEmp((data.employees||[]).filter(e=>e.aktif));
 var emp=(data.employees||[]).find(e=>e.id===salesId);
 
@@ -2572,39 +2572,79 @@ var selisih=totalTunai-totalCashWajibSetor;
 var getQty=(p,uk)=>(p.items||[]).filter(it=>it.ukuran===uk).reduce((a,it)=>a+Number(it.qty||0),0);
 var getHarga=(p,uk)=>{var it=(p.items||[]).filter(it=>it.ukuran===uk);return it.length>0?Number(it[0].price||0):0;};
 
+// Load data riwayat ke form (mode edit)
+function loadEditLog(r){
+setSalesId(r.salesId||"");
+setTgl(r.tanggal||toDay());
+// Isi pecahan dari log jika ada
+var p={};DENOMS.forEach(d=>{p[d]=(r.pecah||{})[d]||"";});
+setPecah(p);
+setJadikanPinjaman(false);
+setEditingLogId(r.id);
+// Restore checkedPen dari log jika tersimpan, else reset ke default
+if(r.checkedPenIds){
+  var cp={};r.checkedPenIds.forEach(id=>{cp[id]=true;});
+  setCheckedPen(cp);
+}
+// Scroll ke atas form
+setTimeout(()=>{if(formRef.current)formRef.current.scrollIntoView({behavior:"smooth",block:"start"});},100);
+toast("✏️ Mode edit setoran "+fDs(r.tanggal)+" — ubah data lalu klik Simpan Perubahan");
+}
+
+function batalEdit(){
+setEditingLogId(null);
+setSalesId(isSales?user.id:"");
+setTgl(toDay());
+setPecah(()=>{var o={};DENOMS.forEach(d=>{o[d]="";});return o;});
+setJadikanPinjaman(false);
+}
+
 function konfirmasi(){
 var newAmb=[...(data.ambilan||[])];
 if(selisih<0&&jadikanPinjaman){
   newAmb.unshift({id:uid(),karyawanId:salesId,karyawanNama:emp?.nama||"",nominal:Math.abs(selisih),ket:"Kurang setor "+fDs(tgl),tanggal:tgl});
 }
-var logEntry={id:uid(),tanggal:tgl,salesId,salesNama:emp?.nama||"",
+var logEntry={
+  id:editingLogId||uid(),
+  tanggal:tgl,salesId,salesNama:emp?.nama||"",
   cashPenjualan,tfPenjualan,bonPenjualan,bonCash,bonTF,totalBonBayar,
   totalPotongan:totalPenChecked,totalCashWajibSetor,totalTunai,selisih,
-  jadikanPinjaman:selisih<0&&jadikanPinjaman};
-setData(d=>({...d,ambilan:newAmb,setoranLog:[logEntry,...(d.setoranLog||[])]}));
+  jadikanPinjaman:selisih<0&&jadikanPinjaman,
+  pecah:{...pecah},
+  checkedPenIds:Object.keys(checkedPen).filter(k=>checkedPen[k]),
+  _edited:!!editingLogId,
+  _editedAt:editingLogId?new Date().toISOString():undefined
+};
+var newLog=editingLogId
+  ?(data.setoranLog||[]).map(x=>x.id===editingLogId?logEntry:x)
+  :[logEntry,...(data.setoranLog||[])];
+setData(d=>({...d,ambilan:newAmb,setoranLog:newLog}));
 setPecah(()=>{var o={};DENOMS.forEach(d=>{o[d]="";});return o;});
 setJadikanPinjaman(false);
-toast("✓ Setoran dikonfirmasi! Wajib setor: "+fR(totalCashWajibSetor));
+setEditingLogId(null);
+toast(editingLogId?"✓ Setoran diperbarui! Wajib setor: "+fR(totalCashWajibSetor):"✓ Setoran dikonfirmasi! Wajib setor: "+fR(totalCashWajibSetor));
 }
 
 var riwayat=(data.setoranLog||[]).filter(s=>!salesId||s.salesId===salesId).slice(0,20);
 
-// ── Helper simpan edit log ──
-function simpanEditLog(){
-var ef=editLogF||editLog;
-var updated=(data.setoranLog||[]).map(x=>x.id===editLog.id?{...editLog,...ef,id:editLog.id,_edited:true,_editedAt:new Date().toISOString()}:x);
-setData(d=>({...d,setoranLog:updated}));
-setEditLog(null);setEditLogF(null);
-toast("✓ Riwayat setoran diperbarui!");
-}
-
-return <div>
+return <div ref={formRef}>
 <STitle icon="💰" children="Setoran Sales"/>
+
+{/* ── BANNER MODE EDIT ── */}
+{editingLogId&&<div style={{background:"linear-gradient(90deg,#92400e,#b45309)",border:"1px solid #f59e0b",borderRadius:10,padding:"10px 16px",marginBottom:12,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+<div>
+<div style={{color:"#fef3c7",fontWeight:800,fontSize:13}}>✏️ Mode Edit Setoran</div>
+<div style={{color:"#fde68a",fontSize:11,marginTop:2}}>Data riwayat dimuat ke form. Ubah pengeluaran, pecahan kas, lalu klik <b>Simpan Perubahan</b>.</div>
+</div>
+<button onClick={batalEdit} style={{background:"rgba(0,0,0,.25)",border:"1px solid #f59e0b",borderRadius:7,padding:"6px 12px",color:"#fef3c7",cursor:"pointer",fontWeight:700,fontSize:11,flexShrink:0}}>✕ Batal Edit</button>
+</div>}
+
 <Card>
 <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
-<Sel label="Sales" value={salesId} onChange={v=>setSalesId(v)} opts={[{v:"",l:"-- Pilih --"},...salesList.map(e=>({v:e.id,l:e.nama}))]}/>
-<Inp label="Tanggal" type="date" value={tgl} onChange={v=>setTgl(v)}/>
+<Sel label="Sales" value={salesId} onChange={v=>{if(!editingLogId)setSalesId(v);}} opts={[{v:"",l:"-- Pilih --"},...salesList.map(e=>({v:e.id,l:e.nama}))]}/>
+<Inp label="Tanggal" type="date" value={tgl} onChange={v=>{if(!editingLogId)setTgl(v);}} ro={!!editingLogId}/>
 </div>
+{editingLogId&&<div style={{fontSize:10,color:"#f59e0b",marginTop:4}}>⚠️ Sales & tanggal dikunci saat mode edit. Batal edit untuk ganti.</div>}
 </Card>
 
 {salesId&&<>
@@ -2774,7 +2814,7 @@ return <tr key={p.id} style={{background:checked?(i%2===0?C.nav:C.bg):(i%2===0?C
 <span style={{color:"white",fontSize:12,fontWeight:700}}>💳 Jadikan pinjaman karyawan (kurang setor {fR(Math.abs(selisih))})</span>
 </label>
 </div>}
-<Btn color="green" onClick={konfirmasi} dis={!salesId}>✓ Konfirmasi Setoran</Btn>
+<Btn color={editingLogId?"orange":"green"} onClick={konfirmasi} dis={!salesId}>{editingLogId?"💾 Simpan Perubahan":"✓ Konfirmasi Setoran"}</Btn>
 </Card>
 </>}
 
@@ -2799,7 +2839,7 @@ return <tr key={r.id||ri} style={{background:ri%2===0?C.bg:C.nav,borderBottom:"1
 <td style={{padding:"5px 8px",textAlign:"right",border:"1px solid "+C.bdr}}><b style={{color:ok?C.glt:C.rlt}}>{fR(r.selisih||0)}</b></td>
 <td style={{padding:"4px 6px",border:"1px solid "+C.bdr,whiteSpace:"nowrap"}}>
 <div style={{display:"flex",gap:4}}>
-<button onClick={()=>{setEditLog(r);setEditLogF({...r});}} style={{background:C.blu,border:"none",borderRadius:5,padding:"3px 8px",color:"white",cursor:"pointer",fontSize:10,fontWeight:700}}>✏️</button>
+<button onClick={()=>loadEditLog(r)} style={{background:editingLogId===r.id?C.olt:C.blu,border:"none",borderRadius:5,padding:"3px 8px",color:"white",cursor:"pointer",fontSize:10,fontWeight:700}}>{editingLogId===r.id?"📝 Aktif":"✏️"}</button>
 <button onClick={()=>setShowPrint(r)} style={{background:C.grn,border:"none",borderRadius:5,padding:"3px 8px",color:"white",cursor:"pointer",fontSize:10,fontWeight:700}}>🖨️</button>
 </div>
 </td>
@@ -2809,43 +2849,6 @@ return <tr key={r.id||ri} style={{background:ri%2===0?C.bg:C.nav,borderBottom:"1
 </table>
 </div>
 </Card>}
-
-{/* ── MODAL EDIT RIWAYAT SETORAN ── */}
-{editLog&&!showPrint&&(()=>{
-var ef=editLogF||editLog;
-var setEf=setEditLogF;
-var totalTunaiEdit=DENOMS.reduce((a,d)=>a+Number((ef.pecah||{})[d]||0)*d,0);
-var selisihEdit=totalTunaiEdit-(ef.totalCashWajibSetor||0);
-return <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.75)",zIndex:999,display:"flex",alignItems:"center",justifyContent:"center",padding:16,overflowY:"auto"}}>
-<div style={{background:C.card,borderRadius:12,width:"100%",maxWidth:520,padding:20,border:"1px solid "+C.bdr,maxHeight:"90vh",overflowY:"auto"}}>
-<div style={{fontWeight:800,color:C.wht,marginBottom:14,fontSize:14}}>✏️ Edit Riwayat Setoran — {fDs(editLog.tanggal)}</div>
-<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:10}}>
-<Inp label="Tanggal" type="date" value={ef.tanggal||""} onChange={v=>setEf({...ef,tanggal:v})}/>
-<Inp label="Nama Sales" value={ef.salesNama||""} onChange={v=>setEf({...ef,salesNama:v})}/>
-<Inp label="Cash Penjualan" type="number" value={String(ef.cashPenjualan||0)} onChange={v=>setEf({...ef,cashPenjualan:Number(v)||0})}/>
-<Inp label="Bayar BON Cash" type="number" value={String(ef.bonCash||0)} onChange={v=>setEf({...ef,bonCash:Number(v)||0})}/>
-<Inp label="Total Potongan" type="number" value={String(ef.totalPotongan||0)} onChange={v=>setEf({...ef,totalPotongan:Number(v)||0})}/>
-<Inp label="Wajib Setor" type="number" value={String(ef.totalCashWajibSetor||0)} onChange={v=>setEf({...ef,totalCashWajibSetor:Number(v)||0})}/>
-</div>
-<div style={{fontWeight:700,color:C.gl2,marginBottom:6,fontSize:12}}>💵 Pecahan Kas yang Disetor:</div>
-<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:5,marginBottom:10}}>
-{DENOMS.map(d=><div key={d} style={{display:"flex",alignItems:"center",gap:6,background:C.nav,borderRadius:6,padding:"4px 8px",border:"1px solid "+C.bdr}}>
-<span style={{fontSize:10,color:C.gl2,minWidth:72}}>{fR(d)}</span>
-<input type="number" value={(ef.pecah||{})[d]||""} placeholder="0" onChange={e=>{var p={...(ef.pecah||{})};p[d]=Number(e.target.value)||0;setEf({...ef,pecah:p,totalTunai:DENOMS.reduce((a,dd)=>a+Number({...p}[dd]||0)*dd,0)});}} style={{background:"transparent",border:"none",color:C.wht,fontSize:11,outline:"none",width:55,textAlign:"center"}}/>
-<span style={{fontSize:10,color:C.olt,minWidth:20}}>{Number((ef.pecah||{})[d]||0)>0?"×"+Number((ef.pecah||{})[d]):"—"}</span>
-</div>)}
-</div>
-<div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:6,marginBottom:12}}>
-{[["Wajib Setor",ef.totalCashWajibSetor||0,C.wht],["Tunai Fisik",totalTunaiEdit,C.glt],["Selisih",selisihEdit,selisihEdit>=0?C.glt:C.rlt]].map(x=><div key={x[0]} style={{background:C.nav,borderRadius:6,padding:"6px 8px",border:"1px solid "+C.bdr,textAlign:"center"}}><div style={{fontSize:9,color:C.gl2}}>{x[0]}</div><div style={{fontSize:12,fontWeight:800,color:x[2]}}>{fR(x[1])}</div></div>)}
-</div>
-<div style={{display:"flex",gap:8,justifyContent:"flex-end",flexWrap:"wrap"}}>
-<button onClick={()=>{setEditLog(null);setEditLogF(null);}} style={{background:C.gry,border:"none",borderRadius:8,padding:"8px 14px",color:C.gl2,cursor:"pointer",fontWeight:700,fontSize:12}}>✕ Batal</button>
-<button onClick={()=>{setShowPrint({...ef,totalTunai:totalTunaiEdit,selisih:selisihEdit});}} style={{background:C.grn,border:"none",borderRadius:8,padding:"8px 14px",color:"white",cursor:"pointer",fontWeight:700,fontSize:12}}>🖨️ Cetak</button>
-<button onClick={simpanEditLog} style={{background:C.blt,border:"none",borderRadius:8,padding:"8px 14px",color:"white",cursor:"pointer",fontWeight:700,fontSize:12}}>💾 Simpan</button>
-</div>
-</div>
-</div>;
-})()}
 
 {/* ── MODAL SLIP CETAK SETORAN SALES ── */}
 {showPrint&&(()=>{
