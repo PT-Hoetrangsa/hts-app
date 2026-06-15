@@ -2529,6 +2529,7 @@ var[checkedPen,setCheckedPen]=useState({});
 // Mode edit riwayat inline
 var[editingLogId,setEditingLogId]=useState(null);
 var[showPrint,setShowPrint]=useState(null);
+var[viewLog,setViewLog]=useState(null);
 var formRef=useRef(null);
 var salesList=sortEmp((data.employees||[]).filter(e=>e.aktif));
 var emp=(data.employees||[]).find(e=>e.id===salesId);
@@ -2576,17 +2577,20 @@ var getHarga=(p,uk)=>{var it=(p.items||[]).filter(it=>it.ukuran===uk);return it.
 function loadEditLog(r){
 setSalesId(r.salesId||"");
 setTgl(r.tanggal||toDay());
-// Isi pecahan dari log jika ada
-var p={};DENOMS.forEach(d=>{p[d]=(r.pecah||{})[d]||"";});
+// Isi pecahan — handle key string (dari JSON/localStorage) atau int (dari state)
+var p={};
+DENOMS.forEach(d=>{
+  var val=(r.pecah||{})[d]||(r.pecah||{})[String(d)]||"";
+  p[d]=val||"";
+});
 setPecah(p);
 setJadikanPinjaman(false);
 setEditingLogId(r.id);
-// Restore checkedPen dari log jika tersimpan, else reset ke default
-if(r.checkedPenIds){
+// Restore checkedPen dari log jika tersimpan
+if(r.checkedPenIds&&r.checkedPenIds.length>0){
   var cp={};r.checkedPenIds.forEach(id=>{cp[id]=true;});
   setCheckedPen(cp);
 }
-// Scroll ke atas form
 setTimeout(()=>{if(formRef.current)formRef.current.scrollIntoView({behavior:"smooth",block:"start"});},100);
 toast("✏️ Mode edit setoran "+fDs(r.tanggal)+" — ubah data lalu klik Simpan Perubahan");
 }
@@ -2610,7 +2614,7 @@ var logEntry={
   cashPenjualan,tfPenjualan,bonPenjualan,bonCash,bonTF,totalBonBayar,
   totalPotongan:totalPenChecked,totalCashWajibSetor,totalTunai,selisih,
   jadikanPinjaman:selisih<0&&jadikanPinjaman,
-  pecah:{...pecah},
+  pecah:Object.fromEntries(DENOMS.map(d=>[String(d),Number(pecah[d])||0])),
   checkedPenIds:Object.keys(checkedPen).filter(k=>checkedPen[k]),
   _edited:!!editingLogId,
   _editedAt:editingLogId?new Date().toISOString():undefined
@@ -2839,6 +2843,7 @@ return <tr key={r.id||ri} style={{background:ri%2===0?C.bg:C.nav,borderBottom:"1
 <td style={{padding:"5px 8px",textAlign:"right",border:"1px solid "+C.bdr}}><b style={{color:ok?C.glt:C.rlt}}>{fR(r.selisih||0)}</b></td>
 <td style={{padding:"4px 6px",border:"1px solid "+C.bdr,whiteSpace:"nowrap"}}>
 <div style={{display:"flex",gap:4}}>
+<button onClick={()=>setViewLog(r)} style={{background:C.gry,border:"none",borderRadius:5,padding:"3px 8px",color:"white",cursor:"pointer",fontSize:10,fontWeight:700}}>👁️</button>
 <button onClick={()=>loadEditLog(r)} style={{background:editingLogId===r.id?C.olt:C.blu,border:"none",borderRadius:5,padding:"3px 8px",color:"white",cursor:"pointer",fontSize:10,fontWeight:700}}>{editingLogId===r.id?"📝 Aktif":"✏️"}</button>
 <button onClick={()=>setShowPrint(r)} style={{background:C.grn,border:"none",borderRadius:5,padding:"3px 8px",color:"white",cursor:"pointer",fontSize:10,fontWeight:700}}>🖨️</button>
 </div>
@@ -2849,6 +2854,82 @@ return <tr key={r.id||ri} style={{background:ri%2===0?C.bg:C.nav,borderBottom:"1
 </table>
 </div>
 </Card>}
+
+{/* ── MODAL VIEW DETAIL RIWAYAT ── */}
+{viewLog&&!showPrint&&(()=>{
+var r=viewLog;
+var totalTunaiV=r.totalTunai||DENOMS.reduce((a,d)=>a+Number((r.pecah||{})[d]||(r.pecah||{})[String(d)]||0)*d,0);
+var selisihV=r.selisih!=null?r.selisih:totalTunaiV-(r.totalCashWajibSetor||0);
+var ok=Math.abs(selisihV)<1000;
+return <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.75)",zIndex:999,display:"flex",alignItems:"center",justifyContent:"center",padding:16,overflowY:"auto"}}>
+<div style={{background:C.card,borderRadius:12,width:"100%",maxWidth:480,padding:20,border:"1px solid "+C.bdr,maxHeight:"90vh",overflowY:"auto"}}>
+{/* Header */}
+<div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:14}}>
+<div>
+<div style={{fontWeight:800,color:C.wht,fontSize:14}}>📋 Detail Setoran</div>
+<div style={{color:C.gl2,fontSize:12,marginTop:2}}>{fDs(r.tanggal)} · {r.salesNama}{r._edited&&<span style={{color:C.olt,marginLeft:6,fontSize:10}}>✏️ Pernah diedit</span>}</div>
+</div>
+<button onClick={()=>setViewLog(null)} style={{background:C.gry,border:"none",borderRadius:7,padding:"5px 10px",color:C.gl2,cursor:"pointer",fontWeight:700,fontSize:12}}>✕</button>
+</div>
+
+{/* Ringkasan kas */}
+<div style={{background:C.nav,borderRadius:8,border:"1px solid "+C.bdr,overflow:"hidden",marginBottom:12}}>
+<div style={{padding:"7px 12px",background:C.bg,borderBottom:"1px solid "+C.bdr,fontSize:11,fontWeight:700,color:C.gl2}}>RINGKASAN KAS</div>
+{[
+["Cash Penjualan",r.cashPenjualan||0,C.glt],
+["Bayar BON Cash",r.bonCash||r.bonBayarHari||0,C.olt],
+["Potongan Operasional","−"+fR(r.totalPotongan||0),C.rlt],
+["WAJIB SETOR",r.totalCashWajibSetor||r.bersihSetor||0,C.wht],
+].map((x,i)=><div key={i} style={{display:"flex",justifyContent:"space-between",padding:"6px 12px",borderBottom:"1px solid "+C.bdr,background:i===3?C.bg:"transparent"}}>
+<span style={{color:i===3?C.wht:C.gl2,fontWeight:i===3?700:400,fontSize:12}}>{x[0]}</span>
+<span style={{color:x[2],fontWeight:i===3?800:600,fontSize:i===3?14:12}}>{typeof x[1]==="string"?x[1]:fR(x[1])}</span>
+</div>)}
+{r.tfPenjualan>0&&<div style={{display:"flex",justifyContent:"space-between",padding:"5px 12px",borderBottom:"1px solid "+C.bdr}}>
+<span style={{color:C.gl2,fontSize:11}}>TF Penjualan (info)</span>
+<span style={{color:"#6B7280",fontSize:11}}>{fR(r.tfPenjualan||0)}</span>
+</div>}
+{r.bonTF>0&&<div style={{display:"flex",justifyContent:"space-between",padding:"5px 12px"}}>
+<span style={{color:C.gl2,fontSize:11}}>Bayar BON TF (info)</span>
+<span style={{color:"#6B7280",fontSize:11}}>{fR(r.bonTF||0)}</span>
+</div>}
+</div>
+
+{/* Pecahan kas */}
+<div style={{background:C.nav,borderRadius:8,border:"1px solid "+C.bdr,overflow:"hidden",marginBottom:12}}>
+<div style={{padding:"7px 12px",background:C.bg,borderBottom:"1px solid "+C.bdr,fontSize:11,fontWeight:700,color:C.gl2}}>💵 PECAHAN KAS FISIK</div>
+{(()=>{
+var adaPecah=DENOMS.some(d=>Number((r.pecah||{})[d]||(r.pecah||{})[String(d)]||0)>0);
+if(!adaPecah)return <div style={{padding:"10px 12px",color:C.gl2,fontSize:11,fontStyle:"italic"}}>Pecahan tidak dicatat</div>;
+return DENOMS.map(d=>{
+var lbr=Number((r.pecah||{})[d]||(r.pecah||{})[String(d)]||0);
+if(!lbr)return null;
+return <div key={d} style={{display:"grid",gridTemplateColumns:"1fr 60px 1fr",padding:"5px 12px",borderBottom:"1px solid "+C.bdr,alignItems:"center"}}>
+<span style={{color:C.wht,fontSize:12}}>{fR(d)}</span>
+<span style={{color:C.glt,fontWeight:700,fontSize:13,textAlign:"center"}}>{lbr}</span>
+<span style={{color:C.olt,fontSize:12,textAlign:"right"}}>{fR(lbr*d)}</span>
+</div>;
+});
+})()}
+<div style={{display:"grid",gridTemplateColumns:"1fr 60px 1fr",padding:"7px 12px",background:C.bg,borderTop:"2px solid "+C.bdr}}>
+<b style={{color:C.wht,fontSize:12}}>Total Tunai</b><span/>
+<b style={{color:C.glt,fontSize:14,textAlign:"right"}}>{fR(totalTunaiV)}</b>
+</div>
+</div>
+
+{/* Rekonsiliasi */}
+<div style={{padding:"10px 14px",background:ok?C.grn:C.rdk,borderRadius:8,display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
+<span style={{color:"white",fontWeight:700,fontSize:12}}>SELISIH {selisihV>=0?"LEBIH":"KURANG"}</span>
+<b style={{color:"white",fontSize:16}}>{fR(Math.abs(selisihV))}</b>
+</div>
+
+{/* Tombol aksi */}
+<div style={{display:"flex",gap:8,justifyContent:"flex-end"}}>
+<button onClick={()=>{setViewLog(null);setShowPrint(r);}} style={{background:C.grn,border:"none",borderRadius:8,padding:"8px 14px",color:"white",cursor:"pointer",fontWeight:700,fontSize:12}}>🖨️ Cetak</button>
+<button onClick={()=>{setViewLog(null);loadEditLog(r);}} style={{background:C.blu,border:"none",borderRadius:8,padding:"8px 14px",color:"white",cursor:"pointer",fontWeight:700,fontSize:12}}>✏️ Edit</button>
+</div>
+</div>
+</div>;
+})()}
 
 {/* ── MODAL SLIP CETAK SETORAN SALES ── */}
 {showPrint&&(()=>{
