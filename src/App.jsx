@@ -586,7 +586,7 @@ var prodLabel=it.jenis==="Tabung+Isi"?"Tbg + Isi":"Refill";
 // Untuk invoice gabungan, pakai tglDO per item; biasa pakai tanggal invoice
 var tglTampil=isGabunganInv&&it.tglDO?it.tglDO:inv.tanggal;
 var tglHari=new Date(tglTampil+"T00:00:00");
-var HARI_SHORT=["Min","Sen","Sel","Rab","Kam","Jum","Sab"];
+var HARI_SHORT=["Minggu","Senin","Selasa","Rabu","Kamis","Jumat","Sabtu"];
 return <tr key={i} style={{background:i%2===0?WHITE:G100}}>
 <td style={{padding:"10px 14px",color:G400,fontSize:10,fontWeight:600,lineHeight:1.5,borderBottom:"1px solid "+G200,whiteSpace:"nowrap"}}>{HARI_SHORT[tglHari.getDay()]}<br/>{fDs(tglTampil)}</td>
 <td style={{padding:"10px 12px",borderBottom:"1px solid "+G200}}>
@@ -2624,6 +2624,7 @@ var[checkedPen,setCheckedPen]=useState({});
 var[editingLogId,setEditingLogId]=useState(null);
 var[showPrint,setShowPrint]=useState(null);
 var[viewLog,setViewLog]=useState(null);
+var[delLog,setDelLog]=useState(null);
 var formRef=useRef(null);
 var salesList=sortEmp((data.employees||[]).filter(e=>e.aktif));
 var emp=(data.employees||[]).find(e=>e.id===salesId);
@@ -2940,6 +2941,7 @@ return <tr key={r.id||ri} style={{background:ri%2===0?C.bg:C.nav,borderBottom:"1
 <button onClick={()=>setViewLog(r)} style={{background:C.gry,border:"none",borderRadius:5,padding:"3px 8px",color:"white",cursor:"pointer",fontSize:10,fontWeight:700}}>👁️</button>
 <button onClick={()=>loadEditLog(r)} style={{background:editingLogId===r.id?C.olt:C.blu,border:"none",borderRadius:5,padding:"3px 8px",color:"white",cursor:"pointer",fontSize:10,fontWeight:700}}>{editingLogId===r.id?"📝 Aktif":"✏️"}</button>
 <button onClick={()=>setShowPrint(r)} style={{background:C.grn,border:"none",borderRadius:5,padding:"3px 8px",color:"white",cursor:"pointer",fontSize:10,fontWeight:700}}>🖨️</button>
+<button onClick={()=>setDelLog(r)} style={{background:C.rdk,border:"none",borderRadius:5,padding:"3px 8px",color:"white",cursor:"pointer",fontSize:10,fontWeight:700}}>🗑️</button>
 </div>
 </td>
 </tr>;
@@ -3017,7 +3019,8 @@ return <div key={d} style={{display:"grid",gridTemplateColumns:"1fr 60px 1fr",pa
 </div>
 
 {/* Tombol aksi */}
-<div style={{display:"flex",gap:8,justifyContent:"flex-end"}}>
+<div style={{display:"flex",gap:8,justifyContent:"flex-end",flexWrap:"wrap"}}>
+<button onClick={()=>{setViewLog(null);setDelLog(r);}} style={{background:C.rdk,border:"none",borderRadius:8,padding:"8px 14px",color:"white",cursor:"pointer",fontWeight:700,fontSize:12}}>🗑️ Hapus</button>
 <button onClick={()=>{setViewLog(null);setShowPrint(r);}} style={{background:C.grn,border:"none",borderRadius:8,padding:"8px 14px",color:"white",cursor:"pointer",fontWeight:700,fontSize:12}}>🖨️ Cetak</button>
 <button onClick={()=>{setViewLog(null);loadEditLog(r);}} style={{background:C.blu,border:"none",borderRadius:8,padding:"8px 14px",color:"white",cursor:"pointer",fontWeight:700,fontSize:12}}>✏️ Edit</button>
 </div>
@@ -3125,6 +3128,13 @@ Jl. Jendral Sudirman No. 80 · Banda Aceh &nbsp;|&nbsp; 081269002121 / (0651) 21
 </div>
 </div>;
 })()}
+
+{delLog&&<ConfirmDel msg={"Hapus riwayat setoran "+delLog.salesNama+" tanggal "+fDs(delLog.tanggal)+"? Data tidak bisa dikembalikan."} onCancel={()=>setDelLog(null)} onConfirm={()=>{
+setData(d=>({...d,setoranLog:(d.setoranLog||[]).filter(x=>x.id!==delLog.id)}));
+if(editingLogId===delLog.id)batalEdit();
+setDelLog(null);
+toast("✓ Riwayat setoran dihapus");
+}}/>}
 
 </div>;
 }
@@ -4377,14 +4387,15 @@ function AbsensiPayrollMod({data,setData,toast}){
 var C=useTheme();
 var[tabAP,setTabAP]=useState("absensi");
 var[viewBln,setViewBln]=useState(toMonth());
-var STATUS_CYCLE=["H","I","C","A"];// Hadir, Izin, Cuti, Alpha
-var STATUS_COLOR={H:"#15803D",I:"#B45309",C:"#1D4ED8",A:"#DC2626"};
-var STATUS_BG={H:"#DCFCE7",I:"#FEF3C7",C:"#DBEAFE",A:"#FEE2E2"};
-var STATUS_LABEL={H:"Hadir",I:"Izin",C:"Cuti",A:"Alpha"};
+var STATUS_CYCLE=["H","I","C","A","L"];// Hadir, Izin, Cuti, Alpha, Libur
+var STATUS_COLOR={H:"#15803D",I:"#B45309",C:"#1D4ED8",A:"#DC2626",L:"#6B7280"};
+var STATUS_BG={H:"#DCFCE7",I:"#FEF3C7",C:"#DBEAFE",A:"#FEE2E2",L:"#E5E7EB"};
+var STATUS_LABEL={H:"Hadir",I:"Izin",C:"Cuti",A:"Alpha",L:"Libur"};
 var karList=sortEmp((data.employees||[]).filter(e=>e.aktif));
 var karAbsensi=karList.filter(e=>e.ikutAbsensi);
 var dim=daysInMonth(viewBln);
 var days=Array.from({length:dim},(_,i)=>String(i+1).padStart(2,"0"));
+function isMinggu(tgl){return new Date(viewBln+"-"+tgl+"T00:00:00").getDay()===0;}
 
 function toggleAbsensi(karyawanId,tgl,current){
 var next=current?STATUS_CYCLE[(STATUS_CYCLE.indexOf(current)+1)%STATUS_CYCLE.length]:STATUS_CYCLE[0];
@@ -4399,10 +4410,16 @@ setData(d=>({...d,absensi:exists?(d.absensi||[]).map(a=>a.id===exists.id?rec:a):
 }
 }
 
+// Hapus langsung jadi kosong (klik kanan / tombol reset) — untuk salah klik
+function clearAbsensi(karyawanId,tgl){
+var fullTgl=viewBln+"-"+tgl;
+setData(d=>({...d,absensi:(d.absensi||[]).filter(a=>!(a.karyawanId===karyawanId&&a.tanggal===fullTgl))}));
+}
+
 // Hitung rekap per karyawan
 var rekapAbsensi=karAbsensi.map(emp=>{
 var absBln=(data.absensi||[]).filter(a=>a.karyawanId===emp.id&&(a.tanggal||"").startsWith(viewBln));
-var counts={H:0,I:0,C:0,A:0};
+var counts={H:0,I:0,C:0,A:0,L:0};
 absBln.forEach(a=>{if(counts[a.status]!==undefined)counts[a.status]++;});
 return{...emp,counts,absBln};
 });
@@ -4426,7 +4443,7 @@ return <div>
 <div style={{width:20,height:20,background:STATUS_BG[k],border:"1px solid "+STATUS_COLOR[k],borderRadius:4,display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,fontWeight:700,color:STATUS_COLOR[k]}}>{k}</div>
 <span style={{fontSize:11,color:C.gl2}}>{v}</span>
 </div>)}
-<span style={{fontSize:10,color:C.gl2,fontStyle:"italic"}}>Klik sel untuk input</span>
+<span style={{fontSize:10,color:C.gl2,fontStyle:"italic"}}>Klik kiri: ubah status (H→I→C→A→L) &nbsp;|&nbsp; Klik kanan: kosongkan (salah klik)</span>
 </div>
 </div>
 </Card>
@@ -4436,11 +4453,12 @@ return <div>
 <thead>
 <tr style={{background:C.nav,borderBottom:"2px solid "+C.bdr}}>
 <th style={{padding:"8px 12px",color:C.gl2,textAlign:"left",fontWeight:700,fontSize:11,position:"sticky",left:0,background:C.nav,minWidth:120,zIndex:1}}>Karyawan</th>
-{days.map(d=><th key={d} style={{padding:"6px 3px",color:C.gl2,textAlign:"center",fontWeight:700,minWidth:28,borderLeft:"1px solid "+C.bdr}}>{Number(d)}</th>)}
+{days.map(d=>{var minggu=isMinggu(d);return <th key={d} style={{padding:"6px 3px",color:minggu?"#DC2626":C.gl2,textAlign:"center",fontWeight:700,minWidth:28,borderLeft:"1px solid "+C.bdr,background:minggu?"rgba(220,38,38,.12)":"transparent"}}>{Number(d)}</th>;})}
 <th style={{padding:"6px 8px",color:"#15803D",textAlign:"center",fontWeight:700,borderLeft:"2px solid "+C.bdr,background:C.nav}}>H</th>
 <th style={{padding:"6px 8px",color:"#B45309",textAlign:"center",fontWeight:700}}>I</th>
 <th style={{padding:"6px 8px",color:"#1D4ED8",textAlign:"center",fontWeight:700}}>C</th>
 <th style={{padding:"6px 8px",color:"#DC2626",textAlign:"center",fontWeight:700}}>A</th>
+<th style={{padding:"6px 8px",color:"#6B7280",textAlign:"center",fontWeight:700}}>L</th>
 </tr>
 </thead>
 <tbody>
@@ -4451,15 +4469,17 @@ return <tr key={emp.id} style={{borderBottom:"1px solid "+C.bdr,background:ri%2=
 var fullTgl=viewBln+"-"+d;
 var abs=emp.absBln.find(a=>a.tanggal===fullTgl);
 var st=abs?.status||null;
-return <td key={d} onClick={()=>toggleAbsensi(emp.id,d,st)} style={{padding:"3px 2px",textAlign:"center",cursor:"pointer",borderLeft:"1px solid "+C.bdr,background:st?STATUS_BG[st]:"transparent"}}>
+var minggu=isMinggu(d);
+return <td key={d} onClick={()=>toggleAbsensi(emp.id,d,st)} onContextMenu={e=>{e.preventDefault();if(st)clearAbsensi(emp.id,d);}} title={minggu?"Minggu — klik kanan untuk kosongkan":"klik kanan untuk kosongkan"} style={{padding:"3px 2px",textAlign:"center",cursor:"pointer",borderLeft:"1px solid "+C.bdr,background:st?STATUS_BG[st]:(minggu?"rgba(220,38,38,.06)":"transparent")}}>
 {st&&<div style={{width:22,height:22,margin:"0 auto",background:STATUS_COLOR[st],borderRadius:4,display:"flex",alignItems:"center",justifyContent:"center",fontSize:9,fontWeight:700,color:"white"}}>{st}</div>}
-{!st&&<div style={{width:22,height:22,margin:"0 auto",borderRadius:4,border:"1px dashed "+C.bdr}}/>}
+{!st&&<div style={{width:22,height:22,margin:"0 auto",borderRadius:4,border:"1px dashed "+(minggu?"#DC2626":C.bdr)}}/>}
 </td>;
 })}
 <td style={{padding:"6px 8px",textAlign:"center",fontWeight:700,color:"#15803D",borderLeft:"2px solid "+C.bdr,fontSize:12}}>{emp.counts.H||"-"}</td>
 <td style={{padding:"6px 8px",textAlign:"center",fontWeight:700,color:"#B45309",fontSize:12}}>{emp.counts.I||"-"}</td>
 <td style={{padding:"6px 8px",textAlign:"center",fontWeight:700,color:"#1D4ED8",fontSize:12}}>{emp.counts.C||"-"}</td>
 <td style={{padding:"6px 8px",textAlign:"center",fontWeight:700,color:"#DC2626",fontSize:12}}>{emp.counts.A||"-"}</td>
+<td style={{padding:"6px 8px",textAlign:"center",fontWeight:700,color:"#6B7280",fontSize:12}}>{emp.counts.L||"-"}</td>
 </tr>;
 })}
 </tbody>
