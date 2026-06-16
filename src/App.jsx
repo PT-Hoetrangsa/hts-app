@@ -52,7 +52,7 @@ var DEF_EMP=[
 // ─── GOOGLE SHEETS SYNC ───────────────────────────────────────────────────────
 var GAS_URL="https://script.google.com/macros/s/AKfycbypH6BaonwpselzUFZ3Q0QJHvRbTinzpgSR37aJpKZIjX_8XVvjPC2tK1CFi8Gst7RRwg/exec";
 var GAS_SECRET="HTS2026";
-var SYNC_TABLES=["penjualan","bon","pengeluaran","pelanggan","employees","stok","doList","absensi","payrollLog","ambilan","titipList","setoranLog","tutupBuku","config"];
+var SYNC_TABLES=["penjualan","bon","pengeluaran","pelanggan","employees","stok","doList","absensi","payrollLog","ambilan","titipList","setoranLog","tutupBuku","config","jualanLain","kasBankTF"];
 
 // CORS-safe: kirim via form POST ke GAS
 function gasPost(payload){
@@ -115,6 +115,8 @@ async function pushAll(data,setSyncStatus){
     tasks.push(gasWrite("titipList",data.titipList||[]));
     tasks.push(gasWrite("setoranLog",data.setoranLog||[]));
     tasks.push(gasWrite("tutupBuku",data.tutupBuku||[]));
+    tasks.push(gasWrite("jualanLain",data.jualanLain||[]));
+    tasks.push(gasWrite("kasBankTF",data.kasBankTF||[]));
     // stok & config sebagai object → wrap dalam array
     tasks.push(gasWrite("stok",[{key:"stok",val:JSON.stringify({stock:data.stock,stokKosong:data.stokKosong,totalTabung:data.totalTabung,stokHarian:data.stokHarian,stockLog:data.stockLog,modalHistory:data.modalHistory,hetPrices:data.hetPrices,counters:data.counters,theme:data.theme})}]));
     tasks.push(gasWrite("config",[{key:"company",val:JSON.stringify(data.company||{})}]));
@@ -128,11 +130,11 @@ async function pushAll(data,setSyncStatus){
 async function pullAll(setSyncStatus){
   setSyncStatus("pulling");
   try{
-    var [penj,bon,pen,plg,emp,doL,abs,pay,amb,titip,setor,tb,stokRaw,confRaw]=await Promise.all([
+    var [penj,bon,pen,plg,emp,doL,abs,pay,amb,titip,setor,tb,stokRaw,confRaw,jualLain,kbTF]=await Promise.all([
       gasRead("penjualan"),gasRead("bon"),gasRead("pengeluaran"),gasRead("pelanggan"),
       gasRead("employees"),gasRead("doList"),gasRead("absensi"),gasRead("payrollLog"),
       gasRead("ambilan"),gasRead("titipList"),gasRead("setoranLog"),gasRead("tutupBuku"),
-      gasRead("stok"),gasRead("config")
+      gasRead("stok"),gasRead("config"),gasRead("jualanLain"),gasRead("kasBankTF")
     ]);
     var stokMeta={};
     if(stokRaw&&stokRaw.length>0){try{stokMeta=JSON.parse(stokRaw[0].val);}catch(e){}}
@@ -143,6 +145,7 @@ async function pullAll(setSyncStatus){
       employees:emp.length>0?emp:null,
       doList:doL,absensi:abs,payrollLog:pay,ambilan:amb,
       titipList:titip,setoranLog:setor,tutupBuku:tb,
+      jualanLain:jualLain,kasBankTF:kbTF,
       company,
       ...stokMeta};
   }catch(e){setSyncStatus("error");return null;}
@@ -152,7 +155,7 @@ var INIT={
 stock:{"5.5 kg":0,"12 kg":0,"50 kg":0},stokKosong:{"5.5 kg":0,"12 kg":0,"50 kg":0},totalTabung:{"5.5 kg":0,"12 kg":0,"50 kg":0},
 stockLog:[],doList:[],modalHistory:[],hetPrices:{},titipList:[],
 penjualan:[],bon:[],pengeluaran:[],employees:DEF_EMP.slice(),
-tutupBuku:[],pelanggan:[],setoranSales:[],setoranLog:[],setoranBank:[],kas:{},saldoAwalBank:{BSI:{nominal:0,tanggal:""},BCA:{nominal:0,tanggal:""}},absensi:[],ambilan:[],payrollLog:[],
+tutupBuku:[],pelanggan:[],setoranSales:[],setoranLog:[],setoranBank:[],kas:{},saldoAwalBank:{BSI:{nominal:0,tanggal:""},BCA:{nominal:0,tanggal:""}},absensi:[],ambilan:[],payrollLog:[],jualanLain:[],kasBankTF:[],
 counters:{inv:{},sg:{},reg:0},theme:"light",
 company:{nama:"PT. HOE TRANG SA",alamat:"Jl. Jendral Sudirman No.80, Geuce Iniem, Kec. Banda Raya, Kota Banda Aceh",telepon:"0812 6900 2121",telepon2:"(0651) 21221",email:"npso.pthoetrangsa@gmail.com",website:"pt-hoetrangsa.business.site",npwp:"",slogan:"DEALER LPG PERTAMINA",bankNama:"BSI",bankAtasNama:"PT. HOE TRANG SA",bankRekening:"812 69 2121 8",logo:"",logoPertamina:"",ttdKasir:"",ttdDirektur:"",stempelLunas:"",direkturNama:"Muhammad Haekal",kasirNama:"MANARUL HIDAYAT",soldTo:"731070",shipToKCR:"862070",shipToMGL:"782092",saBulan:"Juni 2026",sa12KCR:"2845075",sa55KCR:"2845111",sa12MGL:"",sa55MGL:"",assetArmada:0,hargaTbgKosong:{"5.5 kg":0,"12 kg":0,"50 kg":0}}
 };
@@ -2517,7 +2520,98 @@ return <div>
 </div>;
 }
 
-// ─── SETORAN SALES v4 (buat ulang total) ──────────────────────────────────────
+// ─── JUALAN LAIN (gas kaleng, aksesoris, dll — non-LPG, tanpa stok) ───────────
+function JualanLainMod({data,setData,user,toast}){
+var C=useTheme();
+var[tgl,setTgl]=useState(toDay());
+var[nama,setNama]=useState("");
+var[qty,setQty]=useState("1");
+var[harga,setHarga]=useState("");
+var[bayar,setBayar]=useState("cash");
+var[ket,setKet]=useState("");
+var[editId,setEditId]=useState(null);
+var[delId,setDelId]=useState(null);
+var[fFrom,setFFrom]=useState("");
+var[fTo,setFTo]=useState("");
+
+var list=(data.jualanLain||[]).slice().sort((a,b)=>(b.tanggal||"").localeCompare(a.tanggal||"")||(b.id||"").localeCompare(a.id||""));
+var filtered=list.filter(x=>{
+if(fFrom&&x.tanggal<fFrom)return false;
+if(fTo&&x.tanggal>fTo)return false;
+return true;
+});
+var totalQty=Number(qty)||0;var totalHarga=Number(harga)||0;var subtotal=totalQty*totalHarga;
+
+function resetForm(){setTgl(toDay());setNama("");setQty("1");setHarga("");setBayar("cash");setKet("");setEditId(null);}
+
+function simpan(){
+if(!nama.trim()){toast("⚠️ Nama barang wajib diisi");return;}
+if(subtotal<=0){toast("⚠️ Qty & harga harus diisi");return;}
+var rec={id:editId||uid(),tanggal:tgl,nama:nama.trim(),qty:totalQty,harga:totalHarga,total:subtotal,bayar,ket:ket.trim()};
+if(editId){
+  setData(d=>({...d,jualanLain:(d.jualanLain||[]).map(x=>x.id===editId?rec:x)}));
+  toast("✓ Jualan lain diperbarui!");
+}else{
+  setData(d=>({...d,jualanLain:[rec,...(d.jualanLain||[])]}));
+  toast("✓ Jualan lain tersimpan! Total: "+fR(subtotal));
+}
+resetForm();
+}
+
+function mulaiEdit(x){
+setEditId(x.id);setTgl(x.tanggal);setNama(x.nama);setQty(String(x.qty));setHarga(String(x.harga));setBayar(x.bayar||"cash");setKet(x.ket||"");
+}
+
+var totalFiltered=filtered.reduce((a,x)=>a+(x.total||0),0);
+var totalCashF=filtered.filter(x=>x.bayar==="cash").reduce((a,x)=>a+(x.total||0),0);
+var totalTFF=filtered.filter(x=>x.bayar==="transfer").reduce((a,x)=>a+(x.total||0),0);
+
+return <div>
+<STitle icon="🛒" children="Jualan Lain (Non-LPG)"/>
+<div style={{fontSize:11,color:C.gl2,marginBottom:12,marginTop:-8}}>Gas kaleng, korek, selang, regulator, aksesoris, dll — tidak masuk hitungan stok LPG.</div>
+
+<Card style={{border:"1px solid "+(editId?C.olt:C.bdr)}}>
+<div style={{fontWeight:700,color:editId?C.olt:C.gl2,marginBottom:10,fontSize:13}}>{editId?"✏️ Edit Jualan Lain":"➕ Tambah Jualan Lain"}</div>
+<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+<Inp label="Tanggal" type="date" value={tgl} onChange={setTgl}/>
+<Inp label="Nama Barang" value={nama} onChange={setNama} placeholder="Gas Kaleng / Selang / dll"/>
+<Inp label="Qty" type="number" value={qty} onChange={setQty} placeholder="1"/>
+<Inp label="Harga Satuan" type="number" value={harga} onChange={setHarga} placeholder="0"/>
+<Sel label="Metode Bayar" value={bayar} onChange={setBayar} opts={[{v:"cash",l:"💵 Cash"},{v:"transfer",l:"🏦 Transfer"}]}/>
+<Inp label="Keterangan (opsional)" value={ket} onChange={setKet} placeholder="—"/>
+</div>
+<div style={{background:C.nav,borderRadius:8,padding:"10px 14px",border:"1px solid "+C.bdr,marginBottom:10,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+<span style={{fontSize:12,color:C.gl2}}>Subtotal</span>
+<b style={{fontSize:18,color:C.glt}}>{fR(subtotal)}</b>
+</div>
+<div style={{display:"flex",gap:8}}>
+<Btn color={editId?"orange":"green"} onClick={simpan}>{editId?"💾 Simpan Perubahan":"✓ Simpan"}</Btn>
+{editId&&<Btn color="gray" onClick={resetForm}>✕ Batal</Btn>}
+</div>
+</Card>
+
+<Card>
+<div style={{fontWeight:700,color:C.gl2,marginBottom:10,fontSize:13}}>📋 Riwayat Jualan Lain</div>
+<div style={{display:"flex",gap:8,marginBottom:10,flexWrap:"wrap"}}>
+<Inp label="Dari" type="date" value={fFrom} onChange={setFFrom} style={{marginBottom:0,maxWidth:160}}/>
+<Inp label="Sampai" type="date" value={fTo} onChange={setFTo} style={{marginBottom:0,maxWidth:160}}/>
+{(fFrom||fTo)&&<div style={{alignSelf:"flex-end"}}><Btn sm color="gray" onClick={()=>{setFFrom("");setFTo("");}}>✕ Reset</Btn></div>}
+</div>
+<div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:12}}>
+{[["Total Penjualan",totalFiltered,C.wht],["Cash",totalCashF,C.glt],["Transfer",totalTFF,C.blt]].map(x=><div key={x[0]} style={{background:C.nav,borderRadius:8,padding:"8px 10px",textAlign:"center",border:"1px solid "+C.bdr}}><div style={{fontSize:10,color:C.gl2}}>{x[0]}</div><div style={{fontSize:13,fontWeight:900,color:x[2]}}>{fR(x[1])}</div></div>)}
+</div>
+<RTbl headers={["Tanggal","Barang","Qty","Harga","Total","Bayar","Aksi"]} rows={filtered.slice(0,100).map(x=>[
+fDs(x.tanggal),x.nama+(x.ket?" — "+x.ket:""),String(x.qty),fR(x.harga),fR(x.total),
+x.bayar==="cash"?"💵 Cash":"🏦 TF",
+<div style={{display:"flex",gap:4}}>
+<button onClick={()=>mulaiEdit(x)} style={{background:C.blu,border:"none",borderRadius:5,padding:"3px 8px",color:"white",cursor:"pointer",fontSize:10,fontWeight:700}}>✏️</button>
+<button onClick={()=>setDelId(x)} style={{background:C.rdk,border:"none",borderRadius:5,padding:"3px 8px",color:"white",cursor:"pointer",fontSize:10,fontWeight:700}}>🗑️</button>
+</div>
+])} empty="Belum ada data jualan lain"/>
+</Card>
+{delId&&<ConfirmDel msg={"Hapus jualan \""+delId.nama+"\" senilai "+fR(delId.total)+"?"} onCancel={()=>setDelId(null)} onConfirm={()=>{setData(d=>({...d,jualanLain:(d.jualanLain||[]).filter(x=>x.id!==delId.id)}));setDelId(null);toast("✓ Dihapus");}}/>}
+</div>;
+}
 function SetoranMod({data,setData,user,toast}){
 var C=useTheme();
 var isSales=user&&["sales_driver","sales_freelance"].includes(user.role);
@@ -3156,11 +3250,15 @@ var pHari=(data.penjualan||[]).filter(e=>e.tanggal===tgl);
 var omzetH=pHari.reduce((a,e)=>a+(e.total||0),0);
 var marginH=pHari.reduce((a,e)=>a+(e.margin||0),0);
 var hppH=omzetH-marginH;
+// Jualan Lain (gas kaleng, aksesoris) — dianggap 100% margin, masuk omzet & laba
+var jualLainH=(data.jualanLain||[]).filter(j=>j.tanggal===tgl);
+var omzetJualLainH=jualLainH.reduce((a,j)=>a+Number(j.total||0),0);
+omzetH+=omzetJualLainH;marginH+=omzetJualLainH;
 var penH=(data.pengeluaran||[]).filter(e=>e.tanggal===tgl);
 var totalOutH=penH.reduce((a,e)=>a+Number(e.nominal||0),0);
 var labaBersihH=marginH-totalOutH;
-var cashInH=pHari.filter(e=>e.bayar==="cash").reduce((a,e)=>a+(e.total||0),0);
-var tfInH=pHari.filter(e=>e.bayar==="transfer").reduce((a,e)=>a+(e.total||0),0);
+var cashInH=pHari.filter(e=>e.bayar==="cash").reduce((a,e)=>a+(e.total||0),0)+jualLainH.filter(j=>j.bayar==="cash").reduce((a,j)=>a+Number(j.total||0),0);
+var tfInH=pHari.filter(e=>e.bayar==="transfer").reduce((a,e)=>a+(e.total||0),0)+jualLainH.filter(j=>j.bayar==="transfer").reduce((a,j)=>a+Number(j.total||0),0);
 var bonInH=pHari.filter(e=>e.bayar==="bon").reduce((a,e)=>a+(e.total||0),0);
 
 // Asset kalkulasi
@@ -3320,16 +3418,23 @@ var bonBayarCashTgl=(data.bon||[]).reduce((a,b)=>{var px=(b.pembayaran||[]).filt
 var bonBayarTFTgl=(data.bon||[]).reduce((a,b)=>{var px=(b.pembayaran||[]).filter(p=>p.tanggal===tgl&&((p.metode||"").toLowerCase()==="transfer"||(p.metode||"").toLowerCase()==="tf"));return a+px.reduce((s,p)=>s+Number(p.jumlah||p.nominal||0),0);},0);
 var penCashTgl=allPenTgl.filter(p=>(p.metode||"cash").toLowerCase()==="cash").reduce((a,p)=>a+Number(p.nominal||0),0);
 var penTFTgl=allPenTgl.filter(p=>(p.metode||"").toLowerCase()==="transfer"||(p.metode||"").toLowerCase()==="tf").reduce((a,p)=>a+Number(p.nominal||0),0);
-var totalCashMasuk=cashPenjTgl+bonBayarCashTgl;
+// Jualan Lain (gas kaleng, aksesoris dll)
+var jualanLainTgl=(data.jualanLain||[]).filter(j=>j.tanggal===tgl);
+var jualanLainCashTgl=jualanLainTgl.filter(j=>j.bayar==="cash").reduce((a,j)=>a+Number(j.total||0),0);
+var jualanLainTFTgl=jualanLainTgl.filter(j=>j.bayar==="transfer").reduce((a,j)=>a+Number(j.total||0),0);
+// Tarik TF (cash laci -> bank) & Setor TF (bank -> cash laci) hari ini
+var tarikTFTgl=(data.kasBankTF||[]).filter(k=>k.tanggal===tgl&&k.jenis==="tarik").reduce((a,k)=>a+Number(k.nominal||0),0);
+var setorTFTgl=(data.kasBankTF||[]).filter(k=>k.tanggal===tgl&&k.jenis==="setor").reduce((a,k)=>a+Number(k.nominal||0),0);
+var totalCashMasuk=cashPenjTgl+bonBayarCashTgl+jualanLainCashTgl;
 // Kurang setor sales hari ini = uang yang tidak masuk laci, sudah jadi pinjaman karyawan
 var kurangSetorKasir=(data.ambilan||[]).filter(a=>a.tanggal===tgl&&(a.ket||"").toLowerCase().includes("kurang setor")).reduce((a,x)=>a+Number(x.nominal||0),0);
-var wajibSetorKasir=Math.max(0,totalCashMasuk-penCashTgl-kurangSetorKasir);
+var wajibSetorKasir=Math.max(0,totalCashMasuk-penCashTgl-kurangSetorKasir-tarikTFTgl+setorTFTgl);
 return <Card style={{border:"2px solid "+C.glt}}>
 <div style={{fontWeight:700,color:C.glt,marginBottom:10,fontSize:13}}>🏦 Cash Wajib Setor Kasir — {fDs(tgl)}</div>
 <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
 <div>
 <div style={{fontSize:11,fontWeight:700,color:C.gl2,marginBottom:6,textTransform:"uppercase",letterSpacing:.5}}>Cash Masuk</div>
-{[["Cash Penjualan (semua sales)",cashPenjTgl,C.glt],["Bayar BON Cash (semua)",bonBayarCashTgl,C.glt]].map(x=><div key={x[0]} style={{display:"flex",justifyContent:"space-between",padding:"5px 8px",background:C.bg,borderRadius:5,marginBottom:3,border:"1px solid "+C.bdr}}>
+{[["Cash Penjualan (semua sales)",cashPenjTgl,C.glt],["Bayar BON Cash (semua)",bonBayarCashTgl,C.glt],...(jualanLainCashTgl>0?[["Jualan Lain (Cash)",jualanLainCashTgl,C.glt]]:[]),...(setorTFTgl>0?[["Setor TF (Bank → Laci)",setorTFTgl,C.glt]]:[])].map(x=><div key={x[0]} style={{display:"flex",justifyContent:"space-between",padding:"5px 8px",background:C.bg,borderRadius:5,marginBottom:3,border:"1px solid "+C.bdr}}>
 <span style={{fontSize:11,color:C.gl2}}>{x[0]}</span><b style={{color:x[2],fontSize:12}}>{fR(x[1])}</b>
 </div>)}
 <div style={{display:"flex",justifyContent:"space-between",padding:"6px 8px",background:C.nav,borderRadius:5,marginBottom:8,border:"1px solid "+C.glt}}>
@@ -3351,6 +3456,8 @@ return <Card style={{border:"2px solid "+C.glt}}>
 <div style={{fontSize:15,fontWeight:900,color:C.rlt,marginBottom:8}}>- {fR(penCashTgl)}</div>
 {kurangSetorKasir>0&&<><div style={{fontSize:11,color:C.gl2,marginBottom:4}}>Kurang Setor Sales</div>
 <div style={{fontSize:15,fontWeight:900,color:C.rlt,marginBottom:8}}>- {fR(kurangSetorKasir)}</div></>}
+{tarikTFTgl>0&&<><div style={{fontSize:11,color:C.gl2,marginBottom:4}}>Tarik TF (Laci → Bank)</div>
+<div style={{fontSize:15,fontWeight:900,color:C.rlt,marginBottom:8}}>- {fR(tarikTFTgl)}</div></>}
 <div style={{height:1,background:C.bdr,marginBottom:8}}/>
 <div style={{fontSize:11,color:C.glt,fontWeight:700,marginBottom:4}}>WAJIB SETOR KE BANK</div>
 <div style={{fontSize:22,fontWeight:900,color:C.wht,marginBottom:10}}>{fR(wajibSetorKasir)}</div>
@@ -3390,7 +3497,7 @@ return <Card style={{border:"2px solid "+C.glt}}>
 <Card style={{border:"1px solid "+C.glt}}>
 <div style={{fontWeight:700,color:C.glt,marginBottom:12,fontSize:13}}>📊 P&L Hari Ini</div>
 <div style={{border:"1px solid "+C.bdr,borderRadius:8,overflow:"hidden",marginBottom:10}}>
-{[["Omzet",omzetH,C.wht,false],["HPP / Modal",hppH,C.gl2,false],["Laba Kotor",marginH,C.blt,true],["Pengeluaran Operasional",-totalOutH,C.rlt,false],["Pemasukan Lainnya",Number(pemasukanLain)||0,C.olt,false],...(kurangSetorHari>0?[["Kurang Setor Sales",-kurangSetorHari,C.rlt,false]]:[]),["LABA BERSIH EFEKTIF",labaBersihEfektif,labaBersihEfektif>=0?C.glt:C.rlt,true]].map((x,i)=><div key={i} style={{display:"flex",justifyContent:"space-between",padding:x[3]?"10px 14px":"7px 14px",background:x[3]?C.nav:"transparent",borderBottom:"1px solid "+C.bdr}}><span style={{fontSize:x[3]?13:12,color:x[3]?C.wht:C.gl2,fontWeight:x[3]?700:400}}>{x[0]}</span><span style={{fontSize:x[3]?15:13,fontWeight:x[3]?900:600,color:x[2]}}>{fR(x[1])}</span></div>)}
+{[["Omzet",omzetH,C.wht,false],["HPP / Modal",hppH,C.gl2,false],...(omzetJualLainH>0?[["  ↳ incl. Jualan Lain",omzetJualLainH,C.olt,false]]:[]),["Laba Kotor",marginH,C.blt,true],["Pengeluaran Operasional",-totalOutH,C.rlt,false],["Pemasukan Lainnya",Number(pemasukanLain)||0,C.olt,false],...(kurangSetorHari>0?[["Kurang Setor Sales",-kurangSetorHari,C.rlt,false]]:[]),["LABA BERSIH EFEKTIF",labaBersihEfektif,labaBersihEfektif>=0?C.glt:C.rlt,true]].map((x,i)=><div key={i} style={{display:"flex",justifyContent:"space-between",padding:x[3]?"10px 14px":"7px 14px",background:x[3]?C.nav:"transparent",borderBottom:"1px solid "+C.bdr}}><span style={{fontSize:x[3]?13:12,color:x[3]?C.wht:C.gl2,fontWeight:x[3]?700:400}}>{x[0]}</span><span style={{fontSize:x[3]?15:13,fontWeight:x[3]?900:600,color:x[2]}}>{fR(x[1])}</span></div>)}
 </div>
 <Inp label="Pemasukan Lainnya (topup saham dll)" type="number" value={pemasukanLain} onChange={setPemasukanLain} placeholder="0"/>
 <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginTop:10}}>
@@ -4513,6 +4620,14 @@ var[pecahInput,setPecahInput]=useState(()=>{var o={};DENOMS.forEach(d=>{o[d]="";
 var[showSlip,setShowSlip]=useState(false);
 var[editSetor,setEditSetor]=useState(null);
 var[editSetorF,setEditSetorF]=useState(null);
+// Tarik/Setor TF states
+var[tfJenis,setTfJenis]=useState("tarik");
+var[tfTgl,setTfTgl]=useState(toDay());
+var[tfBank,setTfBank]=useState("BSI");
+var[tfNominal,setTfNominal]=useState("");
+var[tfKet,setTfKet]=useState("");
+var[tfEditId,setTfEditId]=useState(null);
+var[tfDelId,setTfDelId]=useState(null);
 // Filter states untuk Debit & Kredit tab
 var[fKat,setFKat]=useState("");
 var[fMetode,setFMetode]=useState("");
@@ -4552,6 +4667,14 @@ function getMutasiBank(bank){
   (data.setoranBank||[]).filter(s=>s.bank===bank&&(!tglAwal||s.tanggal>=tglAwal)).forEach(s=>{
     list.push({tanggal:s.tanggal,ket:"Setoran Cash ("+s.tglList?.join(",")+") ",jenis:"Setor Cash",masuk:s.nominal||0,keluar:0,bank});
   });
+  // Tarik TF (cash laci -> bank ini): bank bertambah
+  (data.kasBankTF||[]).filter(k=>k.jenis==="tarik"&&k.bank===bank&&(!tglAwal||k.tanggal>=tglAwal)).forEach(k=>{
+    list.push({tanggal:k.tanggal,ket:"Tarik TF (Laci → "+bank+")"+(k.ket?" — "+k.ket:""),jenis:"Tarik TF",masuk:Number(k.nominal||0),keluar:0,bank});
+  });
+  // Setor TF (bank ini -> cash laci): bank berkurang
+  (data.kasBankTF||[]).filter(k=>k.jenis==="setor"&&k.bank===bank&&(!tglAwal||k.tanggal>=tglAwal)).forEach(k=>{
+    list.push({tanggal:k.tanggal,ket:"Setor TF ("+bank+" → Laci)"+(k.ket?" — "+k.ket:""),jenis:"Setor TF",masuk:0,keluar:Number(k.nominal||0),bank});
+  });
   // Sort by tanggal
   list.sort((a,b)=>a.tanggal.localeCompare(b.tanggal));
   // Hitung running saldo
@@ -4581,7 +4704,10 @@ for(var di=1;di<=dim;di++){
     var bonCashD=(data.bon||[]).reduce((a,b)=>{var px=(b.pembayaran||[]).filter(p=>p.tanggal===tglD&&(p.metode||"cash").toLowerCase()==="cash");return a+px.reduce((s,p)=>s+Number(p.jumlah||p.nominal||0),0);},0);
     var penCashD=(data.pengeluaran||[]).filter(p=>p.tanggal===tglD&&(p.metode||"cash").toLowerCase()==="cash").reduce((a,p)=>a+Number(p.nominal||0),0);
     var kurangSetorD=(data.ambilan||[]).filter(a=>a.tanggal===tglD&&(a.ket||"").toLowerCase().includes("kurang setor")).reduce((a,x)=>a+Number(x.nominal||0),0);
-    wajibSetor=Math.max(0,cashPenj+bonCashD-penCashD-kurangSetorD);
+    var jualLainCashD=(data.jualanLain||[]).filter(j=>j.tanggal===tglD&&j.bayar==="cash").reduce((a,j)=>a+Number(j.total||0),0);
+    var tarikTFD=(data.kasBankTF||[]).filter(k=>k.tanggal===tglD&&k.jenis==="tarik").reduce((a,k)=>a+Number(k.nominal||0),0);
+    var setorTFD=(data.kasBankTF||[]).filter(k=>k.tanggal===tglD&&k.jenis==="setor").reduce((a,k)=>a+Number(k.nominal||0),0);
+    wajibSetor=Math.max(0,cashPenj+bonCashD+jualLainCashD-penCashD-kurangSetorD-tarikTFD+setorTFD);
   }
   var disetor=(data.kas||{})[tglD]?.disetor;
   // pecah object: dari field pecah (DENOMS qty) atau estimasi dari totalPecah number
@@ -4626,7 +4752,7 @@ var thnIdx=bulanSetor.split("-")[0];
 return <div>
 <STitle icon="📒" children="Buku Kas"/>
 <div style={{display:"flex",gap:5,marginBottom:14,flexWrap:"wrap"}}>
-{[["saldo","📒 Debit & Kredit"],["setor","💵 Setoran Cash"],["setup","⚙️ Setup Saldo Awal"]].map(x=><button key={x[0]} onClick={()=>setTabK(x[0])} style={{background:tabK===x[0]?C.blu:C.nav,color:tabK===x[0]?"white":C.wht,border:"1px solid "+(tabK===x[0]?C.blt:C.bdr),borderRadius:8,padding:"7px 14px",fontWeight:700,fontSize:12,cursor:"pointer"}}>{x[1]}</button>)}
+{[["saldo","📒 Debit & Kredit"],["setor","💵 Setoran Cash"],["tarikSetorTF","🔄 Tarik/Setor TF"],["setup","⚙️ Setup Saldo Awal"]].map(x=><button key={x[0]} onClick={()=>setTabK(x[0])} style={{background:tabK===x[0]?C.blu:C.nav,color:tabK===x[0]?"white":C.wht,border:"1px solid "+(tabK===x[0]?C.blt:C.bdr),borderRadius:8,padding:"7px 14px",fontWeight:700,fontSize:12,cursor:"pointer"}}>{x[1]}</button>)}
 </div>
 
 {/* ── TAB SALDO & MUTASI ── */}
@@ -4681,6 +4807,20 @@ if(nom>0)allTrx.push({tgl:px.tanggal,kat:"Bayar BON",ket:b.konsumen,oleh:px.sale
 allTrx.push({tgl:s.tanggal,kat:"Setoran Bank",ket:"Masuk Rek "+s.bank,oleh:s.penyetor||"—",debit:s.nominal||0,kredit:0,metode:"TF Bank",ref:""});
 // Baris 2: Keluar dari laci (Kredit)
 allTrx.push({tgl:s.tanggal,kat:"Setoran Bank",ket:"Keluar Laci → "+s.bank,oleh:s.penyetor||"—",debit:0,kredit:s.nominal||0,metode:"Cash",ref:""});
+});
+
+// 6. Tarik TF (cash laci -> bank) & Setor TF (bank -> cash laci) — 2 baris net 0
+(data.kasBankTF||[]).forEach(k=>{
+var nom=Number(k.nominal||0);
+if(k.jenis==="tarik"){
+  // Laci berkurang, Bank bertambah
+  allTrx.push({tgl:k.tanggal,kat:"Tarik/Setor TF",ket:"Tarik TF → Masuk "+k.bank+(k.ket?" — "+k.ket:""),oleh:k.oleh||"—",debit:nom,kredit:0,metode:"TF "+k.bank,ref:""});
+  allTrx.push({tgl:k.tanggal,kat:"Tarik/Setor TF",ket:"Tarik TF → Keluar Laci"+(k.ket?" — "+k.ket:""),oleh:k.oleh||"—",debit:0,kredit:nom,metode:"Cash",ref:""});
+}else{
+  // Bank berkurang, Laci bertambah
+  allTrx.push({tgl:k.tanggal,kat:"Tarik/Setor TF",ket:"Setor TF → Keluar "+k.bank+(k.ket?" — "+k.ket:""),oleh:k.oleh||"—",debit:0,kredit:nom,metode:"TF "+k.bank,ref:""});
+  allTrx.push({tgl:k.tanggal,kat:"Tarik/Setor TF",ket:"Setor TF → Masuk Laci"+(k.ket?" — "+k.ket:""),oleh:k.oleh||"—",debit:nom,kredit:0,metode:"Cash",ref:""});
+}
 });
 
 // Sort by tanggal asc
@@ -4953,6 +5093,79 @@ return <tr key={d} style={{borderBottom:"1px solid "+C.bdr}}>
 </Card>
 </div>}
 
+{/* ── TAB TARIK/SETOR TF ── */}
+{tabK==="tarikSetorTF"&&(()=>{
+function resetTfForm(){setTfJenis("tarik");setTfTgl(toDay());setTfBank("BSI");setTfNominal("");setTfKet("");setTfEditId(null);}
+function simpanTF(){
+  var nom=Number(tfNominal)||0;
+  if(nom<=0){toast("⚠️ Nominal harus diisi");return;}
+  var rec={id:tfEditId||uid(),tanggal:tfTgl,jenis:tfJenis,bank:tfBank,nominal:nom,ket:tfKet.trim(),oleh:user?.nama||""};
+  if(tfEditId){
+    setData(d=>({...d,kasBankTF:(d.kasBankTF||[]).map(x=>x.id===tfEditId?rec:x)}));
+    toast("✓ Transaksi TF diperbarui!");
+  }else{
+    setData(d=>({...d,kasBankTF:[rec,...(d.kasBankTF||[])]}));
+    toast((tfJenis==="tarik"?"✓ Tarik TF":"✓ Setor TF")+" Rp "+fR(nom)+" tersimpan!");
+  }
+  resetTfForm();
+}
+function mulaiEditTF(x){setTfEditId(x.id);setTfTgl(x.tanggal);setTfJenis(x.jenis);setTfBank(x.bank);setTfNominal(String(x.nominal));setTfKet(x.ket||"");}
+var riwayatTF=(data.kasBankTF||[]).slice().sort((a,b)=>(b.tanggal||"").localeCompare(a.tanggal||"")).slice(0,50);
+var totalTarik=(data.kasBankTF||[]).filter(k=>k.jenis==="tarik").reduce((a,k)=>a+Number(k.nominal||0),0);
+var totalSetorTF=(data.kasBankTF||[]).filter(k=>k.jenis==="setor").reduce((a,k)=>a+Number(k.nominal||0),0);
+return <div>
+<Card style={{border:"1px solid "+(tfEditId?C.olt:C.bdr)}}>
+<div style={{fontWeight:700,color:tfEditId?C.olt:C.gl2,marginBottom:10,fontSize:13}}>{tfEditId?"✏️ Edit Transaksi TF":"🔄 Tarik / Setor TF"}</div>
+<div style={{display:"flex",gap:8,marginBottom:12}}>
+<button onClick={()=>setTfJenis("tarik")} style={{flex:1,background:tfJenis==="tarik"?C.rdk:C.nav,color:tfJenis==="tarik"?"white":C.wht,border:"1px solid "+(tfJenis==="tarik"?C.rdk:C.bdr),borderRadius:8,padding:"10px",fontWeight:700,fontSize:12,cursor:"pointer"}}>📤 Tarik TF<div style={{fontSize:10,fontWeight:400,marginTop:2,opacity:.9}}>Laci → Bank</div></button>
+<button onClick={()=>setTfJenis("setor")} style={{flex:1,background:tfJenis==="setor"?C.grn:C.nav,color:tfJenis==="setor"?"white":C.wht,border:"1px solid "+(tfJenis==="setor"?C.grn:C.bdr),borderRadius:8,padding:"10px",fontWeight:700,fontSize:12,cursor:"pointer"}}>📥 Setor TF<div style={{fontSize:10,fontWeight:400,marginTop:2,opacity:.9}}>Bank → Laci</div></button>
+</div>
+<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+<Inp label="Tanggal" type="date" value={tfTgl} onChange={setTfTgl}/>
+<Sel label={tfJenis==="tarik"?"Bank Tujuan":"Bank Asal"} value={tfBank} onChange={setTfBank} opts={[{v:"BSI",l:"BSI"},{v:"BCA",l:"BCA"}]}/>
+<Inp label="Nominal" type="number" value={tfNominal} onChange={setTfNominal} placeholder="0"/>
+<Inp label="Keterangan (opsional)" value={tfKet} onChange={setTfKet} placeholder="—"/>
+</div>
+<div style={{background:C.nav,borderRadius:8,padding:"10px 14px",border:"1px solid "+C.bdr,marginBottom:10,fontSize:12,color:C.gl2}}>
+{tfJenis==="tarik"
+  ?<>📤 Cash Laci <b style={{color:C.rlt}}>−{fR(Number(tfNominal)||0)}</b> → Saldo {tfBank} <b style={{color:C.glt}}>+{fR(Number(tfNominal)||0)}</b></>
+  :<>📥 Saldo {tfBank} <b style={{color:C.rlt}}>−{fR(Number(tfNominal)||0)}</b> → Cash Laci <b style={{color:C.glt}}>+{fR(Number(tfNominal)||0)}</b></>}
+</div>
+<div style={{display:"flex",gap:8}}>
+<Btn color={tfEditId?"orange":(tfJenis==="tarik"?"red":"green")} onClick={simpanTF}>{tfEditId?"💾 Simpan Perubahan":(tfJenis==="tarik"?"📤 Konfirmasi Tarik TF":"📥 Konfirmasi Setor TF")}</Btn>
+{tfEditId&&<Btn color="gray" onClick={resetTfForm}>✕ Batal</Btn>}
+</div>
+</Card>
+
+<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:12}}>
+<div style={{background:C.card,borderRadius:10,border:"1px solid "+C.bdr,padding:12}}>
+<div style={{fontSize:11,color:C.gl2,marginBottom:4}}>Total Tarik TF (Laci → Bank)</div>
+<div style={{fontSize:16,fontWeight:900,color:C.rlt}}>{fR(totalTarik)}</div>
+</div>
+<div style={{background:C.card,borderRadius:10,border:"1px solid "+C.bdr,padding:12}}>
+<div style={{fontSize:11,color:C.gl2,marginBottom:4}}>Total Setor TF (Bank → Laci)</div>
+<div style={{fontSize:16,fontWeight:900,color:C.glt}}>{fR(totalSetorTF)}</div>
+</div>
+</div>
+
+<Card>
+<div style={{fontWeight:700,color:C.gl2,marginBottom:10,fontSize:13}}>📋 Riwayat Tarik/Setor TF</div>
+<RTbl headers={["Tanggal","Jenis","Bank","Nominal","Keterangan","Aksi"]} rows={riwayatTF.map(r=>[
+fDs(r.tanggal),
+r.jenis==="tarik"?"📤 Tarik (Laci→Bank)":"📥 Setor (Bank→Laci)",
+r.bank,
+fR(r.nominal),
+r.ket||"—",
+<div style={{display:"flex",gap:4}}>
+<button onClick={()=>mulaiEditTF(r)} style={{background:C.blu,border:"none",borderRadius:5,padding:"3px 8px",color:"white",cursor:"pointer",fontSize:10,fontWeight:700}}>✏️</button>
+<button onClick={()=>setTfDelId(r)} style={{background:C.rdk,border:"none",borderRadius:5,padding:"3px 8px",color:"white",cursor:"pointer",fontSize:10,fontWeight:700}}>🗑️</button>
+</div>
+])} empty="Belum ada transaksi tarik/setor TF"/>
+</Card>
+{tfDelId&&<ConfirmDel msg={"Hapus transaksi "+(tfDelId.jenis==="tarik"?"Tarik":"Setor")+" TF "+fR(tfDelId.nominal)+"?"} onCancel={()=>setTfDelId(null)} onConfirm={()=>{setData(d=>({...d,kasBankTF:(d.kasBankTF||[]).filter(x=>x.id!==tfDelId.id)}));setTfDelId(null);toast("✓ Dihapus");}}/>}
+</div>;
+})()}
+
 {/* ── TAB SETUP SALDO AWAL ── */}
 {tabK==="setup"&&<div>
 {["BSI","BCA"].map(bank=>{
@@ -5124,7 +5337,7 @@ var ALL_TABS=[
 {id:"laporan",label:"Laporan",icon:"📊"},{id:"stok",label:"Stok",icon:"📦"},
 {id:"pengeluaran",label:"Pengeluaran",icon:"💸"},{id:"tutupbuku",label:"Tutup Buku",icon:"📒"},
 {id:"pelanggan",label:"Pelanggan",icon:"👥"},{id:"karyawan",label:"Karyawan",icon:"👤"},
-{id:"absensi",label:"Absensi & Payroll",icon:"📅"},
+{id:"absensi",label:"Absensi & Payroll",icon:"📅"},{id:"jualanlain",label:"Jualan Lain",icon:"🛒"},
 {id:"kas",label:"Buku Kas",icon:"📒"},{id:"do",label:"DO",icon:"🚚"},{id:"settings",label:"Pengaturan",icon:"⚙️"},
 ];
 function getVisibleTabs(user){if(!user)return[];var rt=ROLE_TABS[user.role];if(rt===null||rt===undefined)return ALL_TABS;return ALL_TABS.filter(t=>rt.includes(t.id));}
@@ -5209,6 +5422,7 @@ if(t==="pelanggan")return <PelangganMod {...props}/>;
 if(t==="karyawan")return <KaryawanMod {...props}/>;
 if(t==="absensi")return <AbsensiPayrollMod {...props}/>;
 if(t==="absensi")return <PayrollMod {...props}/>;
+if(t==="jualanlain")return <JualanLainMod {...props}/>;
 if(t==="kas")return <KasBankMod {...props}/>;
 if(t==="do")return <DOMod {...props}/>;
 if(t==="settings")return <SettingsMod data={data} setData={setDataP} toast={toast} theme={theme} setTheme={setTheme}/>;
