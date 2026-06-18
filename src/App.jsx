@@ -1336,7 +1336,33 @@ return [...sgRows, totalLakuRow];
 </>;
 })()}
 
-<div style={{fontWeight:700,color:C.gl2,marginBottom:10,fontSize:13}}>📋 Riwayat Penjualan</div>
+<div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+<div style={{fontWeight:700,color:C.gl2,fontSize:13}}>📋 Riwayat Penjualan</div>
+<button onClick={()=>{
+var wb=XLSX.utils.book_new();
+var detailRows=[];
+rows.forEach(p=>{
+  var items=p.items||[];
+  var totalQtyInv=items.reduce((a,it)=>a+Number(it.qty||0),0);
+  items.forEach(it=>{
+    var q=Number(it.qty||0);
+    var marginItem;
+    if(it.hppFIFO!=null)marginItem=(Number(it.price||0)-Number(it.hppFIFO||0))*q;
+    else marginItem=totalQtyInv>0?(p.margin||0)*(q/totalQtyInv):0;
+    detailRows.push([p.tanggal,p.noInv||"",p.salesNama,p.konsumen,it.ukuran+" — "+(it.jenis==="Tabung+Isi"?"Tabung+Isi":"Refill/Isi"),q,Number(it.price||0),q*Number(it.price||0),Math.round(marginItem)]);
+  });
+});
+var totalQtyAll=detailRows.reduce((a,r)=>a+r[5],0);
+var totalMarginAll=detailRows.reduce((a,r)=>a+r[8],0);
+var aoa=[["Tanggal","No.Invoice","Sales","Konsumen","Produk","Qty","Harga Satuan","Subtotal","Margin"],...detailRows,[],["","","","","TOTAL",totalQtyAll,"","",totalMarginAll]];
+var ws=XLSX.utils.aoa_to_sheet(aoa);
+ws["!cols"]=[{wch:12},{wch:20},{wch:14},{wch:18},{wch:24},{wch:8},{wch:13},{wch:14},{wch:13}];
+XLSX.utils.book_append_sheet(wb,ws,"Detail Produk");
+var fname="Penjualan_Detail"+(barFilter.from?"_"+barFilter.from:"")+(barFilter.to?"_s_"+barFilter.to:"")+".xlsx";
+XLSX.writeFile(wb,fname);
+toast("✓ Excel detail produk didownload!");
+}} style={{background:"#15803D",color:"white",border:"none",padding:"7px 14px",borderRadius:7,fontSize:12,cursor:"pointer",fontWeight:700}}>📥 Export Excel (Detail Produk)</button>
+</div>
 <div style={{background:C.nav,borderRadius:8,padding:10,marginBottom:10,border:"1px solid "+C.bdr}}>
 <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(140px,1fr))",gap:8}}>
 <Inp label="Dari" type="date" value={barFilter.from} onChange={v=>setBarFilter(p=>({...p,from:v}))} style={{marginBottom:0}}/>
@@ -1887,13 +1913,32 @@ function DOMod({data,setData,user,toast}){
 var C=useTheme();
 var[f,setF]=useState(()=>{var hpp=getModal(data,"12 kg","Isi",toDay());return{tanggal:toDay(),trip:"Trip 1",sppbe:"SPPBE KCR",ukuran:"12 kg",qty:"",hppUnit:String(hpp||""),ket:"",dibuatOleh:user?.id||""};});
 var[delId,setDelId]=useState(null);
+var[editId,setEditId]=useState(null);// id DO yang sedang diedit (hanya status "gantung")
+var formRef=useRef(null);
 function onUkuran(v){var hpp=getModal(data,v,"Isi",f.tanggal);setF(p=>({...p,ukuran:v,hppUnit:String(hpp||"")}));}
 function onTanggal(v){var hpp=getModal(data,f.ukuran,"Isi",v);setF(p=>({...p,tanggal:v,hppUnit:String(hpp||"")}));}
 var totalHPP=Number(f.qty||0)*Number(f.hppUnit||0);
+function resetForm(){var hpp=getModal(data,"12 kg","Isi",toDay());setF({tanggal:toDay(),trip:"Trip 1",sppbe:"SPPBE KCR",ukuran:"12 kg",qty:"",hppUnit:String(hpp||""),ket:"",dibuatOleh:user?.id||""});setEditId(null);}
+function mulaiEdit(d_rec){
+if(d_rec.status!=="gantung"){toast("⚠️ DO yang sudah Diterima/Sangkut tidak bisa diedit — stok sudah bergerak. Hapus lalu buat ulang jika perlu.","error");return;}
+var empDO=(data.employees||[]).find(e=>e.nama===d_rec.dibuatOleh);
+setF({tanggal:d_rec.tanggal,trip:d_rec.trip||d_rec.noDO||"Trip 1",sppbe:d_rec.sppbe,ukuran:d_rec.ukuran,qty:String(d_rec.qty||""),hppUnit:String(d_rec.hppUnit||""),ket:d_rec.ket||"",dibuatOleh:empDO?.id||""});
+setEditId(d_rec.id);
+setTimeout(()=>{if(formRef.current)formRef.current.scrollIntoView({behavior:"smooth",block:"start"});},100);
+toast("✏️ Mode edit DO "+(d_rec.trip||"")+" — ubah data lalu klik Simpan Perubahan");
+}
 function save(){
 if(!f.qty||!f.trip)return;
 var qty=Number(f.qty);var hpp=Number(f.hppUnit||0);
 var empDO=(data.employees||[]).find(e=>e.id===f.dibuatOleh);
+if(editId){
+  // Edit DO berstatus gantung — replace record, tidak menyentuh stok/batch (karena belum diterima)
+  var updated={id:editId,tanggal:f.tanggal,trip:f.trip,noDO:f.trip,sppbe:f.sppbe,ukuran:f.ukuran,qty,hppUnit:hpp,totalHPP:qty*hpp,ket:f.ket,dibuatOleh:empDO?.nama||user?.nama||"",status:"gantung"};
+  setData(d=>({...d,doList:(d.doList||[]).map(x=>x.id===editId?updated:x)}));
+  resetForm();
+  toast("✓ DO diperbarui! Status tetap Gantung.");
+  return;
+}
 var doRec={id:uid(),tanggal:f.tanggal,trip:f.trip,noDO:f.trip,sppbe:f.sppbe,ukuran:f.ukuran,qty,hppUnit:hpp,totalHPP:qty*hpp,ket:f.ket,dibuatOleh:empDO?.nama||user?.nama||"",status:"gantung"};
 var newModalHistory=hpp>0?[{id:uid(),tanggal:f.tanggal,ukuran:f.ukuran,jenis:"Isi",harga:hpp,sumber:"DO "+f.trip},...(data.modalHistory||[])]:(data.modalHistory||[]);
 // Stok TIDAK langsung masuk — harus klik Diterima
@@ -1939,7 +1984,7 @@ setData(d=>{
 });
 toast("✅ DO di-release! Stok "+uk+" +"+qty+" tabung masuk.");
 }
-return <div>
+return <div ref={formRef}>
 <div style={{marginBottom:12}}>
 <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:10}}>
 <span style={{fontSize:20}}>🚚</span>
@@ -1967,7 +2012,14 @@ return <div>
 </div>)}
 </div>
 </div>
-<Card>
+{editId&&<div style={{background:"linear-gradient(90deg,#92400e,#b45309)",border:"1px solid #f59e0b",borderRadius:10,padding:"10px 16px",marginBottom:12,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+<div>
+<div style={{color:"#fef3c7",fontWeight:800,fontSize:13}}>✏️ Mode Edit DO</div>
+<div style={{color:"#fde68a",fontSize:11,marginTop:2}}>Data DO dimuat ke form di bawah. Ubah data lalu klik <b>Simpan Perubahan</b>.</div>
+</div>
+<button onClick={resetForm} style={{background:"rgba(0,0,0,.25)",border:"1px solid #f59e0b",borderRadius:7,padding:"6px 12px",color:"#fef3c7",cursor:"pointer",fontWeight:700,fontSize:11,flexShrink:0}}>✕ Batal Edit</button>
+</div>}
+<Card style={{border:editId?"1px solid #f59e0b":undefined}}>
 <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(150px,1fr))",gap:10}}>
 <Inp label="Tanggal" type="date" value={f.tanggal} onChange={onTanggal}/>
 <div style={{marginBottom:10}}>
@@ -1985,7 +2037,10 @@ return <div>
 <Sel label="Nama Driver" value={f.dibuatOleh} onChange={v=>setF(p=>({...p,dibuatOleh:v}))} opts={[{v:"",l:"-- Pilih --"},...(data.employees||[]).filter(e=>e.aktif).map(e=>({v:e.id,l:e.nama+" ("+e.posisi+")"}))]}/>
 </div>
 <div style={{padding:"8px 12px",background:C.mode==="dark"?"#0A1A2A":"#DBEAFE",borderRadius:6,fontSize:11,color:C.blt,marginBottom:10}}>ℹ️ HPP/Unit otomatis terisi dari modal terakhir. Anda bisa edit. Setelah simpan, modal akan terupdate menjadi referensi harga untuk penjualan.</div>
-<Btn color="green" onClick={save} dis={!f.qty||!f.trip}>💾 Simpan DO</Btn>
+<div style={{display:"flex",gap:8}}>
+<Btn color={editId?"orange":"green"} onClick={save} dis={!f.qty||!f.trip}>{editId?"💾 Simpan Perubahan":"💾 Simpan DO"}</Btn>
+{editId&&<Btn color="gray" onClick={resetForm}>✕ Batal</Btn>}
+</div>
 </Card>
 <Card>
 <div style={{fontWeight:700,color:C.gl2,marginBottom:10,fontSize:13}}>Riwayat DO</div>
@@ -1994,6 +2049,7 @@ var st=d.status||"diterima";
 var stBadge=st==="gantung"?<Bdg color="orange">⏳ Gantung</Bdg>:st==="sangkut"?<Bdg color="red">⚠️ Sangkut</Bdg>:<Bdg color="green">✅ Diterima</Bdg>;
 var aksiBtn=st==="gantung"?<div style={{display:"flex",gap:3}}>
 <button onClick={()=>terimaDO(d)} style={{background:"#15803D",border:"none",borderRadius:5,padding:"3px 7px",color:"white",fontSize:10,fontWeight:700,cursor:"pointer"}}>✅ Terima</button>
+<button onClick={()=>mulaiEdit(d)} style={{background:editId===d.id?"#B45309":"#1D4ED8",border:"none",borderRadius:5,padding:"3px 7px",color:"white",fontSize:10,fontWeight:700,cursor:"pointer"}}>{editId===d.id?"📝 Aktif":"✏️ Edit"}</button>
 <button onClick={()=>sangkutDO(d)} style={{background:"#B45309",border:"none",borderRadius:5,padding:"3px 7px",color:"white",fontSize:10,fontWeight:700,cursor:"pointer"}}>⚠️ Sangkut</button>
 <ActBtns onDel={()=>setDelId(d)}/>
 </div>:st==="sangkut"?<div style={{display:"flex",gap:3}}>
@@ -2012,6 +2068,7 @@ if(st==="diterima"){
 }
 var logs=st==="diterima"?[{id:uid(),tanggal:delId.tanggal,ukuran:uk,jenis:"Reverse Hapus DO "+(delId.trip||""),qty,ket:"Stok dikembalikan karena DO dihapus",sumber:"Hapus DO",user:user?.nama||""},...(data.stockLog||[])].slice(0,500):(data.stockLog||[]);
 setData(d=>({...d,doList:(d.doList||[]).filter(x=>x.id!==delId.id),stock:ns,stokKosong:nk,stockLog:logs}));
+if(editId===delId.id)resetForm();
 setDelId(null);
 toast(st==="diterima"?"✓ DO dihapus & stok dikembalikan!":"✓ DO dihapus.");
 }}/>}
@@ -2028,6 +2085,7 @@ var[showGabung,setShowGabung]=useState(false);
 var[editPayBon,setEditPayBon]=useState(null);// {bon, payIdx} untuk edit/cancel pembayaran
 var[gabungPilih,setGabungPilih]=useState([]);// array bon id yang dipilih
 var[gabungKons,setGabungKons]=useState("");// filter konsumen untuk gabung
+var[tabBon,setTabBon]=useState("aktif");// aktif | lunas
 var salesList=sortEmp((data.employees||[]).filter(e=>e.aktif));
 
 function makeBonInvObj(b){var plg=(data.pelanggan||[]).find(x=>x.id===b.konsumenId);return{noInv:b.noInv||"#HTS/INV/-/-",tanggal:b.tanggal,konsumen:b.konsumen,kota:plg?.alamat?.split(",").pop()?.trim()||"Banda Aceh",items:(b.items||[]).map(it=>({ukuran:it.ukuran,jenis:it.jenis,qty:Number(it.qty),price:Number(it.price),tglDO:it.tglDO||b.tanggal})),total:b.total,metodeBayar:b.status==="lunas"?"BON (LUNAS)":"BON",isBon:b.status!=="lunas",isGabungan:b.isGabungan||false,catatan:b.ket||"",bonLunas:b.status==="lunas"};}
@@ -2101,6 +2159,11 @@ if(barFilter.status&&b.status!==barFilter.status)return false;
 return true;
 }).map(b=>{var emp=(data.employees||[]).find(e=>e.id===b.salesId);return{...b,salesNama:emp?.nama||b.salesNama||b.sales||"-",dl:dLeft(b.deadline)};});
 },[data.bon,data.employees,barFilter]);
+
+// Pisahkan berdasarkan tab: Aktif (belum/sebagian/digabung) vs Riwayat Lunas
+var rowsAktif=rows.filter(r=>r.status!=="lunas");
+var rowsLunas=rows.filter(r=>r.status==="lunas");
+var rowsTab=tabBon==="lunas"?rowsLunas:rowsAktif;
 
 // BON aktif untuk modal gabung
 var bonAktifGabung=(data.bon||[]).filter(b=>b.status!=="digabung").filter(b=>!gabungKons||b.konsumen.toLowerCase().includes(gabungKons.toLowerCase()));
@@ -2189,11 +2252,14 @@ return <><div style={{fontSize:14,fontWeight:900,color:C.wht}}>Total: {fR(ttlAll
 <Inp label="Sampai" type="date" value={barFilter.to} onChange={v=>setBarFilter(p=>({...p,to:v}))} style={{marginBottom:0}}/>
 <Sel label="Sales" value={barFilter.salesId} onChange={v=>setBarFilter(p=>({...p,salesId:v}))} opts={[{v:"",l:"Semua"},...salesList.map(e=>({v:e.id,l:e.nama}))]} style={{marginBottom:0}}/>
 <Inp label="Konsumen" value={barFilter.konsumen} onChange={v=>setBarFilter(p=>({...p,konsumen:v}))} placeholder="Cari..." style={{marginBottom:0}}/>
-<Sel label="Status" value={barFilter.status} onChange={v=>setBarFilter(p=>({...p,status:v}))} opts={[{v:"",l:"Semua"},{v:"belum",l:"Belum"},{v:"sebagian",l:"Sebagian"},{v:"lunas",l:"Lunas"}]} style={{marginBottom:0}}/>
+<Sel label="Status" value={barFilter.status} onChange={v=>setBarFilter(p=>({...p,status:v}))} opts={tabBon==="lunas"?[{v:"",l:"Semua"}]:[{v:"",l:"Semua"},{v:"belum",l:"Belum"},{v:"sebagian",l:"Sebagian"},{v:"digabung",l:"Digabung"}]} style={{marginBottom:0}}/>
 </div>
 {(barFilter.from||barFilter.to||barFilter.salesId||barFilter.konsumen||barFilter.status)&&<div style={{marginTop:8}}><Btn sm color="gray" onClick={()=>setBarFilter({from:"",to:"",salesId:"",konsumen:"",status:""})}>✕ Reset Filter</Btn></div>}
 </div>
 {/* Tombol Cetak Laporan BON */}
+<div style={{display:"flex",gap:8,marginBottom:14}}>
+{[["aktif","📋 Daftar Bon ("+rowsAktif.length+")"],["lunas","✅ Riwayat BON Lunas ("+rowsLunas.length+")"]].map(x=><button key={x[0]} onClick={()=>setTabBon(x[0])} style={{background:tabBon===x[0]?C.blu:C.nav,color:tabBon===x[0]?"white":C.wht,border:"1px solid "+(tabBon===x[0]?C.blt:C.bdr),borderRadius:8,padding:"7px 14px",fontWeight:700,fontSize:12,cursor:"pointer"}}>{x[1]}</button>)}
+</div>
 <div style={{marginBottom:10,display:"flex",gap:8,alignItems:"center"}}>
 <button onClick={()=>{
 var el=document.getElementById("_lap_bon");if(el)el.remove();
@@ -2239,8 +2305,18 @@ setTimeout(function(){var e=document.getElementById("_lap_bon");if(e)e.remove();
 }} style={{background:"#0a1f44",color:"white",border:"none",padding:"8px 16px",borderRadius:7,fontSize:12,cursor:"pointer",fontWeight:700}}>🖨️ Cetak Laporan BON</button>
 <span style={{fontSize:10,color:C.gl2,fontStyle:"italic"}}>Cetak sesuai filter aktif — hanya bon belum lunas</span>
 </div>
-<FilterTbl columns={cols} data={rows} empty="Belum ada bon" maxRows={150}
+<FilterTbl columns={cols} data={rowsTab} empty={tabBon==="lunas"?"Belum ada riwayat BON lunas":"Belum ada bon aktif"} maxRows={150}
 footerRow={sorted=>{
+if(tabBon==="lunas"){
+  var totalLunas=sorted.reduce((a,r)=>a+(r.total||0),0);
+  if(!totalLunas)return null;
+  var nCols2=cols.length;
+  return <tr style={{background:C.nav,borderTop:"2px solid "+C.bdr}}>
+  <td colSpan={5} style={{padding:"8px 10px",color:C.gl2,fontSize:11,fontWeight:600}}>{sorted.length} bon lunas</td>
+  <td style={{padding:"8px 10px",textAlign:"left",color:C.glt,fontWeight:900,fontSize:14}}>{fR(totalLunas)}</td>
+  <td colSpan={nCols2-6}/>
+  </tr>;
+}
 var aktif=sorted.filter(r=>r.status!=="lunas"&&r.status!=="digabung");
 var totalSisa=aktif.reduce((a,r)=>a+(r.sisaTagihan||0),0);
 if(!totalSisa)return null;
@@ -2644,7 +2720,27 @@ return <div>
 <SC label="Transfer" value={fR(tfPen)} icon="🏦" color={C.blt}/>
 </div>
 <Card>
-<div style={{fontWeight:700,color:C.gl2,marginBottom:10,fontSize:13}}>📋 Riwayat Pengeluaran</div>
+<div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+<div style={{fontWeight:700,color:C.gl2,fontSize:13}}>📋 Riwayat Pengeluaran</div>
+<button onClick={()=>{
+var wb=XLSX.utils.book_new();
+var header=["Tanggal","Kategori","Keperluan/Atas Nama","Keterangan","Qty","Harga Satuan","Nominal","Metode","Bank"];
+var aoa=[header,...penFiltered.map(p=>[
+  fDs(p.tanggal),p.kategori,
+  p.keperluan==="perusahaan"?"Perusahaan":(p.karyawanNama||p.keperluan||""),
+  p.ket||"",p.qtyPancung||p.qty||"",p.hargaSatuan||"",Number(p.nominal||0),
+  p.metode||"",p.metode==="transfer"?(p.bank||""):""
+])];
+aoa.push([]);
+aoa.push(["","","","","","TOTAL",penFiltered.reduce((a,p)=>a+Number(p.nominal||0),0),"",""]);
+var ws=XLSX.utils.aoa_to_sheet(aoa);
+ws["!cols"]=[{wch:12},{wch:22},{wch:18},{wch:28},{wch:8},{wch:14},{wch:14},{wch:10},{wch:8}];
+XLSX.utils.book_append_sheet(wb,ws,"Pengeluaran");
+var fname="Pengeluaran"+(barFilter.from?"_"+barFilter.from:"")+(barFilter.to?"_s_"+barFilter.to:"")+".xlsx";
+XLSX.writeFile(wb,fname);
+toast("✓ Excel pengeluaran didownload!");
+}} style={{background:"#15803D",color:"white",border:"none",padding:"7px 14px",borderRadius:7,fontSize:12,cursor:"pointer",fontWeight:700}}>📥 Export Excel</button>
+</div>
 <div style={{background:C.nav,borderRadius:8,padding:10,marginBottom:10,border:"1px solid "+C.bdr}}>
 <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(140px,1fr))",gap:8}}>
 <Inp label="Dari" type="date" value={barFilter.from} onChange={v=>setBarFilter(p=>({...p,from:v}))} style={{marginBottom:0}}/>
@@ -2771,11 +2867,28 @@ var selisihBatch=totalQtySisa-qtySistem;
 var nilaiStokTotal=calcNilaiStokFIFO(data);
 var nilaiStokLama=calcNilaiStok(data);
 
+var[showHPP,setShowHPP]=useState(false);
+
 var penjualanFIFO=(data.penjualan||[]).filter(p=>p.fifoDetail&&p.fifoDetail.length>0).filter(p=>{
 if(fFrom&&p.tanggal<fFrom)return false;
 if(fTo&&p.tanggal>fTo)return false;
 return true;
+}).map(p=>{
+var emp=(data.employees||[]).find(e=>e.id===p.salesId);
+var per={"5.5 kg":{qty:0,harga:0,hpp:0,margin:0},"12 kg":{qty:0,harga:0,hpp:0,margin:0},"50 kg":{qty:0,harga:0,hpp:0,margin:0}};
+(p.items||[]).forEach(it=>{
+  if(!per[it.ukuran])return;
+  var q=Number(it.qty||0);var pr=Number(it.price||0);
+  per[it.ukuran].qty+=q;
+  per[it.ukuran].harga=pr;// harga satuan terakhir kalau ada >1 baris ukuran sama
+  var hppU=it.hppFIFO!=null?Number(it.hppFIFO):0;
+  per[it.ukuran].hpp=hppU;
+  per[it.ukuran].margin+=(pr-hppU)*q;
+});
+return{...p,salesNama:emp?.nama||p.salesNama||"-",per};
 }).sort((a,b)=>(b.tanggal||"").localeCompare(a.tanggal||""));
+var totalMarginAll=penjualanFIFO.reduce((a,p)=>a+(p.margin||0),0);
+var totalAll=penjualanFIFO.reduce((a,p)=>a+(p.total||0),0);
 
 return <div>
 <STitle icon="🔬" children="FIFO Detail (Admin Only)"/>
@@ -2821,32 +2934,45 @@ b.sumber||"-"
 </>}
 
 {tabF==="invoice"&&<>
-<div style={{display:"flex",gap:8,marginBottom:12,flexWrap:"wrap"}}>
+<div style={{display:"flex",gap:8,marginBottom:12,flexWrap:"wrap",alignItems:"flex-end"}}>
 <Inp label="Dari" type="date" value={fFrom} onChange={setFFrom} style={{marginBottom:0,maxWidth:160}}/>
 <Inp label="Sampai" type="date" value={fTo} onChange={setFTo} style={{marginBottom:0,maxWidth:160}}/>
-{(fFrom||fTo)&&<div style={{alignSelf:"flex-end"}}><Btn sm color="gray" onClick={()=>{setFFrom("");setFTo("");}}>✕ Reset</Btn></div>}
+{(fFrom||fTo)&&<Btn sm color="gray" onClick={()=>{setFFrom("");setFTo("");}}>✕ Reset</Btn>}
+<button onClick={()=>setShowHPP(!showHPP)} style={{background:showHPP?C.olt:C.nav,color:showHPP?"white":C.wht,border:"1px solid "+(showHPP?C.olt:C.bdr),borderRadius:8,padding:"9px 14px",fontWeight:700,fontSize:12,cursor:"pointer"}}>{showHPP?"🙈 Sembunyikan HPP":"👁️ Tampilkan HPP"}</button>
 </div>
 {penjualanFIFO.length===0&&<div style={{textAlign:"center",padding:30,color:C.gl2,fontSize:12}}>Belum ada transaksi dengan rincian FIFO (FIFO mulai berlaku sejak fitur ini aktif).</div>}
-{penjualanFIFO.slice(0,50).map(p=><Card key={p.id}>
-<div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:10}}>
-<div>
-<div style={{fontWeight:800,color:C.wht,fontSize:13}}>{p.noInv}</div>
-<div style={{fontSize:11,color:C.gl2}}>{fDs(p.tanggal)} · {p.konsumen} · {p.salesNama}</div>
+{penjualanFIFO.length>0&&<Card>
+<div style={{overflowX:"auto"}}>
+<table style={{width:"100%",borderCollapse:"collapse",fontSize:11,minWidth:showHPP?1000:760}}>
+<thead><tr style={{background:C.nav}}>
+{["Tgl","No.Inv","Sales","Konsumen","Qty 5.5kg","Harga 5.5kg",...(showHPP?["HPP 5.5kg"]:[]),"Qty 12kg","Harga 12kg",...(showHPP?["HPP 12kg"]:[]),"Qty 50kg","Harga 50kg",...(showHPP?["HPP 50kg"]:[]),"Total","Margin"].map((h,i)=><th key={i} style={{padding:"6px 8px",color:C.gl2,textAlign:["Tgl","No.Inv","Sales","Konsumen"].includes(h)?"left":"right",border:"1px solid "+C.bdr,fontSize:10,fontWeight:700,whiteSpace:"nowrap"}}>{h}</th>)}
+</tr></thead>
+<tbody>
+{penjualanFIFO.slice(0,150).map((p,ri)=><tr key={p.id} style={{background:ri%2===0?C.bg:C.nav}}>
+<td style={{padding:"5px 8px",color:C.wht,border:"1px solid "+C.bdr,whiteSpace:"nowrap"}}>{fDs(p.tanggal)}</td>
+<td style={{padding:"5px 8px",color:C.blt,border:"1px solid "+C.bdr,whiteSpace:"nowrap",fontSize:10}}>{p.noInv||"-"}</td>
+<td style={{padding:"5px 8px",color:C.wht,border:"1px solid "+C.bdr,whiteSpace:"nowrap"}}>{p.salesNama}</td>
+<td style={{padding:"5px 8px",color:C.wht,border:"1px solid "+C.bdr}}>{p.konsumen}</td>
+{["5.5 kg","12 kg","50 kg"].flatMap(uk=>{
+var cells=[
+<td key={uk+"-qty"} style={{padding:"5px 8px",textAlign:"right",color:p.per[uk].qty>0?C.glt:C.gry,border:"1px solid "+C.bdr}}>{p.per[uk].qty||"-"}</td>,
+<td key={uk+"-harga"} style={{padding:"5px 8px",textAlign:"right",color:p.per[uk].qty>0?C.wht:C.gry,border:"1px solid "+C.bdr}}>{p.per[uk].qty>0?fR(p.per[uk].harga):"-"}</td>
+];
+if(showHPP)cells.push(<td key={uk+"-hpp"} style={{padding:"5px 8px",textAlign:"right",color:p.per[uk].qty>0?C.olt:C.gry,border:"1px solid "+C.bdr,background:C.mode==="dark"?"#3D2E0A":"#FEF3C7"}}>{p.per[uk].qty>0?fR(p.per[uk].hpp):"-"}</td>);
+return cells;
+})}
+<td style={{padding:"5px 8px",textAlign:"right",color:C.wht,fontWeight:700,border:"1px solid "+C.bdr}}>{fR(p.total)}</td>
+<td style={{padding:"5px 8px",textAlign:"right",color:p.margin>=0?C.glt:C.rlt,fontWeight:700,border:"1px solid "+C.bdr}}>{fR(p.margin)}</td>
+</tr>)}
+</tbody>
+<tfoot><tr style={{background:C.nav,borderTop:"2px solid "+C.bdr}}>
+<td colSpan={showHPP?12:9} style={{padding:"8px 8px",color:C.gl2,fontWeight:700,border:"1px solid "+C.bdr,fontSize:11}}>TOTAL ({penjualanFIFO.length} invoice)</td>
+<td style={{padding:"8px 8px",textAlign:"right",color:C.wht,fontWeight:900,border:"1px solid "+C.bdr}}>{fR(totalAll)}</td>
+<td style={{padding:"8px 8px",textAlign:"right",color:C.glt,fontWeight:900,border:"1px solid "+C.bdr}}>{fR(totalMarginAll)}</td>
+</tr></tfoot>
+</table>
 </div>
-<div style={{textAlign:"right"}}>
-<div style={{fontSize:10,color:C.gl2}}>Margin FIFO</div>
-<div style={{fontSize:15,fontWeight:900,color:p.margin>=0?C.glt:C.rlt}}>{fR(p.margin)}</div>
-</div>
-</div>
-{(p.fifoDetail||[]).map((fd,fi)=><div key={fi} style={{background:C.nav,borderRadius:8,padding:10,marginBottom:6,border:"1px solid "+C.bdr}}>
-<div style={{fontSize:11,fontWeight:700,color:C.olt,marginBottom:6}}>{fd.ukuran} ({fd.jenis}) — Qty {fd.qty} · HPP Total {fR(fd.hppTotal)} · HPP/Unit {fR(fd.hppPerUnit)}</div>
-{(fd.detail||[]).map((det,di)=><div key={di} style={{display:"flex",justifyContent:"space-between",fontSize:10,color:C.gl2,padding:"3px 0",borderTop:di>0?"1px solid "+C.bdr:"none"}}>
-<span>{det.batchId?"Batch "+fDs(det.tanggal)+" — "+(det.sumber||""):det.sumber}</span>
-<span style={{color:C.wht}}>{det.qty} unit @ {fR(det.harga)}</span>
-</div>)}
-{fd.qtyKurang>0&&<div style={{fontSize:9,color:C.rlt,marginTop:4}}>⚠️ {fd.qtyKurang} unit pakai fallback (batch kosong saat itu)</div>}
-</div>)}
-</Card>)}
+</Card>}
 </>}
 </div>;
 }
@@ -4118,6 +4244,35 @@ if(mode==="bulanan"){
 function exportExcel(){
 var wb=XLSX.utils.book_new();
 XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet([["Tgl","No.Inv","Konsumen","Sales","Total","Margin","Bayar"],...penjFilt.map(p=>{var emp=(data.employees||[]).find(e=>e.id===p.salesId);return[p.tanggal,p.noInv||"",p.konsumen,emp?.nama||"",p.total,p.margin,p.bayar];})]),"Penjualan");
+// ── Detail Produk: 1 baris per item (Sales, Konsumen, Produk, Qty, Margin) ──
+var detailRows=[];
+penjFilt.forEach(p=>{
+  var emp=(data.employees||[]).find(e=>e.id===p.salesId);
+  var items=p.items||[];
+  var totalQtyInv=items.reduce((a,it)=>a+Number(it.qty||0),0);
+  items.forEach(it=>{
+    var q=Number(it.qty||0);
+    var marginItem;
+    if(it.hppFIFO!=null){
+      // Margin akurat dari HPP FIFO per unit
+      marginItem=(Number(it.price||0)-Number(it.hppFIFO||0))*q;
+    }else{
+      // Fallback: alokasi proporsional dari margin invoice (transaksi sebelum FIFO aktif)
+      marginItem=totalQtyInv>0?(p.margin||0)*(q/totalQtyInv):0;
+    }
+    detailRows.push([
+      p.tanggal,p.noInv||"",emp?.nama||"",p.konsumen,
+      it.ukuran+" — "+(it.jenis==="Tabung+Isi"?"Tabung+Isi":"Refill/Isi"),
+      q,Number(it.price||0),q*Number(it.price||0),Math.round(marginItem)
+    ]);
+  });
+});
+var totalQtyAll=detailRows.reduce((a,r)=>a+r[5],0);
+var totalMarginAll=detailRows.reduce((a,r)=>a+r[8],0);
+var detailAOA=[["Tanggal","No.Invoice","Sales","Konsumen","Produk","Qty","Harga Satuan","Subtotal","Margin"],...detailRows,[],["","","","","TOTAL",totalQtyAll,"","",totalMarginAll]];
+var wsDetail=XLSX.utils.aoa_to_sheet(detailAOA);
+wsDetail["!cols"]=[{wch:12},{wch:20},{wch:14},{wch:18},{wch:24},{wch:8},{wch:13},{wch:14},{wch:13}];
+XLSX.utils.book_append_sheet(wb,wsDetail,"Detail Produk");
 XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet([["Sales","Omzet","Margin","Trx","5.5kg","12kg","50kg"],...salesArr.map(s=>[s.nama,s.omzet,s.margin,s.trx,s.q55,s.q12,s.q50])]),"Per Sales");
 XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet([["Kategori","Omzet","Unik","Trx"],...katArr.map(k=>[k.kategori,k.omzet,k.unik,k.trx])]),"Per Kategori");
 XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet([["Pelanggan","Reg","Kategori","Omzet","Trx"],...plgArr.map(p=>[p.nama,p.regNo,p.kategori,p.omzet,p.trx])]),"Per Pelanggan");
@@ -4771,11 +4926,15 @@ a.ket,
 </Card>
 {Object.keys(rekapKar).length>0&&<Card>
 <div style={{fontWeight:700,color:C.gl2,marginBottom:10,fontSize:13}}>👤 Total Ambilan per Karyawan</div>
-<div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(180px,1fr))",gap:8}}>
-{Object.values(rekapKar).sort((a,b)=>b.total-a.total).map((r,i)=><div key={i} style={{background:C.nav,borderRadius:8,padding:"10px 14px",border:"1px solid "+C.bdr}}>
-<div style={{fontSize:11,color:C.gl2,marginBottom:3}}>{r.nama}</div>
-<div style={{fontSize:16,fontWeight:900,color:C.rlt}}>{fR(r.total)}</div>
+<div style={{border:"1px solid "+C.bdr,borderRadius:8,overflow:"hidden"}}>
+{Object.values(rekapKar).sort((a,b)=>a.nama.localeCompare(b.nama)).map((r,i)=><div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 14px",background:i%2===0?C.bg:C.nav,borderBottom:"1px solid "+C.bdr}}>
+<span style={{fontSize:13,color:C.wht,fontWeight:600}}>{r.nama}</span>
+<b style={{fontSize:14,color:C.rlt}}>{fR(r.total)}</b>
 </div>)}
+<div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"12px 14px",background:C.olt}}>
+<span style={{fontSize:13,color:"white",fontWeight:800}}>TOTAL SELURUH KARYAWAN</span>
+<b style={{fontSize:16,color:"white"}}>{fR(Object.values(rekapKar).reduce((a,r)=>a+r.total,0))}</b>
+</div>
 </div>
 </Card>}
 </div>;
