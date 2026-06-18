@@ -381,7 +381,24 @@ function calcBonusSales(empId,bulan,data){var penj=(data.penjualan||[]).filter(p
 
 function getBiayaOpsAuto(empId,bulan,data){return(data.pengeluaran||[]).filter(p=>p.karyawanId===empId&&(p.tanggal||"").startsWith(bulan)&&KAT_OPS.includes(p.kategori)).map(p=>({id:p.id,label:p.kategori+(p.ket?" - "+p.ket:""),nominal:Number(p.nominal||0),kategori:p.kategori}));}
 
-function getPinjamanSaldo(empId,bulan,data){var amb=(data.ambilan||[]).filter(a=>a.karyawanId===empId&&(a.tanggal||"")<=(bulan+"-31"));var totAmb=amb.reduce((a,x)=>a+Number(x.nominal||0),0);var pots=(data.payrollLog||[]).filter(p=>p.empId===empId&&p.bulan<bulan);var totPot=pots.reduce((a,x)=>a+Number(x.potonganPinjaman||0),0);return Math.max(0,totAmb-totPot);}
+function getPinjamanSaldo(empId,bulan,data){
+var emp=(data.employees||[]).find(e=>e.id===empId);
+var empNama=(emp?.nama||"").toLowerCase().trim();
+// Ambilan dari modul Ambilan/Kasbon (kurang setor)
+var totAmb=(data.ambilan||[]).filter(a=>a.karyawanId===empId&&(a.tanggal||"")<=(bulan+"-31")).reduce((a,x)=>a+Number(x.nominal||0),0);
+// Kasbon/Ambilan dicatat via Pengeluaran — match by karyawanId ATAU nama karyawan
+var totKasbon=(data.pengeluaran||[]).filter(p=>{
+  var k=(p.kategori||"").toLowerCase();
+  if(!k.includes("kasbon")&&!k.includes("ambilan"))return false;
+  if((p.tanggal||"")>(bulan+"-31"))return false;
+  if(p.karyawanId&&p.karyawanId===empId)return true;
+  if(!p.karyawanId&&empNama&&(p.karyawanNama||"").toLowerCase().trim()===empNama)return true;
+  return false;
+}).reduce((a,p)=>a+Number(p.nominal||0),0);
+// Total yang sudah dipotong via payroll (termasuk bulan ini kalau sudah diproses)
+var totPot=(data.payrollLog||[]).filter(p=>p.empId===empId&&p.bulan<=bulan).reduce((a,x)=>a+Number(x.potonganPinjaman||0),0);
+return Math.max(0,totAmb+totKasbon-totPot);
+}
 
 function calcPayrollFull(emp,bulan,data){var abs=(data.absensi||[]).filter(a=>a.karyawanId===emp.id&&(a.tanggal||"").startsWith(bulan));var hariHadir=abs.filter(a=>a.status==="Hadir").length;var totalHariKerja=daysInMonth(bulan);var absen=abs.filter(a=>["Alpha"].includes(a.status)).length;var isSales=["sales_driver","sales_freelance"].includes(emp.role);var bonus=isSales?calcBonusSales(emp.id,bulan,data):{q55:0,r55:500,b55:0,q12:0,r12:500,b12:0,total:0};var mode=emp.uangMakanMode||"harian";var makanAuto=(data.pengeluaran||[]).filter(p=>p.karyawanId===emp.id&&["Uang Makan Karyawan","Uang Makan","Makan Karyawan"].includes(p.kategori)&&(p.tanggal||"").startsWith(bulan)).reduce((a,p)=>a+Number(p.nominal||0),0);var uangMakanRate=emp.uangMakan||UANG_MAKAN_DEFAULT;var uangMakan=mode==="harian"?makanAuto:hariHadir*uangMakanRate;var ops=getBiayaOpsAuto(emp.id,bulan,data).filter(x=>!["Uang Makan","Makan Karyawan"].some(k=>x.label.startsWith(k)));var bongkarTotal=ops.filter(x=>x.kategori==="Uang Bongkar DO").reduce((a,x)=>a+x.nominal,0);var spbbeTotal=ops.filter(x=>x.kategori==="Uang Jalan SPBE").reduce((a,x)=>a+x.nominal,0);var bongkarCount=ops.filter(x=>x.kategori==="Uang Bongkar DO").length;var spbbeCount=ops.filter(x=>x.kategori==="Uang Jalan SPBE").length;var pinjamanSaldo=getPinjamanSaldo(emp.id,bulan,data);return{hariHadir,totalHariKerja,absen,gajiPokok:emp.gajiPokok||0,bonus,uangMakanMode:mode,uangMakan,bongkarTotal,spbbeTotal,bongkarCount,spbbeCount,pinjamanSaldo};}
 
