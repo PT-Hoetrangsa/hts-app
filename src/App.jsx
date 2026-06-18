@@ -52,7 +52,7 @@ var DEF_EMP=[
 // ─── GOOGLE SHEETS SYNC ───────────────────────────────────────────────────────
 var GAS_URL="https://script.google.com/macros/s/AKfycbypH6BaonwpselzUFZ3Q0QJHvRbTinzpgSR37aJpKZIjX_8XVvjPC2tK1CFi8Gst7RRwg/exec";
 var GAS_SECRET="HTS2026";
-var SYNC_TABLES=["penjualan","bon","pengeluaran","pelanggan","employees","stok","doList","absensi","payrollLog","ambilan","titipList","setoranLog","tutupBuku","config","jualanLain","kasBankTF"];
+var SYNC_TABLES=["penjualan","bon","pengeluaran","pelanggan","employees","stok","doList","doTrip","absensi","payrollLog","ambilan","titipList","setoranLog","tutupBuku","config","jualanLain","kasBankTF"];
 
 // CORS-safe: kirim via form POST ke GAS
 function gasPost(payload){
@@ -109,6 +109,7 @@ async function pushAll(data,setSyncStatus){
     tasks.push(gasWrite("pelanggan",data.pelanggan||[]));
     tasks.push(gasWrite("employees",data.employees||[]));
     tasks.push(gasWrite("doList",data.doList||[]));
+    tasks.push(gasWrite("doTrip",data.doTrip||[]));
     tasks.push(gasWrite("absensi",data.absensi||[]));
     tasks.push(gasWrite("payrollLog",data.payrollLog||[]));
     tasks.push(gasWrite("ambilan",data.ambilan||[]));
@@ -130,11 +131,11 @@ async function pushAll(data,setSyncStatus){
 async function pullAll(setSyncStatus){
   setSyncStatus("pulling");
   try{
-    var [penj,bon,pen,plg,emp,doL,abs,pay,amb,titip,setor,tb,stokRaw,confRaw,jualLain,kbTF]=await Promise.all([
+    var [penj,bon,pen,plg,emp,doL,abs,pay,amb,titip,setor,tb,stokRaw,confRaw,jualLain,kbTF,doT]=await Promise.all([
       gasRead("penjualan"),gasRead("bon"),gasRead("pengeluaran"),gasRead("pelanggan"),
       gasRead("employees"),gasRead("doList"),gasRead("absensi"),gasRead("payrollLog"),
       gasRead("ambilan"),gasRead("titipList"),gasRead("setoranLog"),gasRead("tutupBuku"),
-      gasRead("stok"),gasRead("config"),gasRead("jualanLain"),gasRead("kasBankTF")
+      gasRead("stok"),gasRead("config"),gasRead("jualanLain"),gasRead("kasBankTF"),gasRead("doTrip")
     ]);
     var stokMeta={};
     if(stokRaw&&stokRaw.length>0){try{stokMeta=JSON.parse(stokRaw[0].val);}catch(e){}}
@@ -143,7 +144,7 @@ async function pullAll(setSyncStatus){
     setSyncStatus("ok");
     return{penjualan:penj,bon,pengeluaran:pen,pelanggan:plg,
       employees:emp.length>0?emp:null,
-      doList:doL,absensi:abs,payrollLog:pay,ambilan:amb,
+      doList:doL,doTrip:doT,absensi:abs,payrollLog:pay,ambilan:amb,
       titipList:titip,setoranLog:setor,tutupBuku:tb,
       jualanLain:jualLain,kasBankTF:kbTF,
       company,
@@ -153,11 +154,11 @@ async function pullAll(setSyncStatus){
 
 var INIT={
 stock:{"5.5 kg":0,"12 kg":0,"50 kg":0},stokKosong:{"5.5 kg":0,"12 kg":0,"50 kg":0},totalTabung:{"5.5 kg":0,"12 kg":0,"50 kg":0},
-stockLog:[],doList:[],modalHistory:[],hetPrices:{},titipList:[],
+stockLog:[],doList:[],doTrip:[],modalHistory:[],hetPrices:{},titipList:[],
 penjualan:[],bon:[],pengeluaran:[],employees:DEF_EMP.slice(),
 tutupBuku:[],pelanggan:[],setoranSales:[],setoranLog:[],setoranBank:[],kas:{},saldoAwalBank:{BSI:{nominal:0,tanggal:""},BCA:{nominal:0,tanggal:""}},absensi:[],ambilan:[],payrollLog:[],jualanLain:[],kasBankTF:[],stokBatch:{},stokBatchInit:false,
 counters:{inv:{},sg:{},reg:0},theme:"light",
-company:{nama:"PT. HOE TRANG SA",alamat:"Jl. Jendral Sudirman No.80, Geuce Iniem, Kec. Banda Raya, Kota Banda Aceh",telepon:"0812 6900 2121",telepon2:"(0651) 21221",email:"npso.pthoetrangsa@gmail.com",website:"pt-hoetrangsa.business.site",npwp:"",slogan:"DEALER LPG PERTAMINA",bankNama:"BSI",bankAtasNama:"PT. HOE TRANG SA",bankRekening:"812 69 2121 8",logo:"",logoPertamina:"",ttdKasir:"",ttdDirektur:"",stempelLunas:"",direkturNama:"Muhammad Haekal",kasirNama:"MANARUL HIDAYAT",soldTo:"731070",shipToKCR:"862070",shipToMGL:"782092",saBulan:"Juni 2026",sa12KCR:"2845075",sa55KCR:"2845111",sa12MGL:"",sa55MGL:"",assetArmada:0,hargaTbgKosong:{"5.5 kg":0,"12 kg":0,"50 kg":0}}
+company:{nama:"PT. HOE TRANG SA",alamat:"Jl. Jendral Sudirman No.80, Geuce Iniem, Kec. Banda Raya, Kota Banda Aceh",telepon:"0812 6900 2121",telepon2:"(0651) 21221",email:"npso.pthoetrangsa@gmail.com",website:"pt-hoetrangsa.business.site",npwp:"",slogan:"DEALER LPG PERTAMINA",bankNama:"BSI",bankAtasNama:"PT. HOE TRANG SA",bankRekening:"812 69 2121 8",logo:"",logoPertamina:"",ttdKasir:"",ttdDirektur:"",stempelLunas:"",direkturNama:"Muhammad Haekal",kasirNama:"MANARUL HIDAYAT",soldTo:"731070",shipToKCR:"862070",shipToMGL:"782092",saBulan:"Juni 2026",sa12KCR:"2845075",sa55KCR:"2845111",sa12MGL:"",sa55MGL:"",assetArmada:0,hargaTbgKosong:{"5.5 kg":0,"12 kg":0,"50 kg":0},hppFixedSPPBE:{"SPPBE KCR":{"5.5 kg":0,"12 kg":0,"50 kg":0},"SPPBE MGL":{"5.5 kg":0,"12 kg":0,"50 kg":0}}}
 };
 
 // ─── HELPERS ──────────────────────────────────────────────────────────────────
@@ -1984,6 +1985,103 @@ setData(d=>{
 });
 toast("✅ DO di-release! Stok "+uk+" +"+qty+" tabung masuk.");
 }
+
+// ═══ DO TRIP (FORMAT BARU — 1 trip, multi produk) ═══════════════════════════
+var blankItem=()=>({ukuran:"5.5 kg",qty:"",hppUnit:""});
+var[ft,setFt]=useState(()=>({tanggal:toDay(),trip:"Trip 1",sppbe:"SPPBE KCR",dibuatOleh:user?.id||"",ket:"",
+  items:{"5.5 kg":{qty:"",hppUnit:String(data.company?.hppFixedSPPBE?.["SPPBE KCR"]?.["5.5 kg"]||"")},
+         "12 kg":{qty:"",hppUnit:String(data.company?.hppFixedSPPBE?.["SPPBE KCR"]?.["12 kg"]||"")},
+         "50 kg":{qty:"",hppUnit:String(data.company?.hppFixedSPPBE?.["SPPBE KCR"]?.["50 kg"]||"")}}}));
+var[editTripId,setEditTripId]=useState(null);
+var isFixedSPPBE=ft.sppbe==="SPPBE KCR"||ft.sppbe==="SPPBE MGL";
+function onSppbeT(v){
+var fixed=data.company?.hppFixedSPPBE?.[v]||null;
+setFt(p=>({...p,sppbe:v,items:Object.fromEntries(SIZES.map(s=>[s,{qty:p.items[s].qty,hppUnit:fixed?String(fixed[s]||0):p.items[s].hppUnit}]))}));
+}
+function setItemT(uk,field,val){setFt(p=>({...p,items:{...p.items,[uk]:{...p.items[uk],[field]:val}}}));}
+var totalNilaiTrip=SIZES.reduce((a,s)=>a+(Number(ft.items[s].qty)||0)*(Number(ft.items[s].hppUnit)||0),0);
+function resetFormT(){
+var fixed=data.company?.hppFixedSPPBE?.["SPPBE KCR"]||null;
+setFt({tanggal:toDay(),trip:"Trip 1",sppbe:"SPPBE KCR",dibuatOleh:user?.id||"",ket:"",
+  items:Object.fromEntries(SIZES.map(s=>[s,{qty:"",hppUnit:fixed?String(fixed[s]||0):""}]))});
+setEditTripId(null);
+}
+function mulaiEditTrip(trip){
+if(!trip.items.every(it=>it.status==="gantung")){toast("⚠️ Trip yang sudah ada item Diterima/Sangkut tidak bisa diedit penuh — hapus item tersebut satu per satu jika perlu.","error");return;}
+var empDO=(data.employees||[]).find(e=>e.id===trip.dibuatOlehId)||(data.employees||[]).find(e=>e.nama===trip.dibuatOleh);
+var itemsMap=Object.fromEntries(SIZES.map(s=>{var it=trip.items.find(x=>x.ukuran===s);return[s,{qty:it?String(it.qty):"",hppUnit:it?String(it.hppUnit):""}];}));
+setFt({tanggal:trip.tanggal,trip:trip.trip,sppbe:trip.sppbe,dibuatOleh:empDO?.id||"",ket:trip.ket||"",items:itemsMap});
+setEditTripId(trip.id);
+setTimeout(()=>{if(formRef.current)formRef.current.scrollIntoView({behavior:"smooth",block:"start"});},100);
+toast("✏️ Mode edit Trip "+(trip.trip||"")+" — ubah data lalu klik Simpan Perubahan");
+}
+function saveTrip(){
+var activeSizes=SIZES.filter(s=>Number(ft.items[s].qty)>0);
+if(!ft.trip||activeSizes.length===0){toast("⚠️ Isi minimal 1 qty produk","error");return;}
+var empDO=(data.employees||[]).find(e=>e.id===ft.dibuatOleh);
+var itemsArr=activeSizes.map(s=>({ukuran:s,qty:Number(ft.items[s].qty),hppUnit:Number(ft.items[s].hppUnit)||0,totalHPP:Number(ft.items[s].qty)*(Number(ft.items[s].hppUnit)||0),status:"gantung"}));
+if(editTripId){
+  setData(d=>({...d,doTrip:(d.doTrip||[]).map(x=>x.id===editTripId?{...x,tanggal:ft.tanggal,trip:ft.trip,sppbe:ft.sppbe,dibuatOleh:empDO?.nama||user?.nama||"",dibuatOlehId:ft.dibuatOleh,ket:ft.ket,items:itemsArr}:x)}));
+  resetFormT();
+  toast("✓ Trip DO diperbarui!");
+  return;
+}
+var tripRec={id:uid(),tanggal:ft.tanggal,trip:ft.trip,sppbe:ft.sppbe,dibuatOleh:empDO?.nama||user?.nama||"",dibuatOlehId:ft.dibuatOleh,ket:ft.ket,items:itemsArr.map(it=>({...it,id:uid()}))};
+// HPP fixed (KCR/MGL) ikut tercatat ke modalHistory sebagai referensi; HPP manual (Lainnya) juga dicatat
+var newModalHistory=[...itemsArr.filter(it=>it.hppUnit>0).map(it=>({id:uid(),tanggal:ft.tanggal,ukuran:it.ukuran,jenis:"Isi",harga:it.hppUnit,sumber:"DO "+ft.trip+" ("+ft.sppbe+")"})),...(data.modalHistory||[])];
+setData(d=>({...d,doTrip:[tripRec,...(d.doTrip||[])],modalHistory:newModalHistory}));
+resetFormT();
+toast("✓ Trip DO dibuat! "+itemsArr.length+" produk, status Gantung. Klik Diterima per produk setelah tiba.");
+}
+function terimaTripItem(trip,item){
+var qty=Number(item.qty||0);var uk=item.ukuran;
+var ns={...(data.stock||{})};ns[uk]=(ns[uk]||0)+qty;
+var log={id:uid(),tanggal:trip.tanggal,ukuran:uk,jenis:"Isi Ulang SPPBE",qty,ket:"DO "+trip.trip+" - "+trip.sppbe+" (Diterima)",sumber:"DO Trip",user:user?.nama||""};
+setData(d=>{
+  var withBatch=addBatch(d,uk,qty,item.hppUnit||0,"DO "+trip.trip+" ("+trip.sppbe+")",trip.tanggal);
+  return{...withBatch,
+    doTrip:(d.doTrip||[]).map(x=>x.id!==trip.id?x:{...x,items:x.items.map(it=>it.id===item.id?{...it,status:"diterima",tglDiterima:toDay()}:it)}),
+    stock:ns,
+    stockLog:[log,...(d.stockLog||[])].slice(0,500)
+  };
+});
+toast("✅ "+uk+" diterima! Stok +"+qty+" tabung @ "+fR(item.hppUnit||0));
+}
+function sangkutTripItem(trip,item){
+setData(d=>({...d,doTrip:(d.doTrip||[]).map(x=>x.id!==trip.id?x:{...x,items:x.items.map(it=>it.id===item.id?{...it,status:"sangkut"}:it)})}));
+toast("⚠️ "+item.ukuran+" ditandai Sangkut.");
+}
+function releaseTripItem(trip,item){
+var qty=Number(item.qty||0);var uk=item.ukuran;
+var ns={...(data.stock||{})};ns[uk]=(ns[uk]||0)+qty;
+var log={id:uid(),tanggal:toDay(),ukuran:uk,jenis:"Isi Ulang SPPBE",qty,ket:"DO "+trip.trip+" Release Sangkut",sumber:"DO Trip",user:user?.nama||""};
+setData(d=>{
+  var withBatch=addBatch(d,uk,qty,item.hppUnit||0,"DO "+trip.trip+" (Release Sangkut)",toDay());
+  return{...withBatch,
+    doTrip:(d.doTrip||[]).map(x=>x.id!==trip.id?x:{...x,items:x.items.map(it=>it.id===item.id?{...it,status:"diterima",tglDiterima:toDay()}:it)}),
+    stock:ns,
+    stockLog:[log,...(d.stockLog||[])].slice(0,500)
+  };
+});
+toast("✅ "+uk+" di-release! Stok +"+qty+" tabung.");
+}
+function hapusTripItem(trip,item){
+var ns={...(data.stock||{})};var nk={...(data.stokKosong||{})};
+if(item.status==="diterima"){
+  ns[item.ukuran]=Math.max(0,(ns[item.ukuran]||0)-item.qty);
+  nk[item.ukuran]=(nk[item.ukuran]||0)+item.qty;
+}
+var sisaItems=trip.items.filter(it=>it.id!==item.id);
+setData(d=>{
+  var logs=item.status==="diterima"?[{id:uid(),tanggal:trip.tanggal,ukuran:item.ukuran,jenis:"Reverse Hapus Item DO "+(trip.trip||""),qty:item.qty,ket:"Stok dikembalikan karena item DO dihapus",sumber:"Hapus DO Trip",user:user?.nama||""},...(d.stockLog||[])].slice(0,500):(d.stockLog||[]);
+  if(sisaItems.length===0){
+    // Trip kosong, hapus trip sepenuhnya
+    return{...d,doTrip:(d.doTrip||[]).filter(x=>x.id!==trip.id),stock:ns,stokKosong:nk,stockLog:logs};
+  }
+  return{...d,doTrip:(d.doTrip||[]).map(x=>x.id===trip.id?{...x,items:sisaItems}:x),stock:ns,stokKosong:nk,stockLog:logs};
+});
+toast("✓ Item "+item.ukuran+" dihapus dari trip.");
+}
 return <div ref={formRef}>
 <div style={{marginBottom:12}}>
 <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:10}}>
@@ -2012,51 +2110,144 @@ return <div ref={formRef}>
 </div>)}
 </div>
 </div>
-{editId&&<div style={{background:"linear-gradient(90deg,#92400e,#b45309)",border:"1px solid #f59e0b",borderRadius:10,padding:"10px 16px",marginBottom:12,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+{editTripId&&<div style={{background:"linear-gradient(90deg,#92400e,#b45309)",border:"1px solid #f59e0b",borderRadius:10,padding:"10px 16px",marginBottom:12,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
 <div>
-<div style={{color:"#fef3c7",fontWeight:800,fontSize:13}}>✏️ Mode Edit DO</div>
-<div style={{color:"#fde68a",fontSize:11,marginTop:2}}>Data DO dimuat ke form di bawah. Ubah data lalu klik <b>Simpan Perubahan</b>.</div>
+<div style={{color:"#fef3c7",fontWeight:800,fontSize:13}}>✏️ Mode Edit Trip DO</div>
+<div style={{color:"#fde68a",fontSize:11,marginTop:2}}>Data trip dimuat ke form di bawah. Ubah data lalu klik <b>Simpan Perubahan</b>.</div>
 </div>
-<button onClick={resetForm} style={{background:"rgba(0,0,0,.25)",border:"1px solid #f59e0b",borderRadius:7,padding:"6px 12px",color:"#fef3c7",cursor:"pointer",fontWeight:700,fontSize:11,flexShrink:0}}>✕ Batal Edit</button>
+<button onClick={resetFormT} style={{background:"rgba(0,0,0,.25)",border:"1px solid #f59e0b",borderRadius:7,padding:"6px 12px",color:"#fef3c7",cursor:"pointer",fontWeight:700,fontSize:11,flexShrink:0}}>✕ Batal Edit</button>
 </div>}
-<Card style={{border:editId?"1px solid #f59e0b":undefined}}>
+<Card style={{border:editTripId?"1px solid #f59e0b":undefined}}>
+<div style={{fontWeight:700,color:C.gl2,marginBottom:10,fontSize:13}}>🚚 Input DO — 1 Trip, Multi Produk</div>
 <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(150px,1fr))",gap:10}}>
-<Inp label="Tanggal" type="date" value={f.tanggal} onChange={onTanggal}/>
+<Inp label="Tanggal" type="date" value={ft.tanggal} onChange={v=>setFt(p=>({...p,tanggal:v}))}/>
 <div style={{marginBottom:10}}>
 <label style={{display:"block",fontSize:11,color:C.gl2,marginBottom:3,fontWeight:600}}>Trip</label>
-<select value={f.trip} onChange={e=>{setF(p=>({...p,trip:e.target.value}));}} style={{width:"100%",border:"1px solid "+C.bdr,borderRadius:8,padding:"9px 11px",color:C.wht,fontSize:13,outline:"none",background:C.nav,boxSizing:"border-box"}}>
-{["Trip 1","Trip 2","Trip 3","Trip 4","Trip 5"].map(t=>{var used=(data.doList||[]).filter(d=>d.tanggal===f.tanggal&&d.trip===t);return <option key={t} value={t}>{t}{used.length>0?" (sudah dipakai)":""}</option>;})}
+<select value={ft.trip} onChange={e=>setFt(p=>({...p,trip:e.target.value}))} style={{width:"100%",border:"1px solid "+C.bdr,borderRadius:8,padding:"9px 11px",color:C.wht,fontSize:13,outline:"none",background:C.nav,boxSizing:"border-box"}}>
+{["Trip 1","Trip 2","Trip 3","Trip 4","Trip 5"].map(t=>{var used=(data.doTrip||[]).filter(d=>d.tanggal===ft.tanggal&&d.trip===t);return <option key={t} value={t}>{t}{used.length>0?" (sudah dipakai)":""}</option>;})}
 </select>
 </div>
-<Sel label="SPPBE" value={f.sppbe} onChange={v=>setF(p=>({...p,sppbe:v}))} opts={SPPBE_OPTS}/>
-<Sel label="Ukuran" value={f.ukuran} onChange={onUkuran} opts={SIZES}/>
-<Inp label="Qty Tabung" type="number" value={f.qty} onChange={v=>setF(p=>({...p,qty:v}))}/>
-<Inp label={"HPP/Unit (modal: "+fR(getModal(data,f.ukuran,"Isi",f.tanggal))+")"} type="number" value={f.hppUnit} onChange={v=>setF(p=>({...p,hppUnit:v}))}/>
-<Inp label="Total HPP (auto)" value={fR(totalHPP)} ro={true}/>
-<Inp label="Keterangan" value={f.ket} onChange={v=>setF(p=>({...p,ket:v}))}/>
-<Sel label="Nama Driver" value={f.dibuatOleh} onChange={v=>setF(p=>({...p,dibuatOleh:v}))} opts={[{v:"",l:"-- Pilih --"},...(data.employees||[]).filter(e=>e.aktif).map(e=>({v:e.id,l:e.nama+" ("+e.posisi+")"}))]}/>
+<Sel label="SPPBE" value={ft.sppbe} onChange={onSppbeT} opts={SPPBE_OPTS}/>
+<Sel label="Nama Driver" value={ft.dibuatOleh} onChange={v=>setFt(p=>({...p,dibuatOleh:v}))} opts={[{v:"",l:"-- Pilih --"},...(data.employees||[]).filter(e=>e.aktif).map(e=>({v:e.id,l:e.nama+" ("+e.posisi+")"}))]}/>
+<Inp label="Keterangan" value={ft.ket} onChange={v=>setFt(p=>({...p,ket:v}))}/>
 </div>
-<div style={{padding:"8px 12px",background:C.mode==="dark"?"#0A1A2A":"#DBEAFE",borderRadius:6,fontSize:11,color:C.blt,marginBottom:10}}>ℹ️ HPP/Unit otomatis terisi dari modal terakhir. Anda bisa edit. Setelah simpan, modal akan terupdate menjadi referensi harga untuk penjualan.</div>
+<div style={{fontSize:10,color:isFixedSPPBE?C.olt:C.gl2,marginBottom:10,fontStyle:"italic"}}>{isFixedSPPBE?"🔒 HPP terkunci sesuai Pengaturan untuk "+ft.sppbe+" (ubah di Settings jika perlu).":"✏️ HPP bisa diisi manual karena SPPBE \"Lainnya\"."}</div>
+<div style={{overflowX:"auto",marginBottom:10}}>
+<table style={{width:"100%",borderCollapse:"collapse",fontSize:12,minWidth:520}}>
+<thead><tr style={{background:C.nav}}>
+{["Ukuran","Qty Tabung","HPP/Unit","Total HPP"].map(h=><th key={h} style={{padding:"7px 8px",color:C.gl2,textAlign:h==="Ukuran"?"left":"right",border:"1px solid "+C.bdr,fontSize:10,fontWeight:700}}>{h}</th>)}
+</tr></thead>
+<tbody>
+{SIZES.map((s,i)=>{var it=ft.items[s];var tot=(Number(it.qty)||0)*(Number(it.hppUnit)||0);return <tr key={s} style={{background:i%2===0?C.bg:C.nav}}>
+<td style={{padding:"6px 8px",border:"1px solid "+C.bdr}}><Bdg color={s==="12 kg"?"blue":s==="5.5 kg"?"green":"orange"}>{s}</Bdg></td>
+<td style={{padding:"4px 8px",border:"1px solid "+C.bdr}}><input type="number" value={it.qty} onChange={e=>setItemT(s,"qty",e.target.value)} placeholder="0" style={{width:"100%",background:"transparent",border:"none",color:C.wht,fontSize:13,outline:"none",textAlign:"right"}}/></td>
+<td style={{padding:"4px 8px",border:"1px solid "+C.bdr,background:isFixedSPPBE?(C.mode==="dark"?"#0A1A2A":"#EFF6FF"):"transparent"}}><input type="number" value={it.hppUnit} onChange={e=>setItemT(s,"hppUnit",e.target.value)} placeholder="0" readOnly={isFixedSPPBE} style={{width:"100%",background:"transparent",border:"none",color:isFixedSPPBE?C.blt:C.wht,fontSize:13,outline:"none",textAlign:"right",cursor:isFixedSPPBE?"not-allowed":"text"}}/></td>
+<td style={{padding:"6px 8px",border:"1px solid "+C.bdr,textAlign:"right",color:tot>0?C.olt:C.gry,fontWeight:700}}>{tot>0?fR(tot):"-"}</td>
+</tr>;})}
+<tr style={{background:C.olt}}>
+<td colSpan={3} style={{padding:"8px 8px",border:"1px solid "+C.bdr,color:"white",fontWeight:800,fontSize:12}}>TOTAL NILAI DO</td>
+<td style={{padding:"8px 8px",border:"1px solid "+C.bdr,textAlign:"right",color:"white",fontWeight:900,fontSize:13}}>{fR(totalNilaiTrip)}</td>
+</tr>
+</tbody>
+</table>
+</div>
 <div style={{display:"flex",gap:8}}>
-<Btn color={editId?"orange":"green"} onClick={save} dis={!f.qty||!f.trip}>{editId?"💾 Simpan Perubahan":"💾 Simpan DO"}</Btn>
-{editId&&<Btn color="gray" onClick={resetForm}>✕ Batal</Btn>}
+<Btn color={editTripId?"orange":"green"} onClick={saveTrip} dis={!ft.trip}>{editTripId?"💾 Simpan Perubahan":"💾 Simpan DO"}</Btn>
+{editTripId&&<Btn color="gray" onClick={resetFormT}>✕ Batal</Btn>}
 </div>
 </Card>
 <Card>
 <div style={{fontWeight:700,color:C.gl2,marginBottom:10,fontSize:13}}>Riwayat DO</div>
-<RTbl headers={["Tgl","Trip","SPPBE","Ukuran","Qty","HPP/Unit","Total HPP","Driver","Status","Aksi"]} rows={(data.doList||[]).slice(0,100).map(d=>{
+<div style={{overflowX:"auto"}}>
+<table style={{width:"100%",borderCollapse:"collapse",fontSize:11,minWidth:900}}>
+<thead><tr style={{background:C.nav}}>
+{["Tgl","Trip","Driver","SPPBE","Qty 5,5kg","Harga 5,5kg","Qty 12kg","Harga 12kg","Qty 50kg","Harga 50kg","Total Nilai DO"].map(h=><th key={h} style={{padding:"6px 8px",color:C.gl2,textAlign:["Tgl","Trip","Driver","SPPBE"].includes(h)?"left":"right",border:"1px solid "+C.bdr,fontSize:10,fontWeight:700,whiteSpace:"nowrap"}}>{h}</th>)}
+<th style={{padding:"6px 8px",color:C.gl2,border:"1px solid "+C.bdr,fontSize:10,fontWeight:700}}>Status</th>
+<th style={{padding:"6px 8px",color:C.gl2,border:"1px solid "+C.bdr,fontSize:10,fontWeight:700}}>Aksi</th>
+</tr></thead>
+<tbody>
+{/* ── Baris dari Trip baru (multi produk) ── */}
+{(data.doTrip||[]).slice(0,80).map((trip,ti)=>{
+var per={"5.5 kg":trip.items.find(it=>it.ukuran==="5.5 kg"),"12 kg":trip.items.find(it=>it.ukuran==="12 kg"),"50 kg":trip.items.find(it=>it.ukuran==="50 kg")};
+var totalTrip=trip.items.reduce((a,it)=>a+(it.totalHPP||0),0);
+var allGantung=trip.items.every(it=>it.status==="gantung");
+return <tr key={trip.id} style={{background:ti%2===0?C.bg:C.nav}}>
+<td style={{padding:"5px 8px",color:C.wht,border:"1px solid "+C.bdr,whiteSpace:"nowrap"}}>{fDs(trip.tanggal)}</td>
+<td style={{padding:"5px 8px",color:C.wht,border:"1px solid "+C.bdr,fontWeight:700}}>{trip.trip}</td>
+<td style={{padding:"5px 8px",color:C.wht,border:"1px solid "+C.bdr}}>{trip.dibuatOleh||"-"}</td>
+<td style={{padding:"5px 8px",color:C.gl2,border:"1px solid "+C.bdr}}>{trip.sppbe}</td>
+{["5.5 kg","12 kg","50 kg"].flatMap(uk=>{var it=per[uk];return[
+<td key={uk+"q"} style={{padding:"5px 8px",textAlign:"right",color:it?C.glt:C.gry,fontWeight:it?700:400,border:"1px solid "+C.bdr}}>{it?it.qty:"-"}</td>,
+<td key={uk+"h"} style={{padding:"5px 8px",textAlign:"right",color:it?C.wht:C.gry,border:"1px solid "+C.bdr}}>{it?fR(it.hppUnit):"-"}</td>
+];})}
+<td style={{padding:"5px 8px",textAlign:"right",color:C.olt,fontWeight:800,border:"1px solid "+C.bdr}}>{fR(totalTrip)}</td>
+<td style={{padding:"5px 8px",border:"1px solid "+C.bdr}}>
+<div style={{display:"flex",flexDirection:"column",gap:2}}>
+{trip.items.map(it=><div key={it.id} style={{display:"flex",alignItems:"center",gap:4,whiteSpace:"nowrap"}}>
+<span style={{fontSize:9,color:C.gl2,minWidth:38}}>{it.ukuran}</span>
+{it.status==="gantung"?<Bdg color="orange">⏳</Bdg>:it.status==="sangkut"?<Bdg color="red">⚠️</Bdg>:<Bdg color="green">✅</Bdg>}
+</div>)}
+</div>
+</td>
+<td style={{padding:"5px 8px",border:"1px solid "+C.bdr}}>
+<div style={{display:"flex",flexDirection:"column",gap:3}}>
+{allGantung&&<button onClick={()=>mulaiEditTrip(trip)} style={{background:editTripId===trip.id?"#B45309":"#1D4ED8",border:"none",borderRadius:5,padding:"3px 7px",color:"white",fontSize:9,fontWeight:700,cursor:"pointer"}}>{editTripId===trip.id?"📝 Edit Aktif":"✏️ Edit Trip"}</button>}
+{trip.items.map(it=><div key={it.id} style={{display:"flex",gap:3,alignItems:"center"}}>
+<span style={{fontSize:9,color:C.gl2,minWidth:38}}>{it.ukuran}:</span>
+{it.status==="gantung"&&<><button onClick={()=>terimaTripItem(trip,it)} style={{background:"#15803D",border:"none",borderRadius:4,padding:"2px 5px",color:"white",fontSize:9,fontWeight:700,cursor:"pointer"}}>✅</button><button onClick={()=>sangkutTripItem(trip,it)} style={{background:"#B45309",border:"none",borderRadius:4,padding:"2px 5px",color:"white",fontSize:9,fontWeight:700,cursor:"pointer"}}>⚠️</button></>}
+{it.status==="sangkut"&&<button onClick={()=>releaseTripItem(trip,it)} style={{background:"#1D4ED8",border:"none",borderRadius:4,padding:"2px 5px",color:"white",fontSize:9,fontWeight:700,cursor:"pointer"}}>🔓</button>}
+<button onClick={()=>hapusTripItem(trip,it)} style={{background:"#991B1B",border:"none",borderRadius:4,padding:"2px 5px",color:"white",fontSize:9,fontWeight:700,cursor:"pointer"}}>🗑️</button>
+</div>)}
+</div>
+</td>
+</tr>;
+})}
+{/* ── Baris dari DO lama (format legacy, 1 ukuran per baris) ── */}
+{(data.doList||[]).slice(0,100).map((d,di)=>{
 var st=d.status||"diterima";
 var stBadge=st==="gantung"?<Bdg color="orange">⏳ Gantung</Bdg>:st==="sangkut"?<Bdg color="red">⚠️ Sangkut</Bdg>:<Bdg color="green">✅ Diterima</Bdg>;
-var aksiBtn=st==="gantung"?<div style={{display:"flex",gap:3}}>
-<button onClick={()=>terimaDO(d)} style={{background:"#15803D",border:"none",borderRadius:5,padding:"3px 7px",color:"white",fontSize:10,fontWeight:700,cursor:"pointer"}}>✅ Terima</button>
-<button onClick={()=>mulaiEdit(d)} style={{background:editId===d.id?"#B45309":"#1D4ED8",border:"none",borderRadius:5,padding:"3px 7px",color:"white",fontSize:10,fontWeight:700,cursor:"pointer"}}>{editId===d.id?"📝 Aktif":"✏️ Edit"}</button>
-<button onClick={()=>sangkutDO(d)} style={{background:"#B45309",border:"none",borderRadius:5,padding:"3px 7px",color:"white",fontSize:10,fontWeight:700,cursor:"pointer"}}>⚠️ Sangkut</button>
+var aksiBtn=st==="gantung"?<div style={{display:"flex",gap:3,flexWrap:"wrap"}}>
+<button onClick={()=>terimaDO(d)} style={{background:"#15803D",border:"none",borderRadius:4,padding:"2px 5px",color:"white",fontSize:9,fontWeight:700,cursor:"pointer"}}>✅</button>
+<button onClick={()=>mulaiEdit(d)} style={{background:editId===d.id?"#B45309":"#1D4ED8",border:"none",borderRadius:4,padding:"2px 5px",color:"white",fontSize:9,fontWeight:700,cursor:"pointer"}}>✏️</button>
+<button onClick={()=>sangkutDO(d)} style={{background:"#B45309",border:"none",borderRadius:4,padding:"2px 5px",color:"white",fontSize:9,fontWeight:700,cursor:"pointer"}}>⚠️</button>
 <ActBtns onDel={()=>setDelId(d)}/>
 </div>:st==="sangkut"?<div style={{display:"flex",gap:3}}>
-<button onClick={()=>releaseDO(d)} style={{background:"#1D4ED8",border:"none",borderRadius:5,padding:"3px 7px",color:"white",fontSize:10,fontWeight:700,cursor:"pointer"}}>🔓 Release</button>
+<button onClick={()=>releaseDO(d)} style={{background:"#1D4ED8",border:"none",borderRadius:4,padding:"2px 5px",color:"white",fontSize:9,fontWeight:700,cursor:"pointer"}}>🔓</button>
 <ActBtns onDel={()=>setDelId(d)}/>
 </div>:<ActBtns onDel={()=>setDelId(d)}/>;
-return[fDs(d.tanggal),<b style={{color:C.wht}}>{d.trip||d.noDO||"-"}</b>,d.sppbe,<Bdg color={d.ukuran==="12 kg"?"blue":d.ukuran==="5.5 kg"?"green":"orange"}>{d.ukuran}</Bdg>,<b style={{color:C.glt}}>{d.qty}</b>,fR(d.hppUnit||0),<b style={{color:C.olt}}>{fR(d.totalHPP||0)}</b>,d.dibuatOleh||"-",stBadge,aksiBtn];})}/>
+return <tr key={d.id} style={{background:di%2===0?C.bg:C.nav,opacity:.92}}>
+<td style={{padding:"5px 8px",color:C.wht,border:"1px solid "+C.bdr,whiteSpace:"nowrap"}}>{fDs(d.tanggal)}</td>
+<td style={{padding:"5px 8px",color:C.wht,border:"1px solid "+C.bdr,fontWeight:700}}>{d.trip||d.noDO||"-"}<span style={{fontSize:8,color:C.gry,marginLeft:4}}>(lama)</span></td>
+<td style={{padding:"5px 8px",color:C.wht,border:"1px solid "+C.bdr}}>{d.dibuatOleh||"-"}</td>
+<td style={{padding:"5px 8px",color:C.gl2,border:"1px solid "+C.bdr}}>{d.sppbe}</td>
+{["5.5 kg","12 kg","50 kg"].flatMap(uk=>{var match=d.ukuran===uk;return[
+<td key={uk+"q"} style={{padding:"5px 8px",textAlign:"right",color:match?C.glt:C.gry,fontWeight:match?700:400,border:"1px solid "+C.bdr}}>{match?d.qty:"-"}</td>,
+<td key={uk+"h"} style={{padding:"5px 8px",textAlign:"right",color:match?C.wht:C.gry,border:"1px solid "+C.bdr}}>{match?fR(d.hppUnit||0):"-"}</td>
+];})}
+<td style={{padding:"5px 8px",textAlign:"right",color:C.olt,fontWeight:800,border:"1px solid "+C.bdr}}>{fR(d.totalHPP||0)}</td>
+<td style={{padding:"5px 8px",border:"1px solid "+C.bdr}}>{stBadge}</td>
+<td style={{padding:"5px 8px",border:"1px solid "+C.bdr}}>{aksiBtn}</td>
+</tr>;
+})}
+</tbody>
+<tfoot>
+{(()=>{
+var qtyTot={"5.5 kg":0,"12 kg":0,"50 kg":0};var hppTot={"5.5 kg":0,"12 kg":0,"50 kg":0};var grandTotal=0;
+(data.doTrip||[]).forEach(trip=>trip.items.forEach(it=>{qtyTot[it.ukuran]=(qtyTot[it.ukuran]||0)+it.qty;hppTot[it.ukuran]+=it.totalHPP||0;grandTotal+=it.totalHPP||0;}));
+(data.doList||[]).forEach(d=>{if(qtyTot[d.ukuran]!==undefined){qtyTot[d.ukuran]+=d.qty||0;hppTot[d.ukuran]+=d.totalHPP||0;grandTotal+=d.totalHPP||0;}});
+return <tr style={{background:C.olt}}>
+<td colSpan={4} style={{padding:"8px 8px",border:"1px solid "+C.bdr,color:"white",fontWeight:800,fontSize:12}}>TOTAL SEMUA TRIP</td>
+{["5.5 kg","12 kg","50 kg"].flatMap(uk=>[
+<td key={uk+"q"} style={{padding:"8px 8px",border:"1px solid "+C.bdr,textAlign:"right",color:"white",fontWeight:900}}>{qtyTot[uk]}</td>,
+<td key={uk+"h"} style={{padding:"8px 8px",border:"1px solid "+C.bdr,textAlign:"right",color:"white",fontWeight:700,fontSize:10}}>{fR(hppTot[uk])}</td>
+])}
+<td style={{padding:"8px 8px",border:"1px solid "+C.bdr,textAlign:"right",color:"white",fontWeight:900,fontSize:13}}>{fR(grandTotal)}</td>
+<td colSpan={2} style={{border:"1px solid "+C.bdr}}/>
+</tr>;
+})()}
+</tfoot>
+</table>
+</div>
 </Card>
 {delId&&<ConfirmDel msg={"Hapus DO "+(delId.trip||"")+"? Stok akan dikembalikan otomatis."} onCancel={()=>setDelId(null)} onConfirm={()=>{
 var st=delId.status||"diterima";
@@ -4991,6 +5182,16 @@ return <div>
 <Card><div style={{fontWeight:700,color:C.gl2,marginBottom:12,fontSize:13}}>📦 Update Modal/HPP Manual</div>
 <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(140px,1fr))",gap:10}}><Sel label="Jenis" value={mP.jenis} onChange={v=>setMP(p=>({...p,jenis:v}))} opts={JENIS}/><Sel label="Ukuran" value={mP.ukuran} onChange={v=>setMP(p=>({...p,ukuran:v}))} opts={SIZES}/><Inp label={"Modal ("+fR(getModal(data,mP.ukuran,mP.jenis))+")"} type="number" value={mP.harga} onChange={v=>setMP(p=>({...p,harga:v}))}/><Inp label="Berlaku Dari" type="date" value={mP.tgl} onChange={v=>setMP(p=>({...p,tgl:v}))}/></div>
 <Btn color="green" onClick={saveModal} dis={!mP.harga}>💾 Update Modal</Btn></Card>
+<Card><div style={{fontWeight:700,color:C.gl2,marginBottom:6,fontSize:13}}>🏭 HPP Fixed per SPPBE</div>
+<div style={{fontSize:11,color:C.gl2,marginBottom:12}}>HPP untuk SPPBE KCR & MGL otomatis terkunci sesuai angka ini saat input DO. SPPBE Lainnya tetap bisa diisi manual per transaksi.</div>
+{["SPPBE KCR","SPPBE MGL"].map(sp=><div key={sp} style={{marginBottom:14}}>
+<div style={{fontSize:12,fontWeight:700,color:C.olt,marginBottom:8}}>{sp}</div>
+<div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(140px,1fr))",gap:10}}>
+{SIZES.map(s=><Inp key={s} label={"HPP "+s} type="number" step="1000" value={(f.hppFixedSPPBE&&f.hppFixedSPPBE[sp]&&f.hppFixedSPPBE[sp][s])||""} onChange={v=>setF(p=>({...p,hppFixedSPPBE:{...(p.hppFixedSPPBE||{}),[sp]:{...((p.hppFixedSPPBE||{})[sp]||{}),[s]:Number(v)||0}}}))} placeholder="0"/>)}
+</div>
+</div>)}
+<Btn color="blue" onClick={saveCompany}>💾 Simpan HPP Fixed</Btn>
+</Card>
 <Card><div style={{fontWeight:700,color:C.gl2,marginBottom:12,fontSize:13}}>🚛 Asset & Harga Tabung</div>
 <div style={{fontSize:11,color:C.gl2,marginBottom:10}}>Untuk kalkulasi Asset Tabung Milik PT di Tutup Buku:</div>
 <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(160px,1fr))",gap:10,marginBottom:12}}>
