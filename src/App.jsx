@@ -1915,6 +1915,7 @@ var C=useTheme();
 var[f,setF]=useState(()=>{var hpp=getModal(data,"12 kg","Isi",toDay());return{tanggal:toDay(),trip:"Trip 1",sppbe:"SPPBE KCR",ukuran:"12 kg",qty:"",hppUnit:String(hpp||""),ket:"",dibuatOleh:user?.id||""};});
 var[delId,setDelId]=useState(null);
 var[editId,setEditId]=useState(null);// id DO yang sedang diedit (hanya status "gantung")
+var[bulanRiwayat,setBulanRiwayat]=useState(toMonth());
 var formRef=useRef(null);
 function onUkuran(v){var hpp=getModal(data,v,"Isi",f.tanggal);setF(p=>({...p,ukuran:v,hppUnit:String(hpp||"")}));}
 function onTanggal(v){var hpp=getModal(data,f.ukuran,"Isi",v);setF(p=>({...p,tanggal:v,hppUnit:String(hpp||"")}));}
@@ -2082,6 +2083,55 @@ setData(d=>{
 });
 toast("✓ Item "+item.ukuran+" dihapus dari trip.");
 }
+
+// ── Gabungkan doTrip (baru) + doList (lama) jadi 1 list ternormalisasi, urut tanggal ──
+var allDORows=useMemo(()=>{
+var fromTrip=(data.doTrip||[]).map(trip=>({
+  _src:"trip",_id:trip.id,_raw:trip,tanggal:trip.tanggal,trip:trip.trip,driver:trip.dibuatOleh,sppbe:trip.sppbe,
+  per:{"5.5 kg":trip.items.find(it=>it.ukuran==="5.5 kg"),"12 kg":trip.items.find(it=>it.ukuran==="12 kg"),"50 kg":trip.items.find(it=>it.ukuran==="50 kg")},
+  totalNilai:trip.items.reduce((a,it)=>a+(it.totalHPP||0),0)
+}));
+var fromLegacy=(data.doList||[]).map(d=>({
+  _src:"legacy",_id:d.id,_raw:d,tanggal:d.tanggal,trip:(d.trip||d.noDO||"-")+" (lama)",driver:d.dibuatOleh,sppbe:d.sppbe,
+  per:{"5.5 kg":d.ukuran==="5.5 kg"?{qty:d.qty,hppUnit:d.hppUnit,status:d.status||"diterima"}:null,
+       "12 kg":d.ukuran==="12 kg"?{qty:d.qty,hppUnit:d.hppUnit,status:d.status||"diterima"}:null,
+       "50 kg":d.ukuran==="50 kg"?{qty:d.qty,hppUnit:d.hppUnit,status:d.status||"diterima"}:null},
+  totalNilai:d.totalHPP||0
+}));
+return[...fromTrip,...fromLegacy].sort((a,b)=>{
+  if(a.tanggal!==b.tanggal)return(a.tanggal||"").localeCompare(b.tanggal||"");
+  return(a._id||"").localeCompare(b._id||"");// tie-break stabil supaya urutan FIFO konsisten antar render
+});
+},[data.doTrip,data.doList]);
+
+var rowsBulanIni=allDORows.filter(r=>(r.tanggal||"").slice(0,7)===bulanRiwayat);
+var bulanTersedia=useMemo(()=>{
+var set=new Set(allDORows.map(r=>(r.tanggal||"").slice(0,7)).filter(Boolean));
+set.add(bulanRiwayat);
+return Array.from(set).sort().reverse();
+},[allDORows,bulanRiwayat]);
+
+function exportExcelDO(){
+var wb=XLSX.utils.book_new();
+var header=["Tanggal","Trip","Driver","SPPBE","Qty 5,5kg","Harga 5,5kg","Qty 12kg","Harga 12kg","Qty 50kg","Harga 50kg","Total Nilai DO","Status 5,5kg","Status 12kg","Status 50kg"];
+var aoa=[header,...rowsBulanIni.map(r=>{
+  var st=uk=>r.per[uk]?(r.per[uk].status==="gantung"?"Gantung":r.per[uk].status==="sangkut"?"Sangkut":"Diterima"):"-";
+  return[fDs(r.tanggal),r.trip,r.driver||"-",r.sppbe,
+    r.per["5.5 kg"]?r.per["5.5 kg"].qty:"",r.per["5.5 kg"]?r.per["5.5 kg"].hppUnit:"",
+    r.per["12 kg"]?r.per["12 kg"].qty:"",r.per["12 kg"]?r.per["12 kg"].hppUnit:"",
+    r.per["50 kg"]?r.per["50 kg"].qty:"",r.per["50 kg"]?r.per["50 kg"].hppUnit:"",
+    r.totalNilai,st("5.5 kg"),st("12 kg"),st("50 kg")];
+})];
+var qtyTot={"5.5 kg":0,"12 kg":0,"50 kg":0};var hppTot={"5.5 kg":0,"12 kg":0,"50 kg":0};var grandTotal=0;
+rowsBulanIni.forEach(r=>{SIZES.forEach(uk=>{if(r.per[uk]){qtyTot[uk]+=r.per[uk].qty||0;hppTot[uk]+=(r.per[uk].qty||0)*(r.per[uk].hppUnit||0);}});grandTotal+=r.totalNilai||0;});
+aoa.push([]);
+aoa.push(["","","","TOTAL",qtyTot["5.5 kg"],fR(hppTot["5.5 kg"]),qtyTot["12 kg"],fR(hppTot["12 kg"]),qtyTot["50 kg"],fR(hppTot["50 kg"]),grandTotal,"","",""]);
+var ws=XLSX.utils.aoa_to_sheet(aoa);
+ws["!cols"]=[{wch:12},{wch:16},{wch:14},{wch:12},{wch:9},{wch:11},{wch:9},{wch:11},{wch:9},{wch:11},{wch:14},{wch:10},{wch:10},{wch:10}];
+XLSX.utils.book_append_sheet(wb,ws,"Riwayat DO");
+XLSX.writeFile(wb,"Riwayat_DO_"+bulanRiwayat+".xlsx");
+toast("✓ Excel Riwayat DO didownload!");
+}
 return <div ref={formRef}>
 <div style={{marginBottom:12}}>
 <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:10}}>
@@ -2157,97 +2207,110 @@ return <div ref={formRef}>
 </div>
 </Card>
 <Card>
-<div style={{fontWeight:700,color:C.gl2,marginBottom:10,fontSize:13}}>Riwayat DO</div>
-<div style={{overflowX:"auto"}}>
-<table style={{width:"100%",borderCollapse:"collapse",fontSize:11,minWidth:900}}>
+<div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-end",flexWrap:"wrap",gap:10,marginBottom:10}}>
+<div style={{fontWeight:700,color:C.gl2,fontSize:13}}>Riwayat DO</div>
+<div style={{display:"flex",gap:8,alignItems:"flex-end"}}>
+<div style={{minWidth:150}}>
+<label style={{display:"block",fontSize:11,color:C.gl2,marginBottom:3,fontWeight:600}}>Bulan</label>
+<select value={bulanRiwayat} onChange={e=>setBulanRiwayat(e.target.value)} style={{width:"100%",border:"1px solid "+C.bdr,borderRadius:8,padding:"7px 10px",color:C.wht,fontSize:12,outline:"none",background:C.nav,boxSizing:"border-box"}}>
+{bulanTersedia.map(b=>{var[y,m]=b.split("-");var nm=["Jan","Feb","Mar","Apr","Mei","Jun","Jul","Agu","Sep","Okt","Nov","Des"][Number(m)-1];return <option key={b} value={b}>{nm} {y}</option>;})}
+</select>
+</div>
+<button onClick={exportExcelDO} disabled={!rowsBulanIni.length} style={{background:rowsBulanIni.length?"#15803D":C.gry,color:"white",border:"none",padding:"8px 14px",borderRadius:8,fontSize:12,cursor:rowsBulanIni.length?"pointer":"not-allowed",fontWeight:700,whiteSpace:"nowrap"}}>📥 Export Excel</button>
+</div>
+</div>
+<table style={{width:"100%",borderCollapse:"collapse",fontSize:10.5,tableLayout:"fixed"}}>
 <thead><tr style={{background:C.nav}}>
-{["Tgl","Trip","Driver","SPPBE","Qty 5,5kg","Harga 5,5kg","Qty 12kg","Harga 12kg","Qty 50kg","Harga 50kg","Total Nilai DO"].map(h=><th key={h} style={{padding:"6px 8px",color:C.gl2,textAlign:["Tgl","Trip","Driver","SPPBE"].includes(h)?"left":"right",border:"1px solid "+C.bdr,fontSize:10,fontWeight:700,whiteSpace:"nowrap"}}>{h}</th>)}
-<th style={{padding:"6px 8px",color:C.gl2,border:"1px solid "+C.bdr,fontSize:10,fontWeight:700}}>Status</th>
-<th style={{padding:"6px 8px",color:C.gl2,border:"1px solid "+C.bdr,fontSize:10,fontWeight:700}}>Aksi</th>
+<th style={{width:"8%",padding:"5px 4px",color:C.gl2,textAlign:"left",border:"1px solid "+C.bdr,fontSize:9,fontWeight:700}}>Tgl</th>
+<th style={{width:"11%",padding:"5px 4px",color:C.gl2,textAlign:"left",border:"1px solid "+C.bdr,fontSize:9,fontWeight:700}}>Trip</th>
+<th style={{width:"10%",padding:"5px 4px",color:C.gl2,textAlign:"left",border:"1px solid "+C.bdr,fontSize:9,fontWeight:700}}>Driver</th>
+<th style={{width:"9%",padding:"5px 4px",color:C.gl2,textAlign:"left",border:"1px solid "+C.bdr,fontSize:9,fontWeight:700}}>SPPBE</th>
+<th style={{width:"7%",padding:"5px 2px",color:C.gl2,textAlign:"right",border:"1px solid "+C.bdr,fontSize:9,fontWeight:700}}>Qty 5,5</th>
+<th style={{width:"8%",padding:"5px 2px",color:C.gl2,textAlign:"right",border:"1px solid "+C.bdr,fontSize:9,fontWeight:700}}>Hrg 5,5</th>
+<th style={{width:"7%",padding:"5px 2px",color:C.gl2,textAlign:"right",border:"1px solid "+C.bdr,fontSize:9,fontWeight:700}}>Qty 12</th>
+<th style={{width:"8%",padding:"5px 2px",color:C.gl2,textAlign:"right",border:"1px solid "+C.bdr,fontSize:9,fontWeight:700}}>Hrg 12</th>
+<th style={{width:"7%",padding:"5px 2px",color:C.gl2,textAlign:"right",border:"1px solid "+C.bdr,fontSize:9,fontWeight:700}}>Qty 50</th>
+<th style={{width:"8%",padding:"5px 2px",color:C.gl2,textAlign:"right",border:"1px solid "+C.bdr,fontSize:9,fontWeight:700}}>Hrg 50</th>
+<th style={{width:"9%",padding:"5px 4px",color:C.gl2,textAlign:"right",border:"1px solid "+C.bdr,fontSize:9,fontWeight:700}}>Total DO</th>
+<th style={{width:"5%",padding:"5px 2px",color:C.gl2,border:"1px solid "+C.bdr,fontSize:9,fontWeight:700}}>St.</th>
+<th style={{width:"8%",padding:"5px 2px",color:C.gl2,border:"1px solid "+C.bdr,fontSize:9,fontWeight:700}}>Aksi</th>
 </tr></thead>
 <tbody>
-{/* ── Baris dari Trip baru (multi produk) ── */}
-{(data.doTrip||[]).slice(0,80).map((trip,ti)=>{
-var per={"5.5 kg":trip.items.find(it=>it.ukuran==="5.5 kg"),"12 kg":trip.items.find(it=>it.ukuran==="12 kg"),"50 kg":trip.items.find(it=>it.ukuran==="50 kg")};
-var totalTrip=trip.items.reduce((a,it)=>a+(it.totalHPP||0),0);
+{rowsBulanIni.length===0&&<tr><td colSpan={13} style={{padding:20,textAlign:"center",color:C.gl2,border:"1px solid "+C.bdr,fontSize:11}}>Belum ada DO di bulan ini</td></tr>}
+{rowsBulanIni.map((r,ri)=>{
+if(r._src==="trip"){
+var trip=r._raw;
 var allGantung=trip.items.every(it=>it.status==="gantung");
-return <tr key={trip.id} style={{background:ti%2===0?C.bg:C.nav}}>
-<td style={{padding:"5px 8px",color:C.wht,border:"1px solid "+C.bdr,whiteSpace:"nowrap"}}>{fDs(trip.tanggal)}</td>
-<td style={{padding:"5px 8px",color:C.wht,border:"1px solid "+C.bdr,fontWeight:700}}>{trip.trip}</td>
-<td style={{padding:"5px 8px",color:C.wht,border:"1px solid "+C.bdr}}>{trip.dibuatOleh||"-"}</td>
-<td style={{padding:"5px 8px",color:C.gl2,border:"1px solid "+C.bdr}}>{trip.sppbe}</td>
-{["5.5 kg","12 kg","50 kg"].flatMap(uk=>{var it=per[uk];return[
-<td key={uk+"q"} style={{padding:"5px 8px",textAlign:"right",color:it?C.glt:C.gry,fontWeight:it?700:400,border:"1px solid "+C.bdr}}>{it?it.qty:"-"}</td>,
-<td key={uk+"h"} style={{padding:"5px 8px",textAlign:"right",color:it?C.wht:C.gry,border:"1px solid "+C.bdr}}>{it?fR(it.hppUnit):"-"}</td>
+return <tr key={r._id} style={{background:ri%2===0?C.bg:C.nav}}>
+<td style={{padding:"4px 4px",color:C.wht,border:"1px solid "+C.bdr,fontSize:9.5,overflow:"hidden",textOverflow:"ellipsis"}}>{fDs(r.tanggal)}</td>
+<td style={{padding:"4px 4px",color:C.wht,border:"1px solid "+C.bdr,fontWeight:700,fontSize:9.5,overflow:"hidden",textOverflow:"ellipsis"}}>{r.trip}</td>
+<td style={{padding:"4px 4px",color:C.wht,border:"1px solid "+C.bdr,fontSize:9.5,overflow:"hidden",textOverflow:"ellipsis"}}>{r.driver||"-"}</td>
+<td style={{padding:"4px 4px",color:C.gl2,border:"1px solid "+C.bdr,fontSize:9.5,overflow:"hidden",textOverflow:"ellipsis"}}>{r.sppbe}</td>
+{["5.5 kg","12 kg","50 kg"].flatMap(uk=>{var it=r.per[uk];return[
+<td key={uk+"q"} style={{padding:"4px 2px",textAlign:"right",color:it?C.glt:C.gry,fontWeight:it?700:400,border:"1px solid "+C.bdr,fontSize:9.5}}>{it?it.qty:"-"}</td>,
+<td key={uk+"h"} style={{padding:"4px 2px",textAlign:"right",color:it?C.wht:C.gry,border:"1px solid "+C.bdr,fontSize:9}}>{it?fR(it.hppUnit).replace("Rp ",""):"-"}</td>
 ];})}
-<td style={{padding:"5px 8px",textAlign:"right",color:C.olt,fontWeight:800,border:"1px solid "+C.bdr}}>{fR(totalTrip)}</td>
-<td style={{padding:"5px 8px",border:"1px solid "+C.bdr}}>
-<div style={{display:"flex",flexDirection:"column",gap:2}}>
-{trip.items.map(it=><div key={it.id} style={{display:"flex",alignItems:"center",gap:4,whiteSpace:"nowrap"}}>
-<span style={{fontSize:9,color:C.gl2,minWidth:38}}>{it.ukuran}</span>
-{it.status==="gantung"?<Bdg color="orange">⏳</Bdg>:it.status==="sangkut"?<Bdg color="red">⚠️</Bdg>:<Bdg color="green">✅</Bdg>}
-</div>)}
+<td style={{padding:"4px 4px",textAlign:"right",color:C.olt,fontWeight:800,border:"1px solid "+C.bdr,fontSize:9.5}}>{fR(r.totalNilai).replace("Rp ","")}</td>
+<td style={{padding:"3px 2px",border:"1px solid "+C.bdr}}>
+<div style={{display:"flex",flexDirection:"column",gap:1,alignItems:"center"}}>
+{trip.items.map(it=><span key={it.id} title={it.ukuran} style={{fontSize:8}}>{it.status==="gantung"?"⏳":it.status==="sangkut"?"⚠️":"✅"}</span>)}
 </div>
 </td>
-<td style={{padding:"5px 8px",border:"1px solid "+C.bdr}}>
-<div style={{display:"flex",flexDirection:"column",gap:3}}>
-{allGantung&&<button onClick={()=>mulaiEditTrip(trip)} style={{background:editTripId===trip.id?"#B45309":"#1D4ED8",border:"none",borderRadius:5,padding:"3px 7px",color:"white",fontSize:9,fontWeight:700,cursor:"pointer"}}>{editTripId===trip.id?"📝 Edit Aktif":"✏️ Edit Trip"}</button>}
-{trip.items.map(it=><div key={it.id} style={{display:"flex",gap:3,alignItems:"center"}}>
-<span style={{fontSize:9,color:C.gl2,minWidth:38}}>{it.ukuran}:</span>
-{it.status==="gantung"&&<><button onClick={()=>terimaTripItem(trip,it)} style={{background:"#15803D",border:"none",borderRadius:4,padding:"2px 5px",color:"white",fontSize:9,fontWeight:700,cursor:"pointer"}}>✅</button><button onClick={()=>sangkutTripItem(trip,it)} style={{background:"#B45309",border:"none",borderRadius:4,padding:"2px 5px",color:"white",fontSize:9,fontWeight:700,cursor:"pointer"}}>⚠️</button></>}
-{it.status==="sangkut"&&<button onClick={()=>releaseTripItem(trip,it)} style={{background:"#1D4ED8",border:"none",borderRadius:4,padding:"2px 5px",color:"white",fontSize:9,fontWeight:700,cursor:"pointer"}}>🔓</button>}
-<button onClick={()=>hapusTripItem(trip,it)} style={{background:"#991B1B",border:"none",borderRadius:4,padding:"2px 5px",color:"white",fontSize:9,fontWeight:700,cursor:"pointer"}}>🗑️</button>
+<td style={{padding:"3px 2px",border:"1px solid "+C.bdr}}>
+<div style={{display:"flex",flexDirection:"column",gap:2,alignItems:"center"}}>
+{allGantung&&<button onClick={()=>mulaiEditTrip(trip)} title="Edit Trip" style={{background:editTripId===trip.id?"#B45309":"#1D4ED8",border:"none",borderRadius:4,padding:"2px 4px",color:"white",fontSize:8,fontWeight:700,cursor:"pointer",width:"100%"}}>✏️</button>}
+{trip.items.map(it=><div key={it.id} style={{display:"flex",gap:2,justifyContent:"center"}}>
+{it.status==="gantung"&&<><button onClick={()=>terimaTripItem(trip,it)} title={it.ukuran+" Terima"} style={{background:"#15803D",border:"none",borderRadius:3,padding:"1px 3px",color:"white",fontSize:8,cursor:"pointer"}}>✅</button><button onClick={()=>sangkutTripItem(trip,it)} title={it.ukuran+" Sangkut"} style={{background:"#B45309",border:"none",borderRadius:3,padding:"1px 3px",color:"white",fontSize:8,cursor:"pointer"}}>⚠️</button></>}
+{it.status==="sangkut"&&<button onClick={()=>releaseTripItem(trip,it)} title={it.ukuran+" Release"} style={{background:"#1D4ED8",border:"none",borderRadius:3,padding:"1px 3px",color:"white",fontSize:8,cursor:"pointer"}}>🔓</button>}
+<button onClick={()=>hapusTripItem(trip,it)} title={it.ukuran+" Hapus"} style={{background:"#991B1B",border:"none",borderRadius:3,padding:"1px 3px",color:"white",fontSize:8,cursor:"pointer"}}>🗑️</button>
 </div>)}
 </div>
 </td>
 </tr>;
-})}
-{/* ── Baris dari DO lama (format legacy, 1 ukuran per baris) ── */}
-{(data.doList||[]).slice(0,100).map((d,di)=>{
-var st=d.status||"diterima";
-var stBadge=st==="gantung"?<Bdg color="orange">⏳ Gantung</Bdg>:st==="sangkut"?<Bdg color="red">⚠️ Sangkut</Bdg>:<Bdg color="green">✅ Diterima</Bdg>;
-var aksiBtn=st==="gantung"?<div style={{display:"flex",gap:3,flexWrap:"wrap"}}>
-<button onClick={()=>terimaDO(d)} style={{background:"#15803D",border:"none",borderRadius:4,padding:"2px 5px",color:"white",fontSize:9,fontWeight:700,cursor:"pointer"}}>✅</button>
-<button onClick={()=>mulaiEdit(d)} style={{background:editId===d.id?"#B45309":"#1D4ED8",border:"none",borderRadius:4,padding:"2px 5px",color:"white",fontSize:9,fontWeight:700,cursor:"pointer"}}>✏️</button>
-<button onClick={()=>sangkutDO(d)} style={{background:"#B45309",border:"none",borderRadius:4,padding:"2px 5px",color:"white",fontSize:9,fontWeight:700,cursor:"pointer"}}>⚠️</button>
+}
+// legacy
+var d=r._raw;var st=d.status||"diterima";
+var stIcon=st==="gantung"?"⏳":st==="sangkut"?"⚠️":"✅";
+var aksiBtn=st==="gantung"?<div style={{display:"flex",flexDirection:"column",gap:2,alignItems:"center"}}>
+<button onClick={()=>terimaDO(d)} title="Terima" style={{background:"#15803D",border:"none",borderRadius:3,padding:"1px 4px",color:"white",fontSize:8,cursor:"pointer",width:"100%"}}>✅</button>
+<button onClick={()=>mulaiEdit(d)} title="Edit" style={{background:editId===d.id?"#B45309":"#1D4ED8",border:"none",borderRadius:3,padding:"1px 4px",color:"white",fontSize:8,cursor:"pointer",width:"100%"}}>✏️</button>
+<button onClick={()=>sangkutDO(d)} title="Sangkut" style={{background:"#B45309",border:"none",borderRadius:3,padding:"1px 4px",color:"white",fontSize:8,cursor:"pointer",width:"100%"}}>⚠️</button>
 <ActBtns onDel={()=>setDelId(d)}/>
-</div>:st==="sangkut"?<div style={{display:"flex",gap:3}}>
-<button onClick={()=>releaseDO(d)} style={{background:"#1D4ED8",border:"none",borderRadius:4,padding:"2px 5px",color:"white",fontSize:9,fontWeight:700,cursor:"pointer"}}>🔓</button>
+</div>:st==="sangkut"?<div style={{display:"flex",flexDirection:"column",gap:2,alignItems:"center"}}>
+<button onClick={()=>releaseDO(d)} title="Release" style={{background:"#1D4ED8",border:"none",borderRadius:3,padding:"1px 4px",color:"white",fontSize:8,cursor:"pointer",width:"100%"}}>🔓</button>
 <ActBtns onDel={()=>setDelId(d)}/>
 </div>:<ActBtns onDel={()=>setDelId(d)}/>;
-return <tr key={d.id} style={{background:di%2===0?C.bg:C.nav,opacity:.92}}>
-<td style={{padding:"5px 8px",color:C.wht,border:"1px solid "+C.bdr,whiteSpace:"nowrap"}}>{fDs(d.tanggal)}</td>
-<td style={{padding:"5px 8px",color:C.wht,border:"1px solid "+C.bdr,fontWeight:700}}>{d.trip||d.noDO||"-"}<span style={{fontSize:8,color:C.gry,marginLeft:4}}>(lama)</span></td>
-<td style={{padding:"5px 8px",color:C.wht,border:"1px solid "+C.bdr}}>{d.dibuatOleh||"-"}</td>
-<td style={{padding:"5px 8px",color:C.gl2,border:"1px solid "+C.bdr}}>{d.sppbe}</td>
+return <tr key={r._id} style={{background:ri%2===0?C.bg:C.nav,opacity:.92}}>
+<td style={{padding:"4px 4px",color:C.wht,border:"1px solid "+C.bdr,fontSize:9.5,overflow:"hidden",textOverflow:"ellipsis"}}>{fDs(r.tanggal)}</td>
+<td style={{padding:"4px 4px",color:C.wht,border:"1px solid "+C.bdr,fontWeight:700,fontSize:9,overflow:"hidden",textOverflow:"ellipsis"}}>{r.trip}</td>
+<td style={{padding:"4px 4px",color:C.wht,border:"1px solid "+C.bdr,fontSize:9.5,overflow:"hidden",textOverflow:"ellipsis"}}>{r.driver||"-"}</td>
+<td style={{padding:"4px 4px",color:C.gl2,border:"1px solid "+C.bdr,fontSize:9.5,overflow:"hidden",textOverflow:"ellipsis"}}>{r.sppbe}</td>
 {["5.5 kg","12 kg","50 kg"].flatMap(uk=>{var match=d.ukuran===uk;return[
-<td key={uk+"q"} style={{padding:"5px 8px",textAlign:"right",color:match?C.glt:C.gry,fontWeight:match?700:400,border:"1px solid "+C.bdr}}>{match?d.qty:"-"}</td>,
-<td key={uk+"h"} style={{padding:"5px 8px",textAlign:"right",color:match?C.wht:C.gry,border:"1px solid "+C.bdr}}>{match?fR(d.hppUnit||0):"-"}</td>
+<td key={uk+"q"} style={{padding:"4px 2px",textAlign:"right",color:match?C.glt:C.gry,fontWeight:match?700:400,border:"1px solid "+C.bdr,fontSize:9.5}}>{match?d.qty:"-"}</td>,
+<td key={uk+"h"} style={{padding:"4px 2px",textAlign:"right",color:match?C.wht:C.gry,border:"1px solid "+C.bdr,fontSize:9}}>{match?fR(d.hppUnit||0).replace("Rp ",""):"-"}</td>
 ];})}
-<td style={{padding:"5px 8px",textAlign:"right",color:C.olt,fontWeight:800,border:"1px solid "+C.bdr}}>{fR(d.totalHPP||0)}</td>
-<td style={{padding:"5px 8px",border:"1px solid "+C.bdr}}>{stBadge}</td>
-<td style={{padding:"5px 8px",border:"1px solid "+C.bdr}}>{aksiBtn}</td>
+<td style={{padding:"4px 4px",textAlign:"right",color:C.olt,fontWeight:800,border:"1px solid "+C.bdr,fontSize:9.5}}>{fR(d.totalHPP||0).replace("Rp ","")}</td>
+<td style={{padding:"3px 2px",border:"1px solid "+C.bdr,textAlign:"center",fontSize:9}}>{stIcon}</td>
+<td style={{padding:"3px 2px",border:"1px solid "+C.bdr}}>{aksiBtn}</td>
 </tr>;
 })}
 </tbody>
 <tfoot>
 {(()=>{
 var qtyTot={"5.5 kg":0,"12 kg":0,"50 kg":0};var hppTot={"5.5 kg":0,"12 kg":0,"50 kg":0};var grandTotal=0;
-(data.doTrip||[]).forEach(trip=>trip.items.forEach(it=>{qtyTot[it.ukuran]=(qtyTot[it.ukuran]||0)+it.qty;hppTot[it.ukuran]+=it.totalHPP||0;grandTotal+=it.totalHPP||0;}));
-(data.doList||[]).forEach(d=>{if(qtyTot[d.ukuran]!==undefined){qtyTot[d.ukuran]+=d.qty||0;hppTot[d.ukuran]+=d.totalHPP||0;grandTotal+=d.totalHPP||0;}});
+rowsBulanIni.forEach(r=>{SIZES.forEach(uk=>{if(r.per[uk]){qtyTot[uk]+=r.per[uk].qty||0;hppTot[uk]+=(r.per[uk].qty||0)*(r.per[uk].hppUnit||0);}});grandTotal+=r.totalNilai||0;});
 return <tr style={{background:C.olt}}>
-<td colSpan={4} style={{padding:"8px 8px",border:"1px solid "+C.bdr,color:"white",fontWeight:800,fontSize:12}}>TOTAL SEMUA TRIP</td>
+<td colSpan={4} style={{padding:"6px 4px",border:"1px solid "+C.bdr,color:"white",fontWeight:800,fontSize:10}}>TOTAL BULAN INI</td>
 {["5.5 kg","12 kg","50 kg"].flatMap(uk=>[
-<td key={uk+"q"} style={{padding:"8px 8px",border:"1px solid "+C.bdr,textAlign:"right",color:"white",fontWeight:900}}>{qtyTot[uk]}</td>,
-<td key={uk+"h"} style={{padding:"8px 8px",border:"1px solid "+C.bdr,textAlign:"right",color:"white",fontWeight:700,fontSize:10}}>{fR(hppTot[uk])}</td>
+<td key={uk+"q"} style={{padding:"6px 2px",border:"1px solid "+C.bdr,textAlign:"right",color:"white",fontWeight:900,fontSize:9.5}}>{qtyTot[uk]}</td>,
+<td key={uk+"h"} style={{padding:"6px 2px",border:"1px solid "+C.bdr,textAlign:"right",color:"white",fontWeight:700,fontSize:8.5}}>{fR(hppTot[uk]).replace("Rp ","")}</td>
 ])}
-<td style={{padding:"8px 8px",border:"1px solid "+C.bdr,textAlign:"right",color:"white",fontWeight:900,fontSize:13}}>{fR(grandTotal)}</td>
+<td style={{padding:"6px 4px",border:"1px solid "+C.bdr,textAlign:"right",color:"white",fontWeight:900,fontSize:10}}>{fR(grandTotal).replace("Rp ","")}</td>
 <td colSpan={2} style={{border:"1px solid "+C.bdr}}/>
 </tr>;
 })()}
 </tfoot>
 </table>
-</div>
 </Card>
 {delId&&<ConfirmDel msg={"Hapus DO "+(delId.trip||"")+"? Stok akan dikembalikan otomatis."} onCancel={()=>setDelId(null)} onConfirm={()=>{
 var st=delId.status||"diterima";
