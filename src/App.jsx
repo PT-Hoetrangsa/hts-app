@@ -381,24 +381,27 @@ function calcBonusSales(empId,bulan,data){var penj=(data.penjualan||[]).filter(p
 
 function getBiayaOpsAuto(empId,bulan,data){return(data.pengeluaran||[]).filter(p=>p.karyawanId===empId&&(p.tanggal||"").startsWith(bulan)&&KAT_OPS.includes(p.kategori)).map(p=>({id:p.id,label:p.kategori+(p.ket?" - "+p.ket:""),nominal:Number(p.nominal||0),kategori:p.kategori}));}
 
-function getPinjamanSaldo(empId,bulan,data){
+// Satu fungsi tunggal: Total Pinjaman = semua ambilan dari kedua sumber DIKURANGI semua cicilan payroll
+// Ini fungsi yang SAMA dipakai di: Rekap Ambilan, Payroll list, Slip Gaji
+function getTotalAmbilanKaryawan(empId,data){
 var emp=(data.employees||[]).find(e=>e.id===empId);
 var empNama=(emp?.nama||"").toLowerCase().trim();
-// Ambilan dari modul Ambilan/Kasbon (kurang setor)
-var totAmb=(data.ambilan||[]).filter(a=>a.karyawanId===empId&&(a.tanggal||"")<=(bulan+"-31")).reduce((a,x)=>a+Number(x.nominal||0),0);
-// Kasbon/Ambilan dicatat via Pengeluaran — match by karyawanId ATAU nama karyawan
-var totKasbon=(data.pengeluaran||[]).filter(p=>{
+// Sumber 1: data.ambilan (kurang setor otomatis dari setoran sales)
+var s1=(data.ambilan||[]).filter(a=>a.karyawanId===empId).reduce((a,x)=>a+Number(x.nominal||0),0);
+// Sumber 2: data.pengeluaran kategori kasbon/ambilan (dicatat manual)
+var s2=(data.pengeluaran||[]).filter(p=>{
   var k=(p.kategori||"").toLowerCase();
   if(!k.includes("kasbon")&&!k.includes("ambilan"))return false;
-  if((p.tanggal||"")>(bulan+"-31"))return false;
   if(p.karyawanId&&p.karyawanId===empId)return true;
   if(!p.karyawanId&&empNama&&(p.karyawanNama||"").toLowerCase().trim()===empNama)return true;
   return false;
 }).reduce((a,p)=>a+Number(p.nominal||0),0);
-// Total yang sudah dipotong via payroll (termasuk bulan ini kalau sudah diproses)
-var totPot=(data.payrollLog||[]).filter(p=>p.empId===empId&&p.bulan<=bulan).reduce((a,x)=>a+Number(x.potonganPinjaman||0),0);
-return Math.max(0,totAmb+totKasbon-totPot);
+// Dikurangi: semua cicilan yang sudah dipotong via slip gaji
+var dipotong=(data.payrollLog||[]).filter(p=>p.empId===empId).reduce((a,x)=>a+Number(x.potonganPinjaman||0),0);
+return Math.max(0,s1+s2-dipotong);
 }
+// Alias untuk backward compatibility (bulan param diabaikan — pinjaman berjalan tidak dibatasi bulan)
+function getPinjamanSaldo(empId,bulan,data){return getTotalAmbilanKaryawan(empId,data);}
 
 function calcPayrollFull(emp,bulan,data){var abs=(data.absensi||[]).filter(a=>a.karyawanId===emp.id&&(a.tanggal||"").startsWith(bulan));var hariHadir=abs.filter(a=>a.status==="Hadir").length;var totalHariKerja=daysInMonth(bulan);var absen=abs.filter(a=>["Alpha"].includes(a.status)).length;var isSales=["sales_driver","sales_freelance"].includes(emp.role);var bonus=isSales?calcBonusSales(emp.id,bulan,data):{q55:0,r55:500,b55:0,q12:0,r12:500,b12:0,total:0};var mode=emp.uangMakanMode||"harian";var makanAuto=(data.pengeluaran||[]).filter(p=>p.karyawanId===emp.id&&["Uang Makan Karyawan","Uang Makan","Makan Karyawan"].includes(p.kategori)&&(p.tanggal||"").startsWith(bulan)).reduce((a,p)=>a+Number(p.nominal||0),0);var uangMakanRate=emp.uangMakan||UANG_MAKAN_DEFAULT;var uangMakan=mode==="harian"?makanAuto:hariHadir*uangMakanRate;var ops=getBiayaOpsAuto(emp.id,bulan,data).filter(x=>!["Uang Makan","Makan Karyawan"].some(k=>x.label.startsWith(k)));var bongkarTotal=ops.filter(x=>x.kategori==="Uang Bongkar DO").reduce((a,x)=>a+x.nominal,0);var spbbeTotal=ops.filter(x=>x.kategori==="Uang Jalan SPBE").reduce((a,x)=>a+x.nominal,0);var bongkarCount=ops.filter(x=>x.kategori==="Uang Bongkar DO").length;var spbbeCount=ops.filter(x=>x.kategori==="Uang Jalan SPBE").length;var pinjamanSaldo=getPinjamanSaldo(emp.id,bulan,data);return{hariHadir,totalHariKerja,absen,gajiPokok:emp.gajiPokok||0,bonus,uangMakanMode:mode,uangMakan,bongkarTotal,spbbeTotal,bongkarCount,spbbeCount,pinjamanSaldo};}
 
@@ -5181,15 +5184,11 @@ var ambPen=(data.pengeluaran||[]).filter(p=>(p.kategori||"").toLowerCase().inclu
 var ambKurang=(data.ambilan||[]).map(a=>({tgl:a.tanggal,nama:a.karyawanNama||"—",empId:a.karyawanId||"",nominal:Number(a.nominal||0),metode:"Cash",ket:a.ket||"Kurang Setor",sumber:"Kurang Setor"}));
 // Gabung dan sort
 var allAmb=[...ambPen,...ambKurang].sort((a,b)=>b.tgl.localeCompare(a.tgl));
-// Rekap per karyawan
+// Rekap per karyawan — pakai fungsi yang SAMA dengan Payroll
 var rekapKar={};
-allAmb.forEach(a=>{
-// Cari empId dari employees berdasarkan nama jika empId kosong
-var emp2=(data.employees||[]).find(e=>e.id===a.empId||(e.nama||"").toLowerCase().trim()===(a.nama||"").toLowerCase().trim());
-var key=emp2?.id||a.nama.toLowerCase().trim();
-var nama=emp2?.nama||a.nama;
-if(!rekapKar[key])rekapKar[key]={nama,total:0};
-rekapKar[key].total+=a.nominal;
+(data.employees||[]).filter(e=>e.aktif).forEach(e=>{
+var total=getTotalAmbilanKaryawan(e.id,data);
+if(total>0)rekapKar[e.id]={nama:e.nama,total};
 });
 return <div>
 <Card>
