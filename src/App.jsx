@@ -51,6 +51,11 @@ var DEF_EMP=[
 
 // ─── GOOGLE SHEETS SYNC ───────────────────────────────────────────────────────
 var GAS_URL="https://script.google.com/macros/s/AKfycbxSLJPfpPA_CTx9CMocRmUWKeNSH1md-_J1R4B09qlQDrsPhXql1mrWPbBVnx8u2sJ2/exec";
+// Logo tetap perusahaan & Pertamina — disimpan di public/assets/, tidak perlu upload manual per device
+var LOGO_HTS_DARK="/assets/logo-hts-dark-bg.png";// untuk latar gelap (header app)
+var LOGO_HTS_LIGHT="/assets/logo-hts-light-bg.png";// untuk latar terang (invoice/cetak)
+var LOGO_PERTAMINA_DARK="/assets/logo-pertamina-dark-bg.png";// untuk latar gelap (header app)
+var LOGO_PERTAMINA_LIGHT="/assets/logo-pertamina-light-bg.png";// untuk latar terang (invoice/cetak)
 var GAS_SECRET="HTS2026";
 var SYNC_TABLES=["penjualan","bon","pengeluaran","pelanggan","employees","stok","doList","doTrip","absensi","payrollLog","ambilan","titipList","setoranLog","tutupBuku","config","jualanLain","kasBankTF"];
 
@@ -580,8 +585,8 @@ return <div>
 
 // ─── LOGO ─────────────────────────────────────────────────────────────────────
 function LPGLogo({size=72}){return <svg width={size} height={size*0.85} viewBox="0 0 70 60" fill="none"><rect x="2" y="14" width="13" height="40" fill="#ED1C24" rx="1"/><rect x="19" y="2" width="13" height="52" fill="#F2A900" rx="1"/><rect x="36" y="10" width="13" height="44" fill="#00A651" rx="1"/><text x="26" y="14" textAnchor="middle" fontSize="7" fontWeight="700" fill="#0A2C5C">1982</text></svg>;}
-function CompanyLogo({company={},h=52}){if(company.logo)return <img src={company.logo} style={{height:h,objectFit:"contain"}} alt="logo"/>;return <LPGLogo size={h}/>;}
-function PertaminaLogo({company={},h=32}){if(company.logoPertamina)return <img src={company.logoPertamina} style={{height:h,objectFit:"contain"}} alt="pertamina"/>;return <div style={{display:"flex",alignItems:"center",gap:6}}><div style={{display:"flex",height:h*0.85,transform:"skewX(-12deg)"}}><div style={{width:h*0.5,background:"#ED1C24"}}/><div style={{width:h*0.4,background:"#00A651"}}/><div style={{width:h*0.4,background:"#0C4DA2"}}/></div><span style={{fontSize:h*0.65,fontWeight:800,color:"#00713A",letterSpacing:0.5}}>PERTAMINA</span></div>;}
+function CompanyLogo({h=52,variant="dark"}){var src=variant==="light"?LOGO_HTS_LIGHT:LOGO_HTS_DARK;return <img src={src} style={{height:h,objectFit:"contain"}} alt="PT. Hoe Trang Sa" onError={e=>{e.target.style.display="none";}}/>;}
+function PertaminaLogo({h=32,variant="dark"}){var src=variant==="light"?LOGO_PERTAMINA_LIGHT:LOGO_PERTAMINA_DARK;return <img src={src} style={{height:h,objectFit:"contain"}} alt="Pertamina" onError={e=>{e.target.style.display="none";}}/>;}
 
 // === AKHIR BAGIAN 1 ===
 // === BAGIAN 2 DARI 3 ===
@@ -607,30 +612,11 @@ return <div id="_inv_wrap" style={{position:"fixed",inset:0,background:"#cdd3db"
 {/* HEADER navy */}
 <div style={{background:"linear-gradient(135deg,"+NAVY+" 0%,"+NAVY2+" 100%)",padding:"20px 26px 17px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
 <div style={{display:"flex",alignItems:"center",gap:12}}>
-{company.logo
-?<img src={company.logo} style={{height:54,objectFit:"contain"}} alt="logo"/>
-:<div style={{display:"flex",alignItems:"center",gap:12}}>
-<div style={{display:"flex",gap:3,alignItems:"flex-end"}}>
-<div style={{width:9,height:28,background:RED,borderRadius:2}}/>
-<div style={{width:9,height:20,background:"#1e88e5",borderRadius:2}}/>
-<div style={{width:9,height:28,background:GREEN,borderRadius:2}}/>
-</div>
-<div>
-<div style={{fontSize:18,fontWeight:800,color:WHITE,letterSpacing:.3,lineHeight:1.1}}>{company.nama||"PT. HOE TRANG SA"}</div>
-<div style={{fontSize:9,fontWeight:600,color:RED,letterSpacing:1.8,textTransform:"uppercase",marginTop:3}}>{company.slogan||"DEALER LPG PERTAMINA"}</div>
-</div>
-</div>}
+<CompanyLogo h={48} variant="dark"/>
 </div>
 {/* Pertamina */}
 <div style={{display:"flex",alignItems:"center",gap:7}}>
-{company.logoPertamina
-?<img src={company.logoPertamina} style={{height:38,objectFit:"contain"}} alt="pertamina"/>
-:<div style={{display:"flex",alignItems:"center",gap:7}}><svg width={54} height={40} viewBox="0 0 60 42" fill="none">
-<polygon points="18,0 32,14 18,28 4,14" fill="#E53935"/>
-<polygon points="14,28 28,14 14,0 0,14" fill="#1565C0" opacity="0.85"/>
-<polygon points="22,28 36,14 22,0 8,14" fill="#6AB04C" opacity="0.9"/>
-</svg>
-<span style={{fontSize:14,fontWeight:800,color:WHITE,letterSpacing:.4}}>PERTAMINA</span></div>}
+<PertaminaLogo h={32} variant="dark"/>
 </div>
 </div>
 
@@ -819,7 +805,6 @@ var sisa=Number(slip.totalPinjaman||0)-Number(slip.potonganPinjaman||0);
 var blnIdx=slip.bulan?Number(slip.bulan.split("-")[1])-1:0;
 var thIdx=slip.bulan?slip.bulan.split("-")[0]:"";
 var fileName=safeFileName((slip.nama||"karyawan")+"_"+(slip.noSlip||"SLIP").replace(/[\/]/g,"-"));
-var hasUploadedLogo=!!company.logo;
 var penghasilanRows=rows.filter(r=>r.section==="penghasilan");
 var potonganRows=rows.filter(r=>r.section==="potongan");
 var ydtRows=rows.filter(r=>r.section==="ydt");
@@ -829,30 +814,11 @@ return <div id="_slip_wrap" style={{position:"fixed",inset:0,background:"#cdd3db
 {/* HEADER — sama dengan Invoice */}
 <div style={{background:"linear-gradient(135deg,"+SNAVY+" 0%,"+SNAVY2+" 100%)",padding:"18px 24px 15px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
 <div style={{display:"flex",alignItems:"center",gap:12}}>
-{company.logo
-?<img src={company.logo} style={{height:48,objectFit:"contain"}} alt="logo"/>
-:<div style={{display:"flex",alignItems:"center",gap:12}}>
-<div style={{display:"flex",gap:3,alignItems:"flex-end"}}>
-<div style={{width:8,height:26,background:SRED,borderRadius:2}}/>
-<div style={{width:8,height:18,background:"#1e88e5",borderRadius:2}}/>
-<div style={{width:8,height:26,background:SGREEN,borderRadius:2}}/>
-</div>
-<div>
-<div style={{fontSize:17,fontWeight:800,color:SWHITE,letterSpacing:.3,lineHeight:1.1}}>{company.nama||"PT. HOE TRANG SA"}</div>
-<div style={{fontSize:9,fontWeight:600,color:SRED,letterSpacing:1.8,textTransform:"uppercase",marginTop:3}}>{company.slogan||"DEALER LPG PERTAMINA"}</div>
-</div>
-</div>}
+<CompanyLogo h={44} variant="dark"/>
 </div>
 {/* Pertamina diamond */}
 <div style={{display:"flex",alignItems:"center",gap:6}}>
-{company.logoPertamina
-?<img src={company.logoPertamina} style={{height:34,objectFit:"contain"}} alt="pertamina"/>
-:<div style={{display:"flex",alignItems:"center",gap:6}}><svg width={48} height={36} viewBox="0 0 60 42" fill="none">
-<polygon points="18,0 32,14 18,28 4,14" fill="#E53935"/>
-<polygon points="14,28 28,14 14,0 0,14" fill="#1565C0" opacity="0.85"/>
-<polygon points="22,28 36,14 22,0 8,14" fill="#6AB04C" opacity="0.9"/>
-</svg>
-<span style={{fontSize:13,fontWeight:800,color:SWHITE,letterSpacing:.4}}>PERTAMINA</span></div>}
+<PertaminaLogo h={28} variant="dark"/>
 </div>
 </div>
 {/* DIVIDER 3 warna */}
@@ -960,7 +926,7 @@ var fileName=safeFileName((ba.konsumenNama||"konsumen")+"_"+(ba.noBA||"BA"));
 return <div id="_ba_wrap" style={{position:"fixed",inset:0,background:"#e5e8ec",zIndex:9600,padding:16,overflowY:"auto",fontFamily:"'Times New Roman',serif"}}>
 <div id="_ba" style={{maxWidth:680,margin:"0 auto",background:"white",borderRadius:6,padding:"24px 28px",color:"#1a1a1a",boxShadow:"0 6px 30px rgba(0,0,0,.15)",border:"2px solid #1A5276"}}>
 <div style={{textAlign:"center",borderBottom:"3px double #1A5276",paddingBottom:14,marginBottom:16}}>
-<div style={{display:"flex",justifyContent:"center",marginBottom:6}}><CompanyLogo company={company} h={48}/></div>
+<div style={{display:"flex",justifyContent:"center",marginBottom:6}}><CompanyLogo h={48} variant="light"/></div>
 <div style={{fontFamily:"Arial",fontWeight:900,fontSize:20,color:"#0A2C5C"}}>{company.nama}</div>
 <div style={{fontFamily:"Arial",fontSize:11,color:"#444"}}>{company.alamat}</div>
 <div style={{fontFamily:"Arial",fontSize:11,color:"#444"}}>Telp: {company.telepon} | {company.email}</div>
@@ -1002,7 +968,7 @@ function login(){var emp=(employees||DEF_EMP).find(x=>x.username===u&&x.password
 return <div style={{minHeight:"100vh",background:C.bg,display:"flex",alignItems:"center",justifyContent:"center",padding:16,position:"relative"}}>
 <div style={{position:"absolute",top:16,right:16}}><Btn sm color="gray" onClick={themeToggle}>{theme==="light"?"🌙 Gelap":"☀️ Terang"}</Btn></div>
 <div style={{background:C.card,borderRadius:20,padding:"36px 32px 28px",width:"100%",maxWidth:380,border:"1px solid "+C.bdr,boxShadow:"0 20px 80px rgba(0,0,0,.15)"}}>
-<div style={{textAlign:"center",marginBottom:26}}><div style={{display:"flex",justifyContent:"center",marginBottom:10}}><LPGLogo size={64}/></div><div style={{fontSize:22,fontWeight:900,color:C.blt}}>PT. HOE TRANG SA</div><div style={{fontSize:13,fontWeight:700,color:C.wht}}>Sistem Manajemen LPG</div><div style={{fontSize:11,color:C.gl2,marginTop:3}}>Distributor Resmi Pertamina</div></div>
+<div style={{textAlign:"center",marginBottom:26}}><div style={{display:"flex",justifyContent:"center",marginBottom:14}}><CompanyLogo h={56} variant={C.mode==="dark"?"dark":"light"}/></div><div style={{fontSize:13,fontWeight:700,color:C.wht}}>Sistem Manajemen LPG</div><div style={{fontSize:11,color:C.gl2,marginTop:3}}>Distributor Resmi Pertamina</div></div>
 <Inp label="Username" value={u} onChange={setU} placeholder="Masukkan username"/>
 <Inp label="Password" type="password" value={p} onChange={setP} placeholder="Masukkan password"/>
 {err&&<div style={{color:C.rlt,fontSize:12,marginBottom:10,textAlign:"center",padding:"6px 10px",background:C.mode==="dark"?"#3B0A0A":"#FEE2E2",borderRadius:6}}>{err}</div>}
@@ -2799,11 +2765,12 @@ return <Modal title={"✏️ Edit Kwitansi — "+s.nama} onClose={onClose} width
 {s.rows.filter(r=>r.section===sec).length===0&&<div style={{padding:10,color:"#475569",fontSize:11,textAlign:"center"}}>Belum ada baris</div>}
 {s.rows.filter(r=>r.section===sec).map(r=>{
 var isPinjamanRow=r.label==="Potongan Pinjaman";
-return <div key={r.id} style={{display:"grid",gridTemplateColumns:"2fr 70px 1.5fr 110px 28px",gap:4,padding:"5px 10px",borderTop:"1px solid #1e293b",alignItems:"center",background:r.kind==="info"?"#1e1a09":"transparent"}}>
-<input value={r.label} onChange={e=>updRow(r.id,"label",e.target.value)} style={{...iStyle,borderColor:"#334155",color:"#e2e8f0"}}/>
-<input type="number" value={r.qty??1} onChange={e=>updRow(r.id,"qty",Number(e.target.value))} style={{...iStyle,borderColor:"#334155",color:"#94a3b8",textAlign:"center"}} disabled={r.kind==="info"}/>
-<input value={r.ket||""} onChange={e=>updRow(r.id,"ket",e.target.value)} placeholder="keterangan" style={{...iStyle,borderColor:"#334155",color:"#94a3b8"}} disabled={r.kind==="info"}/>
-<input type="number" value={r.jumlah||0} onChange={e=>updRow(r.id,"jumlah",Number(e.target.value))} title={isPinjamanRow?"Isi lewat kotak \"Cicilan/Potongan Bulan Ini\" di bawah":""} style={{...iStyle,borderColor:(r.kind==="info"||isPinjamanRow)?"transparent":"#334155",color:r.kind==="info"?"#f59e0b":isPinjamanRow?"#94a3b8":col,textAlign:"right",fontWeight:700,background:"transparent",cursor:isPinjamanRow?"not-allowed":"text"}} readOnly={r.kind==="info"||isPinjamanRow}/>
+var lockField=r.kind==="info"||isPinjamanRow;
+return <div key={r.id} style={{display:"grid",gridTemplateColumns:"2fr 70px 1.5fr 110px 28px",gap:4,padding:"5px 10px",borderTop:"1px solid #1e293b",alignItems:"center",background:r.kind==="info"?"#1e1a09":isPinjamanRow?"#1a1f2e":"transparent"}}>
+<input value={r.label} onChange={e=>updRow(r.id,"label",e.target.value)} style={{...iStyle,borderColor:"#334155",color:isPinjamanRow?"#94a3b8":"#e2e8f0"}} readOnly={isPinjamanRow}/>
+<input type="number" value={r.qty??1} onChange={e=>updRow(r.id,"qty",Number(e.target.value))} style={{...iStyle,borderColor:"#334155",color:"#94a3b8",textAlign:"center"}} disabled={lockField}/>
+<input value={isPinjamanRow?"⬇️ isi di kotak bawah":(r.ket||"")} onChange={e=>updRow(r.id,"ket",e.target.value)} placeholder="keterangan" style={{...iStyle,borderColor:"#334155",color:"#94a3b8",fontStyle:isPinjamanRow?"italic":"normal"}} disabled={lockField}/>
+<input type="number" value={r.jumlah||0} onChange={e=>updRow(r.id,"jumlah",Number(e.target.value))} title={isPinjamanRow?"Isi lewat kotak \"Cicilan/Potongan Bulan Ini\" di bawah":""} style={{...iStyle,borderColor:"transparent",color:r.kind==="info"?"#f59e0b":isPinjamanRow?"#94a3b8":col,textAlign:"right",fontWeight:700,background:"transparent",cursor:lockField?"not-allowed":"text"}} readOnly={lockField}/>
 <button onClick={()=>delRow(r.id)} style={{background:"transparent",border:"none",color:"#ef4444",cursor:"pointer",fontSize:13,padding:0}} title="Hapus">✕</button>
 </div>;})}
 </div>)}
@@ -3706,29 +3673,16 @@ var selisihSlip=r.selisih!=null?r.selisih:totalTunaiSlip-(r.totalCashWajibSetor|
 var tglD=new Date((r.tanggal||toDay())+"T00:00:00");
 var hariLabel=["Minggu","Senin","Selasa","Rabu","Kamis","Jumat","Sabtu"][tglD.getDay()];
 var tglLabel=tglD.toLocaleDateString("id-ID",{day:"2-digit",month:"long",year:"numeric"});
-var logoSrc=data.company?.logo||null;
 return <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.8)",zIndex:1000,display:"flex",alignItems:"center",justifyContent:"center",padding:16,overflowY:"auto"}}>
 <div style={{background:"white",borderRadius:12,width:"100%",maxWidth:430,boxShadow:"0 20px 60px rgba(0,0,0,.5)",overflow:"hidden"}}>
 <div id="_slip_setoran_sales" style={{background:"white",padding:20,fontFamily:"Arial,sans-serif",color:"#111",borderRadius:12}}>
 {/* Header */}
 <div style={{background:"linear-gradient(135deg,#0a1f44 0%,#122d5e 100%)",padding:"14px 18px 12px",display:"flex",justifyContent:"space-between",alignItems:"center",margin:-20,marginBottom:0}}>
 <div style={{display:"flex",alignItems:"center",gap:10}}>
-{logoSrc?<img src={logoSrc} style={{height:44,objectFit:"contain"}} alt="Logo"/>:
-<div style={{display:"flex",alignItems:"center",gap:10}}>
-<div style={{display:"flex",gap:2,alignItems:"flex-end"}}>
-<div style={{width:7,height:22,background:"#e53935",borderRadius:2}}/>
-<div style={{width:7,height:16,background:"#1e88e5",borderRadius:2}}/>
-<div style={{width:7,height:22,background:"#6ab04c",borderRadius:2}}/>
-</div>
-<div>
-<div style={{fontSize:14,fontWeight:800,color:"white",letterSpacing:.3,lineHeight:1.1}}>{data.company?.nama||"PT. HOE TRANG SA"}</div>
-<div style={{fontSize:8,fontWeight:600,color:"#e53935",letterSpacing:1.5,textTransform:"uppercase",marginTop:2}}>{data.company?.slogan||"DEALER LPG PERTAMINA"}</div>
-</div>
-</div>}
+<CompanyLogo h={40} variant="dark"/>
 </div>
 <div style={{display:"flex",alignItems:"center",gap:5}}>
-<svg width={38} height={28} viewBox="0 0 60 42" fill="none"><polygon points="18,0 32,14 18,28 4,14" fill="#E53935"/><polygon points="14,28 28,14 14,0 0,14" fill="#1565C0" opacity="0.85"/><polygon points="22,28 36,14 22,0 8,14" fill="#6AB04C" opacity="0.9"/></svg>
-<span style={{fontSize:11,fontWeight:800,color:"white",letterSpacing:.4}}>PERTAMINA</span>
+<PertaminaLogo h={26} variant="dark"/>
 </div>
 </div>
 {/* 3-color divider */}
@@ -5272,8 +5226,7 @@ return <div>
 </div>
 </Card>
 <Card><div style={{fontWeight:700,color:C.gl2,marginBottom:12,fontSize:13}}>🖼️ Logo & Tanda Tangan Elektronik</div>
-<UploadSlot label="Logo PT. Hoe Trang Sa" value={f.logo} refEl={logoRef} onUpload={e=>handleUpload(e,"logo","Logo")} onClear={()=>clearUpload("logo","Logo")} desc="Tampil di semua dokumen. Kalau belum upload, nama perusahaan ditampilkan."/>
-<UploadSlot label="Logo Pertamina" value={f.logoPertamina} refEl={logoPRef} onUpload={e=>handleUpload(e,"logoPertamina","Logo Pertamina")} onClear={()=>clearUpload("logoPertamina","Logo Pertamina")} desc="Pojok kanan dokumen (opsional)"/>
+<div style={{background:C.nav,border:"1px solid "+C.bdr,borderRadius:8,padding:"10px 12px",marginBottom:14,fontSize:11,color:C.gl2}}>ℹ️ Logo PT. Hoe Trang Sa & Pertamina sudah terpasang tetap (tidak perlu upload), otomatis tampil di semua dokumen & device.</div>
 <UploadSlot label="TTD Kasir" value={f.ttdKasir} refEl={ttdKRef} onUpload={e=>handleUpload(e,"ttdKasir","TTD Kasir")} onClear={()=>clearUpload("ttdKasir","TTD Kasir")} desc="Tanda tangan di Invoice"/>
 <UploadSlot label="TTD Direktur" value={f.ttdDirektur} refEl={ttdDRef} onUpload={e=>handleUpload(e,"ttdDirektur","TTD Direktur")} onClear={()=>clearUpload("ttdDirektur","TTD Direktur")} desc="Tanda tangan di Kwitansi Slip Gaji"/>
 <UploadSlot label="Stempel LUNAS" value={f.stempelLunas} refEl={stempelRef} onUpload={e=>handleUpload(e,"stempelLunas","Stempel LUNAS")} onClear={()=>clearUpload("stempelLunas","Stempel LUNAS")} desc="Jika kosong, pakai teks LUNAS default"/>
@@ -5962,36 +5915,16 @@ var tglSetor=new Date(last.tanggal+"T00:00:00");
 var hariLabel=["Minggu","Senin","Selasa","Rabu","Kamis","Jumat","Sabtu"][tglSetor.getDay()];
 var tglLabel=tglSetor.toLocaleDateString("id-ID",{day:"2-digit",month:"long",year:"numeric"});
 var noRek=last.bank==="BSI"?"812 69 2121 8":"—";
-var logoSrc=data.company?.logo||null;
 return <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.7)",zIndex:999,display:"flex",alignItems:"center",justifyContent:"center",padding:16}}>
 <div style={{background:"white",borderRadius:12,width:"100%",maxWidth:420,boxShadow:"0 20px 60px rgba(0,0,0,.5)",overflow:"hidden"}}>
 <div id="_slip_setor" style={{background:"white",padding:20,fontFamily:"Arial,sans-serif",color:"#111",borderRadius:12}}>
 {/* Header — format invoice */}
 <div style={{background:"linear-gradient(135deg,#0a1f44 0%,#122d5e 100%)",padding:"14px 18px 12px",display:"flex",justifyContent:"space-between",alignItems:"center",margin:-20,marginBottom:0}}>
 <div style={{display:"flex",alignItems:"center",gap:10}}>
-{logoSrc?<img src={logoSrc} style={{height:44,objectFit:"contain"}} alt="Logo"/>:
-<div style={{display:"flex",alignItems:"center",gap:10}}>
-<div style={{display:"flex",gap:2,alignItems:"flex-end"}}>
-<div style={{width:7,height:22,background:"#e53935",borderRadius:2}}/>
-<div style={{width:7,height:16,background:"#1e88e5",borderRadius:2}}/>
-<div style={{width:7,height:22,background:"#6ab04c",borderRadius:2}}/>
-</div>
-<div>
-<div style={{fontSize:14,fontWeight:800,color:"white",letterSpacing:.3,lineHeight:1.1}}>{data.company?.nama||"PT. HOE TRANG SA"}</div>
-<div style={{fontSize:8,fontWeight:600,color:"#e53935",letterSpacing:1.5,textTransform:"uppercase",marginTop:2}}>{data.company?.slogan||"DEALER LPG PERTAMINA"}</div>
-</div>
-</div>}
+<CompanyLogo h={40} variant="dark"/>
 </div>
 <div style={{display:"flex",alignItems:"center",gap:5}}>
-{data.company?.logoPertamina?<img src={data.company.logoPertamina} style={{height:30,objectFit:"contain"}} alt="Pertamina"/>:
-<div style={{display:"flex",alignItems:"center",gap:5}}>
-<svg width={38} height={28} viewBox="0 0 60 42" fill="none">
-<polygon points="18,0 32,14 18,28 4,14" fill="#E53935"/>
-<polygon points="14,28 28,14 14,0 0,14" fill="#1565C0" opacity="0.85"/>
-<polygon points="22,28 36,14 22,0 8,14" fill="#6AB04C" opacity="0.9"/>
-</svg>
-<span style={{fontSize:11,fontWeight:800,color:"white",letterSpacing:.4}}>PERTAMINA</span>
-</div>}
+<PertaminaLogo h={26} variant="dark"/>
 </div>
 </div>
 {/* 3-color divider */}
@@ -6196,7 +6129,7 @@ return <ThemeCtx.Provider value={C}>
 <div style={{display:"flex",alignItems:"center",gap:10}}>
 <button onClick={()=>setSideOpen(!sideOpen)} style={{background:"none",border:"none",color:C.gl2,fontSize:22,cursor:"pointer",padding:"8px",borderRadius:6}}>☰</button>
 <div style={{display:"flex",alignItems:"center",gap:8}}>
-{data.company?.logo?<img src={data.company.logo} style={{height:34,objectFit:"contain"}} alt="logo"/>:<LPGLogo size={28}/>}
+{<CompanyLogo h={32} variant={C.mode==="dark"?"dark":"light"}/>}
 {!mobile&&<div><div style={{fontSize:14,fontWeight:900,color:C.blt,lineHeight:1}}>PT. HOE TRANG SA</div><div style={{fontSize:10,color:C.gl2}}>Distributor LPG Pertamina</div></div>}
 </div>
 </div>
