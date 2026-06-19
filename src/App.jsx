@@ -50,7 +50,7 @@ var DEF_EMP=[
 ];
 
 // ─── GOOGLE SHEETS SYNC ───────────────────────────────────────────────────────
-var GAS_URL="https://script.google.com/macros/s/AKfycbxSLJPfpPA_CTx9CMocRmUWKeNSH1md-_J1R4B09qlQDrsPhXql1mrWPbBVnx8u2sJ2/exec";
+var GAS_URL="https://script.google.com/macros/s/AKfycbypH6BaonwpselzUFZ3Q0QJHvRbTinzpgSR37aJpKZIjX_8XVvjPC2tK1CFi8Gst7RRwg/exec";
 var GAS_SECRET="HTS2026";
 var SYNC_TABLES=["penjualan","bon","pengeluaran","pelanggan","employees","stok","doList","doTrip","absensi","payrollLog","ambilan","titipList","setoranLog","tutupBuku","config","jualanLain","kasBankTF"];
 
@@ -386,18 +386,14 @@ function getBiayaOpsAuto(empId,bulan,data){return(data.pengeluaran||[]).filter(p
 function getTotalAmbilanKaryawan(empId,data){
 var emp=(data.employees||[]).find(e=>e.id===empId);
 var empNama=(emp?.nama||"").toLowerCase().trim();
-// Sumber 1: data.ambilan (kurang setor otomatis dari setoran sales) — match by id ATAU nama
-var s1=(data.ambilan||[]).filter(a=>{
-  if(a.karyawanId&&a.karyawanId===empId)return true;
-  if(empNama&&(a.karyawanNama||"").toLowerCase().trim()===empNama)return true;
-  return false;
-}).reduce((a,x)=>a+Number(x.nominal||0),0);
-// Sumber 2: data.pengeluaran kategori kasbon/ambilan — match by id ATAU nama
+// Sumber 1: data.ambilan (kurang setor otomatis dari setoran sales)
+var s1=(data.ambilan||[]).filter(a=>a.karyawanId===empId).reduce((a,x)=>a+Number(x.nominal||0),0);
+// Sumber 2: data.pengeluaran kategori kasbon/ambilan (dicatat manual)
 var s2=(data.pengeluaran||[]).filter(p=>{
   var k=(p.kategori||"").toLowerCase();
   if(!k.includes("kasbon")&&!k.includes("ambilan"))return false;
   if(p.karyawanId&&p.karyawanId===empId)return true;
-  if(empNama&&(p.karyawanNama||"").toLowerCase().trim()===empNama)return true;
+  if(!p.karyawanId&&empNama&&(p.karyawanNama||"").toLowerCase().trim()===empNama)return true;
   return false;
 }).reduce((a,p)=>a+Number(p.nominal||0),0);
 // Dikurangi: semua cicilan yang sudah dipotong via slip gaji
@@ -6123,33 +6119,6 @@ async function handlePull(){
 }
 var{toasts,toast}=useToast();var mobile=useMobile();
 useEffect(()=>{try{localStorage.setItem("lpg_mgmt_v4",JSON.stringify(data));}catch(e){console.warn("Storage full");}},[data]);
-// Auto-pull dari cloud sekali setiap kali aplikasi dibuka, supaya device baru/browser baru selalu dapat data terbaru
-useEffect(()=>{
-(async()=>{
-  setSyncMsg("☁️ Menyinkronkan data dari cloud...");
-  var pulled=await pullAll(setSyncStatus);
-  if(pulled){
-    setData(prev=>{
-      var merged={...prev};
-      Object.keys(pulled).forEach(k=>{
-        var cloudVal=pulled[k];
-        if(Array.isArray(cloudVal)){
-          merged[k]=cloudVal;// array kosong dari cloud tetap dipakai (artinya memang belum ada data)
-        }else if(cloudVal&&typeof cloudVal==="object"&&Object.keys(cloudVal).length>0){
-          merged[k]={...merged[k],...cloudVal};
-        }
-      });
-      if(pulled.employees&&pulled.employees.length===0)merged.employees=prev.employees;// jaga employees default jika cloud belum pernah diisi
-      return merged;
-    });
-    setSyncMsg("✅ Data tersinkron dari cloud");
-  }else{
-    setSyncMsg("⚠️ Gagal sinkron — pakai data lokal terakhir");
-  }
-  setTimeout(()=>setSyncMsg(""),3000);
-})();
-// eslint-disable-next-line react-hooks/exhaustive-deps
-},[]);
 var setDataP=useCallback(updater=>{setData(prev=>typeof updater==="function"?updater(prev):updater);},[]);
 var themeToggle=()=>setTheme(t=>t==="light"?"dark":"light");
 if(!user)return <ThemeCtx.Provider value={C}><LoginScreen employees={data.employees||DEF_EMP} onLogin={u=>{setUser(u);setTab("dashboard");}} themeToggle={themeToggle} theme={theme}/><Toast toasts={toasts}/>
