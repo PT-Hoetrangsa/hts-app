@@ -50,7 +50,7 @@ var DEF_EMP=[
 ];
 
 // ─── GOOGLE SHEETS SYNC ───────────────────────────────────────────────────────
-var GAS_URL="https://script.google.com/macros/s/AKfycbypH6BaonwpselzUFZ3Q0QJHvRbTinzpgSR37aJpKZIjX_8XVvjPC2tK1CFi8Gst7RRwg/exec";
+var GAS_URL="https://script.google.com/macros/s/AKfycbxSLJPfpPA_CTx9CMocRmUWKeNSH1md-_J1R4B09qlQDrsPhXql1mrWPbBVnx8u2sJ2/exec";
 var GAS_SECRET="HTS2026";
 var SYNC_TABLES=["penjualan","bon","pengeluaran","pelanggan","employees","stok","doList","doTrip","absensi","payrollLog","ambilan","titipList","setoranLog","tutupBuku","config","jualanLain","kasBankTF"];
 
