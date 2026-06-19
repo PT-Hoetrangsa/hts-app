@@ -386,14 +386,18 @@ function getBiayaOpsAuto(empId,bulan,data){return(data.pengeluaran||[]).filter(p
 function getTotalAmbilanKaryawan(empId,data){
 var emp=(data.employees||[]).find(e=>e.id===empId);
 var empNama=(emp?.nama||"").toLowerCase().trim();
-// Sumber 1: data.ambilan (kurang setor otomatis dari setoran sales)
-var s1=(data.ambilan||[]).filter(a=>a.karyawanId===empId).reduce((a,x)=>a+Number(x.nominal||0),0);
-// Sumber 2: data.pengeluaran kategori kasbon/ambilan (dicatat manual)
+// Sumber 1: data.ambilan (kurang setor otomatis dari setoran sales) — match by id ATAU nama
+var s1=(data.ambilan||[]).filter(a=>{
+  if(a.karyawanId&&a.karyawanId===empId)return true;
+  if(empNama&&(a.karyawanNama||"").toLowerCase().trim()===empNama)return true;
+  return false;
+}).reduce((a,x)=>a+Number(x.nominal||0),0);
+// Sumber 2: data.pengeluaran kategori kasbon/ambilan — match by id ATAU nama
 var s2=(data.pengeluaran||[]).filter(p=>{
   var k=(p.kategori||"").toLowerCase();
   if(!k.includes("kasbon")&&!k.includes("ambilan"))return false;
   if(p.karyawanId&&p.karyawanId===empId)return true;
-  if(!p.karyawanId&&empNama&&(p.karyawanNama||"").toLowerCase().trim()===empNama)return true;
+  if(empNama&&(p.karyawanNama||"").toLowerCase().trim()===empNama)return true;
   return false;
 }).reduce((a,p)=>a+Number(p.nominal||0),0);
 // Dikurangi: semua cicilan yang sudah dipotong via slip gaji
