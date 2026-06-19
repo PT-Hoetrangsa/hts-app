@@ -6123,6 +6123,33 @@ async function handlePull(){
 }
 var{toasts,toast}=useToast();var mobile=useMobile();
 useEffect(()=>{try{localStorage.setItem("lpg_mgmt_v4",JSON.stringify(data));}catch(e){console.warn("Storage full");}},[data]);
+// Auto-pull dari cloud sekali setiap kali aplikasi dibuka, supaya device baru/browser baru selalu dapat data terbaru
+useEffect(()=>{
+(async()=>{
+  setSyncMsg("☁️ Menyinkronkan data dari cloud...");
+  var pulled=await pullAll(setSyncStatus);
+  if(pulled){
+    setData(prev=>{
+      var merged={...prev};
+      Object.keys(pulled).forEach(k=>{
+        var cloudVal=pulled[k];
+        if(Array.isArray(cloudVal)){
+          merged[k]=cloudVal;// array kosong dari cloud tetap dipakai (artinya memang belum ada data)
+        }else if(cloudVal&&typeof cloudVal==="object"&&Object.keys(cloudVal).length>0){
+          merged[k]={...merged[k],...cloudVal};
+        }
+      });
+      if(pulled.employees&&pulled.employees.length===0)merged.employees=prev.employees;// jaga employees default jika cloud belum pernah diisi
+      return merged;
+    });
+    setSyncMsg("✅ Data tersinkron dari cloud");
+  }else{
+    setSyncMsg("⚠️ Gagal sinkron — pakai data lokal terakhir");
+  }
+  setTimeout(()=>setSyncMsg(""),3000);
+})();
+// eslint-disable-next-line react-hooks/exhaustive-deps
+},[]);
 var setDataP=useCallback(updater=>{setData(prev=>typeof updater==="function"?updater(prev):updater);},[]);
 var themeToggle=()=>setTheme(t=>t==="light"?"dark":"light");
 if(!user)return <ThemeCtx.Provider value={C}><LoginScreen employees={data.employees||DEF_EMP} onLogin={u=>{setUser(u);setTab("dashboard");}} themeToggle={themeToggle} theme={theme}/><Toast toasts={toasts}/>
