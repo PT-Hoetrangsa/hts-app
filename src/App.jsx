@@ -1071,7 +1071,7 @@ var mob=useMobile();
 return <div>
 <div style={{marginBottom:14}}><div style={{fontSize:20,fontWeight:900,color:C.wht}}>Halo, {user?.nama} 👋</div><div style={{fontSize:12,color:C.gl2,marginTop:2}}>{ROLE_LBL[user?.role]||""} — {fDs(td)}</div></div>
 {alerts.length>0&&<div style={{background:C.mode==="dark"?"#3D1A05":"#FFEDD5",border:"1px solid "+C.org,borderRadius:12,padding:"12px 16px",marginBottom:14}}><b style={{color:C.olt,fontSize:13}}>⚠️ {alerts.length} Bon Jatuh Tempo!</b>{alerts.map(b=>{var d=dLeft(b.deadline);return <div key={b.id} style={{fontSize:12,color:C.gltr,marginTop:4}}><b style={{color:C.wht}}>{b.konsumen}</b> — {fR(b.sisaTagihan)} — {d<=0?<Bdg color="red">LEWAT</Bdg>:<Bdg color="orange">{d}h lagi</Bdg>}</div>;})}</div>}
-<Card style={{width:"fit-content",maxWidth:"100%"}}>
+<Card style={{width:"fit-content",maxWidth:"100%",minWidth:660}}>
 <div style={{fontWeight:700,color:C.gl2,marginBottom:10,fontSize:13}}>📊 P&L Hari Ini — {fDs(td)}</div>
 <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(150px,180px))",gap:8}}>
 {[["Omzet",totalIn,C.wht,"📈"],["Laba Kotor",margin,C.blt,"💹"],["Pengeluaran",totalOut,C.rlt,"💸"],["Laba Bersih",labaBersih,labaBersih>=0?C.glt:C.rlt,"🏆"]].map(x=><div key={x[0]} style={{background:C.nav,borderRadius:8,padding:"9px 12px",border:"1px solid "+C.bdr}}><div style={{fontSize:10,color:C.gl2,marginBottom:2}}>{x[3]} {x[0]}</div><div style={{fontSize:14,fontWeight:900,color:x[2],whiteSpace:"nowrap"}}>{fR(x[1])}</div></div>)}
@@ -1685,7 +1685,7 @@ setData(d=>{
 setF(p=>({...p,qty:"",harga:"",ket:""}));
 toast("✓ Mutasi dicatat! "+jDesc);
 }
-return <div><Card style={{width:"fit-content",maxWidth:"100%"}}><div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(155px,210px))",gap:10}}><Inp label="Tanggal" type="date" value={f.tanggal} onChange={v=>setF(p=>({...p,tanggal:v}))}/><Sel label="Ukuran" value={f.ukuran} onChange={v=>setF(p=>({...p,ukuran:v}))} opts={SIZES}/><Sel label="Jenis" value={f.jenis} onChange={v=>setF(p=>({...p,jenis:v}))} opts={[{v:"return_isi",l:"↩️ Return (+Isi)"},{v:"beli_tbg",l:"🛒 Beli Tabung dr Konsumen (+Tbg)"},{v:"rusak",l:"💥 Rusak/Bocor (-Isi)"},{v:"tbg_kosong_hilang",l:"🕳️ Tbg Kosong Hilang (-Kosong)"},{v:"isi_hilang",l:"👻 Isi Hilang (-Isi)"},{v:"tbgisi_hilang",l:"💀 Tbg+Isi Hilang (-Isi,-Kosong)"}]}/><Inp label="Qty" type="number" value={f.qty} onChange={v=>setF(p=>({...p,qty:v}))}/>{needHarga&&<Inp label="Harga Modal/Unit" type="number" step="1000" value={f.harga} onChange={v=>setF(p=>({...p,harga:v}))} placeholder="HPP referensi"/>}<Inp label="Ket" value={f.ket} onChange={v=>setF(p=>({...p,ket:v}))}/></div>
+return <div><Card style={{width:"fit-content",maxWidth:"100%",minWidth:660}}><div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(155px,210px))",gap:10}}><Inp label="Tanggal" type="date" value={f.tanggal} onChange={v=>setF(p=>({...p,tanggal:v}))}/><Sel label="Ukuran" value={f.ukuran} onChange={v=>setF(p=>({...p,ukuran:v}))} opts={SIZES}/><Sel label="Jenis" value={f.jenis} onChange={v=>setF(p=>({...p,jenis:v}))} opts={[{v:"return_isi",l:"↩️ Return (+Isi)"},{v:"beli_tbg",l:"🛒 Beli Tabung dr Konsumen (+Tbg)"},{v:"rusak",l:"💥 Rusak/Bocor (-Isi)"},{v:"tbg_kosong_hilang",l:"🕳️ Tbg Kosong Hilang (-Kosong)"},{v:"isi_hilang",l:"👻 Isi Hilang (-Isi)"},{v:"tbgisi_hilang",l:"💀 Tbg+Isi Hilang (-Isi,-Kosong)"}]}/><Inp label="Qty" type="number" value={f.qty} onChange={v=>setF(p=>({...p,qty:v}))}/>{needHarga&&<Inp label="Harga Modal/Unit" type="number" step="1000" value={f.harga} onChange={v=>setF(p=>({...p,harga:v}))} placeholder="HPP referensi"/>}<Inp label="Ket" value={f.ket} onChange={v=>setF(p=>({...p,ket:v}))}/></div>
 {isKeluarIsi&&<div style={{fontSize:10,color:C.olt,marginBottom:8}}>ℹ️ Stok isi akan dikurangi mengikuti FIFO (batch tertua dulu); kerugian HPP otomatis tercatat di log.</div>}
 <Btn color="green" onClick={save} dis={!f.qty}>💾 Simpan Mutasi</Btn></Card><Card><div style={{fontWeight:700,color:C.gl2,marginBottom:10,fontSize:13}}>Log Mutasi</div><RTbl headers={["Tgl","Ukuran","Jenis","Qty","Ket","Aksi"]} rows={(data.stockLog||[]).slice(0,50).map(l=>[fDs(l.tanggal),l.ukuran,l.jenis,l.qty,l.ket||"-",<ActBtns onDel={()=>setDelId(l)}/>])}/></Card>{delId&&<ConfirmDel msg="Hapus log?" onCancel={()=>setDelId(null)} onConfirm={()=>{setData(d=>({...d,stockLog:(d.stockLog||[]).filter(x=>x.id!==delId.id)}));setDelId(null);}}/>}</div>;
 }
@@ -2238,7 +2238,7 @@ return <div ref={formRef}>
 </div>
 <button onClick={resetFormT} style={{background:"rgba(0,0,0,.25)",border:"1px solid #f59e0b",borderRadius:7,padding:"6px 12px",color:"#fef3c7",cursor:"pointer",fontWeight:700,fontSize:11,flexShrink:0}}>✕ Batal Edit</button>
 </div>}
-<Card style={{border:editTripId?"1px solid #f59e0b":undefined,width:"fit-content",maxWidth:"100%"}}>
+<Card style={{border:editTripId?"1px solid #f59e0b":undefined,width:"fit-content",maxWidth:"100%",minWidth:660}}>
 <div style={{fontWeight:700,color:C.gl2,marginBottom:10,fontSize:13}}>🚚 Input DO — 1 Trip, Multi Produk</div>
 <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(150px,210px))",gap:10}}>
 <Inp label="Tanggal" type="date" value={ft.tanggal} onChange={v=>setFt(p=>({...p,tanggal:v}))}/>
@@ -2947,7 +2947,7 @@ function saveHarga(plg){if(!hf.harga)return;var baseHK=Array.isArray(plg.hargaKh
 function delHarga(plg,ukuran,jenis){var newHK=(plg.hargaKhusus||[]).filter(x=>!(x.ukuran===ukuran&&x.jenis===jenis));setData(d=>({...d,pelanggan:(d.pelanggan||[]).map(p=>p.id!==plg.id?p:{...p,hargaKhusus:newHK})}));setHargaModal(prev=>prev?{...prev,hargaKhusus:newHK}:null);}
 return <div>
 <STitle icon="👥" children="Kelola Pelanggan"/>
-<Card style={{width:"fit-content",maxWidth:"100%"}}>
+<Card style={{width:"fit-content",maxWidth:"100%",minWidth:660}}>
 <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(155px,210px))",gap:10}}>
 <Inp label="Nama Pelanggan" value={f.nama} onChange={v=>setF(p=>({...p,nama:v}))} style={{gridColumn:mob?"1/-1":"auto"}}/>
 <div style={{marginBottom:10,gridColumn:mob?"1/-1":"auto"}}>
@@ -3054,7 +3054,7 @@ var cols=[
 ];
 return <div>
 <STitle icon="💸" children="Pengeluaran"/>
-<Card style={{width:"fit-content",maxWidth:"100%"}}>
+<Card style={{width:"fit-content",maxWidth:"100%",minWidth:660}}>
 <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(180px,220px))",gap:10,marginBottom:10}}>
 <Inp label="Tanggal" type="date" value={f.tanggal} onChange={v=>setF(p=>({...p,tanggal:v}))} style={{marginBottom:0}}/>
 <div>
@@ -3065,7 +3065,7 @@ return <div>
 <Sel label="Keperluan / Atas Nama" value={f.keperluan} onChange={v=>setF(p=>({...p,keperluan:v}))} opts={[{v:"perusahaan",l:"🏢 Perusahaan"},...karList.map(e=>({v:e.id,l:e.nama}))]} style={{marginBottom:0}}/>
 </div>
 <Inp label="Keterangan" value={f.ket} onChange={v=>setF(p=>({...p,ket:v}))} placeholder="Detail pengeluaran..." style={{marginBottom:10}}/>
-<div style={{display:"grid",gridTemplateColumns:"90px auto 180px auto 180px",gap:4,alignItems:"flex-end",marginBottom:isPancung?6:10,width:"fit-content",maxWidth:"100%"}}>
+<div style={{display:"grid",gridTemplateColumns:"90px auto 180px auto 180px",gap:4,alignItems:"flex-end",marginBottom:isPancung?6:10,width:"fit-content",maxWidth:"100%",minWidth:660}}>
 <Inp label={isPancung?"Qty Tabung":"Qty (opsional)"} type="number" value={f.qty||""} onChange={v=>{var n=Number(v)||0;var h=Number(f.hargaSatuan)||0;setF(p=>({...p,qty:v,nominal:n&&h?String(n*h):p.nominal}));}} placeholder="1" style={{marginBottom:0}}/>
 <div style={{textAlign:"center",color:C.gl2,fontSize:14,paddingBottom:10}}>×</div>
 <Inp label={isPancung?"Biaya Jasa/Tbg":"Harga Satuan"} type="number" step="1000" value={f.hargaSatuan||(isPancung?String(KAT_AUTO_HARGA[f.kategori]||""):"")} onChange={v=>{var h=Number(v)||0;var q=Number(f.qty)||0;setF(p=>({...p,hargaSatuan:v,nominal:q&&h?String(q*h):p.nominal}));}} placeholder="opsional" style={{marginBottom:0}}/>
@@ -3173,7 +3173,7 @@ return <div>
 <STitle icon="🛒" children="Jualan Lain (Non-LPG)"/>
 <div style={{fontSize:11,color:C.gl2,marginBottom:12,marginTop:-8}}>Gas kaleng, korek, selang, regulator, aksesoris, dll — tidak masuk hitungan stok LPG.</div>
 
-<Card style={{border:"1px solid "+(editId?C.olt:C.bdr),width:"fit-content",maxWidth:"100%"}}>
+<Card style={{border:"1px solid "+(editId?C.olt:C.bdr),width:"fit-content",maxWidth:"100%",minWidth:660}}>
 <div style={{fontWeight:700,color:editId?C.olt:C.gl2,marginBottom:10,fontSize:13}}>{editId?"✏️ Edit Jualan Lain":"➕ Tambah Jualan Lain"}</div>
 <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(180px,260px))",gap:10}}>
 <Inp label="Tanggal" type="date" value={tgl} onChange={setTgl}/>
@@ -3294,7 +3294,7 @@ return <div>
 <button onClick={resetForm} style={{background:"rgba(0,0,0,.25)",border:"1px solid #f59e0b",borderRadius:7,padding:"6px 12px",color:"#fef3c7",cursor:"pointer",fontWeight:700,fontSize:11}}>✕ Batal Edit</button>
 </div>}
 
-<Card style={{border:editId?"1px solid #f59e0b":undefined,width:"fit-content",maxWidth:"100%"}}>
+<Card style={{border:editId?"1px solid #f59e0b":undefined,width:"fit-content",maxWidth:"100%",minWidth:660}}>
 <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(170px,220px))",gap:10}}>
 <Inp label="No. Invoice" value={f.noInv} onChange={v=>setF(p=>({...p,noInv:v}))} placeholder="#HTS/INV/VI.26/001"/>
 <Inp label="Tanggal" type="date" value={f.tanggal} onChange={v=>setF(p=>({...p,tanggal:v}))}/>
@@ -3615,7 +3615,7 @@ return <div ref={formRef}>
 <button onClick={batalEdit} style={{background:"rgba(0,0,0,.25)",border:"1px solid #f59e0b",borderRadius:7,padding:"6px 12px",color:"#fef3c7",cursor:"pointer",fontWeight:700,fontSize:11,flexShrink:0}}>✕ Batal Edit</button>
 </div>}
 
-<Card style={{width:"fit-content",maxWidth:"100%"}}>
+<Card style={{width:"fit-content",maxWidth:"100%",minWidth:660}}>
 <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(180px,260px))",gap:10}}>
 <Sel label="Sales" value={salesId} onChange={v=>{if(!editingLogId)setSalesId(v);}} opts={[{v:"",l:"-- Pilih --"},...salesList.map(e=>({v:e.id,l:e.nama}))]}/>
 <Inp label="Tanggal" type="date" value={tgl} onChange={v=>{if(!editingLogId)setTgl(v);}} ro={!!editingLogId}/>
@@ -4249,7 +4249,7 @@ setData(d=>({...d,tutupBuku:[rec,...(d.tutupBuku||[])]}));
 toast("✓ Tutup buku bulanan tersimpan!");
 }
 
-function AssetSection(){return <Card style={{border:"1px solid "+C.olt,width:"fit-content",maxWidth:"100%"}}>
+function AssetSection(){return <Card style={{border:"1px solid "+C.olt,width:"fit-content",maxWidth:"100%",minWidth:660}}>
 <div style={{fontWeight:700,color:C.olt,marginBottom:12,fontSize:13}}>🏦 Komponen Asset</div>
 <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(150px,210px))",gap:10,marginBottom:10}}>
 <Inp label="Cash di Laci" type="number" value={cashLaci} onChange={setCashLaci}/>
@@ -4354,7 +4354,7 @@ return <Card style={{border:"2px solid "+C.glt}}>
 })()}
 
 {/* 2. INPUT CASH FISIK (di dalam CASH FLOW) */}
-<Card style={{border:"1px solid "+C.blt,width:"fit-content",maxWidth:"100%"}}>
+<Card style={{border:"1px solid "+C.blt,width:"fit-content",maxWidth:"100%",minWidth:660}}>
 <div style={{fontSize:11,fontWeight:700,color:C.gl2,marginBottom:6}}>📥 Input Cash Fisik:</div>
 <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(150px,210px))",gap:8,marginBottom:10}}>
 <Inp label="Cash di Laci (Rp)" type="number" value={cashLaci} onChange={setCashLaci}/>
@@ -4368,8 +4368,10 @@ return <Card style={{border:"2px solid "+C.glt}}>
 </div>
 </Card>
 
+<div style={{display:"flex",gap:14,flexWrap:"wrap",alignItems:"flex-start"}}>
+<div style={{flex:"0 1 420px",minWidth:380}}>
 {/* 3. P&L HARI INI */}
-<Card style={{border:"1px solid "+C.glt,width:"fit-content",maxWidth:"100%",minWidth:380}}>
+<Card style={{border:"1px solid "+C.glt,width:"100%"}}>
 <div style={{fontWeight:700,color:C.glt,marginBottom:12,fontSize:13}}>📊 P&L Hari Ini</div>
 <div style={{border:"1px solid "+C.bdr,borderRadius:8,overflow:"hidden",marginBottom:10}}>
 {[["Omzet",omzetH,C.wht,false],["HPP / Modal",hppH,C.gl2,false],["Laba Kotor",marginH,C.blt,true],["Pengeluaran Operasional",-totalOutH,C.rlt,false],["LABA BERSIH EFEKTIF (Operasional)",labaBersihEfektif,labaBersihEfektif>=0?C.glt:C.rlt,true],...(omzetJualLainH>0?[["Cash/TF Jualan Lain (info kas, non-laba)",omzetJualLainH,C.olt,false]]:[]),...(Number(pemasukanLain)>0?[["Pemasukan Lainnya (topup, non-laba)",Number(pemasukanLain),C.olt,false]]:[])].map((x,i)=><div key={i} style={{display:"flex",justifyContent:"space-between",gap:10,padding:x[3]?"10px 14px":"7px 14px",background:x[3]?C.nav:"transparent",borderBottom:"1px solid "+C.bdr}}><span style={{fontSize:x[3]?13:12,color:x[3]?C.wht:C.gl2,fontWeight:x[3]?700:400}}>{x[0]}</span><span style={{fontSize:x[3]?15:13,fontWeight:x[3]?900:600,color:x[2],whiteSpace:"nowrap"}}>{fR(x[1])}</span></div>)}
@@ -4379,9 +4381,10 @@ return <Card style={{border:"2px solid "+C.glt}}>
 {[["Cash",cashInH,C.glt],["Transfer",tfInH,C.blt],["BON",bonInH,C.olt]].map(x=><div key={x[0]} style={{background:C.nav,borderRadius:8,padding:"8px 10px",textAlign:"center",border:"1px solid "+C.bdr}}><div style={{fontSize:10,color:C.gl2}}>{x[0]}</div><div style={{fontSize:13,fontWeight:900,color:x[2]}}>{fR(x[1])}</div></div>)}
 </div>
 </Card>
-
+</div>
+<div style={{flex:"0 1 380px",minWidth:340}}>
 {/* 4. CASH FLOW / OMSET */}
-<Card style={{border:"1px solid "+C.blt,width:"fit-content",maxWidth:"100%",minWidth:340}}>
+<Card style={{border:"1px solid "+C.blt,width:"100%"}}>
 <div style={{fontWeight:700,color:C.blt,marginBottom:12,fontSize:13}}>💰 CASH FLOW / OMSET — {fDs(tgl)}</div>
 <div style={{border:"1px solid "+C.bdr,borderRadius:8,overflow:"hidden",marginBottom:10}}>
 {[
@@ -4403,6 +4406,8 @@ return <Card style={{border:"2px solid "+C.glt}}>
 </div>)}
 </div>
 </Card>
+</div>
+</div>
 
 <div style={{display:"flex",gap:14,flexWrap:"wrap",alignItems:"flex-start"}}>
 <div style={{flex:"1 1 360px",minWidth:300}}>
@@ -4535,7 +4540,7 @@ return <div style={{overflowX:"auto"}}>
 </Card>
 {top5.some(x=>x.omzet>0)&&<Card><div style={{fontWeight:700,color:C.gl2,marginBottom:8,fontSize:13}}>🏆 Top 5 Hari (Omzet)</div><RTbl headers={["Hari","Omzet","Laba Bersih"]} rows={top5.map(x=>[bln+"-"+x.hari,<b style={{color:C.blt}}>{fR(x.omzet)}</b>,<b style={{color:x.labaBersih>=0?C.glt:C.rlt}}>{fR(x.labaBersih)}</b>])}/></Card>}
 {katPenArr.length>0&&<Card><div style={{fontWeight:700,color:C.gl2,marginBottom:8,fontSize:13}}>💸 Pengeluaran per Kategori</div><RTbl headers={["Kategori","Total","% dari Pengeluaran"]} rows={katPenArr.map(([k,v])=>[k,<b style={{color:C.rlt}}>{fR(v)}</b>,(totalOutB>0?(v/totalOutB*100).toFixed(1):0)+"%"])}/></Card>}
-<Card style={{width:"fit-content",maxWidth:"100%"}}>
+<Card style={{width:"fit-content",maxWidth:"100%",minWidth:660}}>
 <div style={{fontWeight:700,color:C.gl2,marginBottom:10,fontSize:13}}>💰 Input Cash untuk Simpan Bulanan</div>
 <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(150px,210px))",gap:8,marginBottom:10}}>
 <Inp label="Cash di Laci (Rp)" type="number" value={cashLaci} onChange={setCashLaci}/>
@@ -5371,7 +5376,7 @@ var posOpts=["Owner/Komisaris","Manajer","Admin","Kasir/Akuntan","Sales Driver",
 function save(){if(!f.nama||!f.username)return;if(edit){setData(d=>({...d,employees:(d.employees||[]).map(e=>e.id===edit.id?{...e,...f,gajiPokok:Number(f.gajiPokok||0),uangMakan:Number(f.uangMakan||15000)}:e)}));setEdit(null);}else setData(d=>({...d,employees:[{id:uid(),...f,gajiPokok:Number(f.gajiPokok||0),uangMakan:Number(f.uangMakan||15000)},...(d.employees||[])]}));setF({...blk});toast("✓ Karyawan disimpan!");}
 return <div>
 <STitle icon="👤" children="Karyawan & Akun"/>
-<Card style={{width:"fit-content",maxWidth:"100%"}}><div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(155px,210px))",gap:10}}><Inp label="Nama" value={f.nama} onChange={v=>setF(p=>({...p,nama:v}))}/><Sel label="Posisi" value={f.posisi} onChange={v=>setF(p=>({...p,posisi:v}))} opts={posOpts}/><Sel label="Role" value={f.role} onChange={v=>setF(p=>({...p,role:v}))} opts={Object.keys(ROLE_LBL).map(k=>({v:k,l:ROLE_LBL[k]}))}/><Inp label="Username" value={f.username} onChange={v=>setF(p=>({...p,username:v}))}/><Inp label="Password" type="password" value={f.password} onChange={v=>setF(p=>({...p,password:v}))}/><Inp label="Telepon" value={f.telepon} onChange={v=>setF(p=>({...p,telepon:v}))}/><Inp label="Alamat" value={f.alamat} onChange={v=>setF(p=>({...p,alamat:v}))}/><Inp label="Gaji Pokok" type="number" value={f.gajiPokok} onChange={v=>setF(p=>({...p,gajiPokok:v}))}/><Inp label="Uang Makan/Hari" type="number" value={f.uangMakan} onChange={v=>setF(p=>({...p,uangMakan:v}))}/><Sel label="Mode Uang Makan" value={f.uangMakanMode} onChange={v=>setF(p=>({...p,uangMakanMode:v}))} opts={[{v:"harian",l:"💰 Harian"},{v:"akhir_bulan",l:"📅 Akhir Bulan"}]}/></div><Btn color="green" onClick={save} dis={!f.nama||!f.username}>➕ Tambah Karyawan</Btn></Card>
+<Card style={{width:"fit-content",maxWidth:"100%",minWidth:660}}><div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(155px,210px))",gap:10}}><Inp label="Nama" value={f.nama} onChange={v=>setF(p=>({...p,nama:v}))}/><Sel label="Posisi" value={f.posisi} onChange={v=>setF(p=>({...p,posisi:v}))} opts={posOpts}/><Sel label="Role" value={f.role} onChange={v=>setF(p=>({...p,role:v}))} opts={Object.keys(ROLE_LBL).map(k=>({v:k,l:ROLE_LBL[k]}))}/><Inp label="Username" value={f.username} onChange={v=>setF(p=>({...p,username:v}))}/><Inp label="Password" type="password" value={f.password} onChange={v=>setF(p=>({...p,password:v}))}/><Inp label="Telepon" value={f.telepon} onChange={v=>setF(p=>({...p,telepon:v}))}/><Inp label="Alamat" value={f.alamat} onChange={v=>setF(p=>({...p,alamat:v}))}/><Inp label="Gaji Pokok" type="number" value={f.gajiPokok} onChange={v=>setF(p=>({...p,gajiPokok:v}))}/><Inp label="Uang Makan/Hari" type="number" value={f.uangMakan} onChange={v=>setF(p=>({...p,uangMakan:v}))}/><Sel label="Mode Uang Makan" value={f.uangMakanMode} onChange={v=>setF(p=>({...p,uangMakanMode:v}))} opts={[{v:"harian",l:"💰 Harian"},{v:"akhir_bulan",l:"📅 Akhir Bulan"}]}/></div><Btn color="green" onClick={save} dis={!f.nama||!f.username}>➕ Tambah Karyawan</Btn></Card>
 <Card><RTbl headers={["Nama","Posisi","Role","Status","Absensi","Aksi"]} widths={[190,150,130,100,90,180]} rows={(data.employees||[]).map(e=>[<div><b style={{color:C.wht}}>{e.nama}</b><div style={{fontSize:11,color:C.gl2}}>{e.telepon}</div></div>,e.posisi,<Bdg color={["admin","owner"].includes(e.role)?"red":"blue"}>{ROLE_LBL[e.role]||e.role}</Bdg>,e.aktif?<Bdg color="green">Aktif</Bdg>:<Bdg color="gray">Non-aktif</Bdg>,<div style={{display:"flex",gap:5}}><button onClick={()=>setData(d=>({...d,employees:(d.employees||[]).map(x=>x.id===e.id?{...x,aktif:!x.aktif}:x)}))} style={{background:C.nav,border:"1px solid "+C.bdr,borderRadius:7,padding:"5px 9px",color:C.gl2,cursor:"pointer",fontSize:12}}>{e.aktif?"🔒":"🔓"}</button><button onClick={()=>setData(d=>({...d,employees:(d.employees||[]).map(x=>x.id===e.id?{...x,ikutAbsensi:!x.ikutAbsensi}:x)}))} title="Toggle Absensi" style={{background:e.ikutAbsensi?C.grn:C.nav,border:"1px solid "+(e.ikutAbsensi?C.glt:C.bdr),borderRadius:7,padding:"5px 9px",color:e.ikutAbsensi?C.glt:C.gl2,cursor:"pointer",fontSize:11,fontWeight:700}}>{e.ikutAbsensi?"📅":"—"}</button>
 <ActBtns onEdit={()=>{setEdit(e);setF({...e,gajiPokok:String(e.gajiPokok||""),uangMakan:String(e.uangMakan||15000)});}} onDel={()=>setDelId(e)}/></div>])}/></Card>
 
@@ -5619,7 +5624,7 @@ return <div>
 </div>
 <Btn color="blue" onClick={saveCompany}>💾 Simpan</Btn>
 </Card>
-<Card style={{width:"fit-content",maxWidth:"100%"}}><div style={{fontWeight:700,color:C.gl2,marginBottom:12,fontSize:13}}>🏭 Kode Pertamina</div>
+<Card style={{width:"fit-content",maxWidth:"100%",minWidth:660}}><div style={{fontWeight:700,color:C.gl2,marginBottom:12,fontSize:13}}>🏭 Kode Pertamina</div>
 <div style={{fontSize:11,color:C.gl2,marginBottom:10,fontStyle:"italic"}}>🔒 Kode penebusan (permanen — tidak berubah)</div>
 <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(150px,210px))",gap:10,marginBottom:12}}>
 {[["soldTo","Sold To"],["shipToKCR","Ship To KCR"],["shipToMGL","Ship To MGL"]].map(([k,l])=><Inp key={k} label={l} value={f[k]||""} onChange={v=>setF(p=>({...p,[k]:v}))}/>)}
