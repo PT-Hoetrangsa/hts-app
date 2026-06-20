@@ -587,7 +587,7 @@ function STitle({icon,children}){var C=useTheme();return <div style={{display:"f
 function Inp({label,type="text",value,onChange,placeholder="",ro=false,style={}}){var C=useTheme();var IS={width:"100%",border:"1px solid "+C.bdr,borderRadius:8,padding:"9px 11px",color:C.wht,fontSize:13,outline:"none",boxSizing:"border-box"};return <div style={{marginBottom:10,...style}}>{label&&<label style={{display:"block",fontSize:11,color:C.gl2,marginBottom:3,fontWeight:600}}>{label}</label>}<input type={type} value={value!=null?value:""} readOnly={ro} placeholder={placeholder} onChange={e=>onChange&&onChange(e.target.value)} style={{...IS,background:ro?C.bg:C.nav}}/></div>;}
 function Sel({label,value,onChange,opts=[],style={}}){var C=useTheme();var IS={width:"100%",border:"1px solid "+C.bdr,borderRadius:8,padding:"9px 11px",color:C.wht,fontSize:13,outline:"none",boxSizing:"border-box"};return <div style={{marginBottom:10,...style}}>{label&&<label style={{display:"block",fontSize:11,color:C.gl2,marginBottom:3,fontWeight:600}}>{label}</label>}<select value={value!=null?value:""} onChange={e=>onChange(e.target.value)} style={{...IS,background:C.nav}}>{opts.map(o=>{var v=o!=null&&o.v!=null?o.v:o;var l=o!=null&&o.l!=null?o.l:o;return <option key={String(v)} value={String(v)}>{String(l)}</option>;})}</select></div>;}
 function Btn({children,color="blue",sm=false,dis=false,style={},onClick}){var C=useTheme();var bgs={blue:[C.blu,C.blt],red:[C.rdk,C.red],green:[C.grn,C.glt],orange:[C.mode==="dark"?"#854000":"#C2410C",C.org],gray:[C.gry,C.gl2]};var[hov,setHov]=useState(false);var pair=bgs[color]||bgs.blue;return <button onClick={onClick} disabled={dis} onMouseEnter={()=>setHov(true)} onMouseLeave={()=>setHov(false)} style={{background:dis?C.gry:hov?pair[1]:pair[0],color:"#FFF",border:"none",borderRadius:8,padding:sm?"6px 10px":"9px 16px",fontSize:sm?11:13,fontWeight:700,cursor:dis?"not-allowed":"pointer",transition:"all .15s",...style}}>{children}</button>;}
-function Tbl({headers=[],rows=[],empty="Belum ada data",widths}){var C=useTheme();var fixed=!!widths;var allSized=fixed&&widths.every(w=>w);return <div style={{overflowX:"auto"}}><table style={{width:allSized?"auto":"100%",minWidth:allSized?widths.reduce((a,w)=>a+(Number(w)||120),0)+"px":undefined,maxWidth:"100%",borderCollapse:"collapse",fontSize:13.5,tableLayout:fixed?"fixed":"auto"}}>{fixed&&<colgroup>{headers.map((h,i)=><col key={i} style={{width:(widths[i]||200)+"px"}}/>)}</colgroup>}<thead><tr>{headers.map((h,i)=><th key={i} style={{padding:"9px 11px",background:C.nav,color:C.gl2,fontWeight:700,textAlign:"left",fontSize:11.5,borderBottom:"2px solid "+C.bdr,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{h}</th>)}</tr></thead><tbody>{!rows.length?<tr><td colSpan={headers.length} style={{padding:20,textAlign:"center",color:C.gl2}}>{empty}</td></tr>:rows.map((r,i)=><tr key={i} style={{borderBottom:"1px solid "+C.bdr}}>{r.map((c,j)=><td key={j} style={{padding:"8px 11px",color:C.wht,verticalAlign:"middle",overflow:"hidden"}}>{c}</td>)}</tr>)}</tbody></table></div>;}
+function Tbl({headers=[],rows=[],empty="Belum ada data",widths}){var C=useTheme();var fixed=!!widths;var allSized=fixed&&widths.every(w=>w);return <div style={{overflowX:"auto"}}><table style={{width:allSized?"auto":"100%",minWidth:allSized?widths.reduce((a,w)=>a+(Number(w)||120),0)+"px":undefined,maxWidth:"100%",margin:allSized?"0 auto":undefined,borderCollapse:"collapse",fontSize:13.5,tableLayout:fixed?"fixed":"auto"}}>{fixed&&<colgroup>{headers.map((h,i)=><col key={i} style={{width:(widths[i]||200)+"px"}}/>)}</colgroup>}<thead><tr>{headers.map((h,i)=><th key={i} style={{padding:"9px 11px",background:C.nav,color:C.gl2,fontWeight:700,textAlign:"left",fontSize:11.5,borderBottom:"2px solid "+C.bdr,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{h}</th>)}</tr></thead><tbody>{!rows.length?<tr><td colSpan={headers.length} style={{padding:20,textAlign:"center",color:C.gl2}}>{empty}</td></tr>:rows.map((r,i)=><tr key={i} style={{borderBottom:"1px solid "+C.bdr}}>{r.map((c,j)=><td key={j} style={{padding:"8px 11px",color:C.wht,verticalAlign:"middle",overflow:"hidden"}}>{c}</td>)}</tr>)}</tbody></table></div>;}
 function MCards({headers,rows,empty="Belum ada data"}){var C=useTheme();if(!rows.length)return <div style={{padding:20,textAlign:"center",color:C.gl2}}>{empty}</div>;return <div>{rows.map((r,i)=><div key={i} style={{background:C.nav,borderRadius:10,padding:12,marginBottom:8,border:"1px solid "+C.bdr}}>{headers.map((h,j)=><div key={j} style={{display:"flex",justifyContent:"space-between",padding:"4px 0",borderBottom:j<headers.length-1?"1px solid "+C.bdr:"none"}}><span style={{fontSize:12,color:C.gl2,marginRight:8}}>{h}</span><span style={{fontSize:13,color:C.wht,textAlign:"right"}}>{r[j]}</span></div>)}</div>)}</div>;}
 function RTbl({headers,rows,empty,widths}){var m=useMobile();return m?<MCards headers={headers} rows={rows} empty={empty}/>:<Tbl headers={headers} rows={rows} empty={empty} widths={widths}/>;}
 function SC({label,value,icon,color,sub}){var C=useTheme();return <div style={{background:C.card,borderRadius:12,padding:"12px 14px",border:"1px solid "+C.bdr,flex:1,minWidth:110,boxShadow:C.mode==="light"?"0 1px 3px rgba(0,0,0,0.04)":"none"}}><div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}><div><div style={{fontSize:10,color:C.gl2,fontWeight:600,marginBottom:2}}>{label}</div><div style={{fontSize:15,fontWeight:900,color:color||C.blt,lineHeight:1.1}}>{value}</div>{sub&&<div style={{fontSize:10,color:C.gl2,marginTop:2}}>{sub}</div>}</div><span style={{fontSize:18,opacity:.7}}>{icon}</span></div></div>;}
@@ -629,7 +629,7 @@ function setFilter(k,v){setHdrFilters(p=>({...p,[k]:v}));}
 if(mob&&renderMobileCard){return <div>{display.map((r,i)=><div key={i}>{renderMobileCard(r,i)}</div>)}{!display.length&&<div style={{padding:20,textAlign:"center",color:C.gl2}}>{empty}</div>}</div>;}
 return <div>
 <div style={{overflowX:"auto"}}>
-<table style={{width:columns.every(c=>c.width)?"auto":"100%",minWidth:columns.every(c=>c.width)?columns.reduce((a,c)=>a+(Number(c.width)||120),0)+"px":undefined,maxWidth:"100%",borderCollapse:"collapse",fontSize:13.5,tableLayout:"fixed"}}>
+<table style={{width:columns.every(c=>c.width)?"auto":"100%",minWidth:columns.every(c=>c.width)?columns.reduce((a,c)=>a+(Number(c.width)||120),0)+"px":undefined,maxWidth:"100%",margin:columns.every(c=>c.width)?"0 auto":undefined,borderCollapse:"collapse",fontSize:13.5,tableLayout:"fixed"}}>
 <colgroup>{columns.map(c=><col key={c.key} style={{width:c.width?(typeof c.width==="number"?c.width+"px":c.width):"200px"}}/>)}</colgroup>
 <thead>
 <tr>{columns.map(c=><th key={c.key} onClick={()=>toggleSort(c.key)} style={{padding:"9px 11px",background:C.nav,color:C.gl2,fontWeight:700,textAlign:"left",fontSize:11.5,borderBottom:"2px solid "+C.bdr,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",cursor:c.sortable!==false?"pointer":"default",userSelect:"none"}}>{c.label}{c.sortable!==false&&<span style={{marginLeft:4,color:sort.key===c.key?C.blt:C.gry,fontSize:9}}>{sort.key===c.key?(sort.dir==="asc"?"▲":"▼"):"⇅"}</span>}</th>)}</tr>
@@ -1233,7 +1233,7 @@ var cols=[
 return <div>
 <STitle icon="🧾" children="Input Penjualan"/>
 <Card>
-<div style={{display:"grid",gridTemplateColumns:mob?"1fr 1fr":"repeat(auto-fill,minmax(155px,1fr))",gap:10}}>
+<div style={{display:"grid",gridTemplateColumns:mob?"1fr 1fr":"repeat(auto-fill,minmax(155px,210px))",gap:10}}>
 <Inp label="Tanggal" type="date" value={f.tanggal} onChange={v=>setF(p=>({...p,tanggal:v}))}/>
 <Sel label="Penjual" value={f.salesId} onChange={v=>setF(p=>({...p,salesId:v}))} opts={[{v:"",l:"-- Pilih --"},...salesEmp.map(e=>({v:e.id,l:e.nama+" ("+e.posisi+")"}))]} style={{gridColumn:mob?"1/-1":"auto"}}/>
 <div style={{gridColumn:mob?"1/-1":"auto"}}><AutoInp label="Nama Konsumen" value={f.konsumen} onChange={v=>setF(p=>({...p,konsumen:v}))} options={kNames} placeholder="Ketik nama..." onSelect={onKons}/></div>
@@ -1328,7 +1328,7 @@ return <>
 </div>
 {penjLap.length===0?<div style={{color:"#94A3B8",fontSize:12,padding:"10px 0",fontStyle:"italic"}}>Tidak ada penjualan pada tanggal ini.</div>:
 <div style={{background:"white",borderRadius:8,border:"1px solid #E2E8F0",color:"#111",fontFamily:"Arial,sans-serif",overflowX:"auto"}}>
-<table style={{width:"auto",minWidth:"895px",maxWidth:"100%",borderCollapse:"collapse",fontSize:13,tableLayout:"fixed"}}>
+<table style={{width:"auto",minWidth:"895px",maxWidth:"100%",margin:"0 auto",borderCollapse:"collapse",fontSize:13,tableLayout:"fixed"}}>
 <colgroup>
 <col style={{width:"130px"}}/><col style={{width:"150px"}}/>
 <col style={{width:"55px"}}/><col style={{width:"90px"}}/>
@@ -1685,7 +1685,7 @@ setData(d=>{
 setF(p=>({...p,qty:"",harga:"",ket:""}));
 toast("✓ Mutasi dicatat! "+jDesc);
 }
-return <div><Card><div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(155px,1fr))",gap:10}}><Inp label="Tanggal" type="date" value={f.tanggal} onChange={v=>setF(p=>({...p,tanggal:v}))}/><Sel label="Ukuran" value={f.ukuran} onChange={v=>setF(p=>({...p,ukuran:v}))} opts={SIZES}/><Sel label="Jenis" value={f.jenis} onChange={v=>setF(p=>({...p,jenis:v}))} opts={[{v:"return_isi",l:"↩️ Return (+Isi)"},{v:"beli_tbg",l:"🛒 Beli Tabung dr Konsumen (+Tbg)"},{v:"rusak",l:"💥 Rusak/Bocor (-Isi)"},{v:"tbg_kosong_hilang",l:"🕳️ Tbg Kosong Hilang (-Kosong)"},{v:"isi_hilang",l:"👻 Isi Hilang (-Isi)"},{v:"tbgisi_hilang",l:"💀 Tbg+Isi Hilang (-Isi,-Kosong)"}]}/><Inp label="Qty" type="number" value={f.qty} onChange={v=>setF(p=>({...p,qty:v}))}/>{needHarga&&<Inp label="Harga Modal/Unit" type="number" step="1000" value={f.harga} onChange={v=>setF(p=>({...p,harga:v}))} placeholder="HPP referensi"/>}<Inp label="Ket" value={f.ket} onChange={v=>setF(p=>({...p,ket:v}))}/></div>
+return <div><Card><div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(155px,210px))",gap:10}}><Inp label="Tanggal" type="date" value={f.tanggal} onChange={v=>setF(p=>({...p,tanggal:v}))}/><Sel label="Ukuran" value={f.ukuran} onChange={v=>setF(p=>({...p,ukuran:v}))} opts={SIZES}/><Sel label="Jenis" value={f.jenis} onChange={v=>setF(p=>({...p,jenis:v}))} opts={[{v:"return_isi",l:"↩️ Return (+Isi)"},{v:"beli_tbg",l:"🛒 Beli Tabung dr Konsumen (+Tbg)"},{v:"rusak",l:"💥 Rusak/Bocor (-Isi)"},{v:"tbg_kosong_hilang",l:"🕳️ Tbg Kosong Hilang (-Kosong)"},{v:"isi_hilang",l:"👻 Isi Hilang (-Isi)"},{v:"tbgisi_hilang",l:"💀 Tbg+Isi Hilang (-Isi,-Kosong)"}]}/><Inp label="Qty" type="number" value={f.qty} onChange={v=>setF(p=>({...p,qty:v}))}/>{needHarga&&<Inp label="Harga Modal/Unit" type="number" step="1000" value={f.harga} onChange={v=>setF(p=>({...p,harga:v}))} placeholder="HPP referensi"/>}<Inp label="Ket" value={f.ket} onChange={v=>setF(p=>({...p,ket:v}))}/></div>
 {isKeluarIsi&&<div style={{fontSize:10,color:C.olt,marginBottom:8}}>ℹ️ Stok isi akan dikurangi mengikuti FIFO (batch tertua dulu); kerugian HPP otomatis tercatat di log.</div>}
 <Btn color="green" onClick={save} dis={!f.qty}>💾 Simpan Mutasi</Btn></Card><Card><div style={{fontWeight:700,color:C.gl2,marginBottom:10,fontSize:13}}>Log Mutasi</div><RTbl headers={["Tgl","Ukuran","Jenis","Qty","Ket","Aksi"]} rows={(data.stockLog||[]).slice(0,50).map(l=>[fDs(l.tanggal),l.ukuran,l.jenis,l.qty,l.ket||"-",<ActBtns onDel={()=>setDelId(l)}/>])}/></Card>{delId&&<ConfirmDel msg="Hapus log?" onCancel={()=>setDelId(null)} onConfirm={()=>{setData(d=>({...d,stockLog:(d.stockLog||[]).filter(x=>x.id!==delId.id)}));setDelId(null);}}/>}</div>;
 }
@@ -2240,7 +2240,7 @@ return <div ref={formRef}>
 </div>}
 <Card style={{border:editTripId?"1px solid #f59e0b":undefined}}>
 <div style={{fontWeight:700,color:C.gl2,marginBottom:10,fontSize:13}}>🚚 Input DO — 1 Trip, Multi Produk</div>
-<div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(150px,1fr))",gap:10}}>
+<div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(150px,210px))",gap:10}}>
 <Inp label="Tanggal" type="date" value={ft.tanggal} onChange={v=>setFt(p=>({...p,tanggal:v}))}/>
 <div style={{marginBottom:10}}>
 <label style={{display:"block",fontSize:11,color:C.gl2,marginBottom:3,fontWeight:600}}>Trip</label>
@@ -2290,7 +2290,7 @@ return <div ref={formRef}>
 <button onClick={exportExcelDO} disabled={!rowsBulanIni.length} style={{background:rowsBulanIni.length?"#15803D":C.gry,color:"white",border:"none",padding:"8px 14px",borderRadius:8,fontSize:12,cursor:rowsBulanIni.length?"pointer":"not-allowed",fontWeight:700,whiteSpace:"nowrap"}}>📥 Export Excel</button>
 </div>
 </div>
-<table style={{width:"auto",minWidth:"1032px",maxWidth:"100%",borderCollapse:"collapse",fontSize:12.5,tableLayout:"fixed"}}>
+<table style={{width:"auto",minWidth:"1032px",maxWidth:"100%",margin:"0 auto",borderCollapse:"collapse",fontSize:12.5,tableLayout:"fixed"}}>
 <colgroup>
 <col style={{width:"82px"}}/><col style={{width:"75px"}}/><col style={{width:"115px"}}/><col style={{width:"85px"}}/>
 <col style={{width:"55px"}}/><col style={{width:"85px"}}/><col style={{width:"55px"}}/><col style={{width:"85px"}}/><col style={{width:"55px"}}/><col style={{width:"85px"}}/>
@@ -2948,7 +2948,7 @@ function delHarga(plg,ukuran,jenis){var newHK=(plg.hargaKhusus||[]).filter(x=>!(
 return <div>
 <STitle icon="👥" children="Kelola Pelanggan"/>
 <Card>
-<div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(155px,1fr))",gap:10}}>
+<div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(155px,210px))",gap:10}}>
 <Inp label="Nama Pelanggan" value={f.nama} onChange={v=>setF(p=>({...p,nama:v}))} style={{gridColumn:mob?"1/-1":"auto"}}/>
 <div style={{marginBottom:10,gridColumn:mob?"1/-1":"auto"}}>
 <label style={{display:"block",fontSize:11,color:C.gl2,marginBottom:3,fontWeight:600}}>Kategori</label>
@@ -4251,7 +4251,7 @@ toast("✓ Tutup buku bulanan tersimpan!");
 
 function AssetSection(){return <Card style={{border:"1px solid "+C.olt}}>
 <div style={{fontWeight:700,color:C.olt,marginBottom:12,fontSize:13}}>🏦 Komponen Asset</div>
-<div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(150px,1fr))",gap:10,marginBottom:10}}>
+<div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(150px,210px))",gap:10,marginBottom:10}}>
 <Inp label="Cash di Laci" type="number" value={cashLaci} onChange={setCashLaci}/>
 <Inp label="Rekening BSI" type="number" value={rekBSI} onChange={setRekBSI}/>
 <Inp label="Rekening BCA" type="number" value={rekBCA} onChange={setRekBCA}/>
@@ -4356,7 +4356,7 @@ return <Card style={{border:"2px solid "+C.glt}}>
 {/* 2. INPUT CASH FISIK (di dalam CASH FLOW) */}
 <Card style={{border:"1px solid "+C.blt}}>
 <div style={{fontSize:11,fontWeight:700,color:C.gl2,marginBottom:6}}>📥 Input Cash Fisik:</div>
-<div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(150px,1fr))",gap:8,marginBottom:10}}>
+<div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(150px,210px))",gap:8,marginBottom:10}}>
 <Inp label="Cash di Laci (Rp)" type="number" value={cashLaci} onChange={setCashLaci}/>
 <Inp label="Saldo Bank BSI (Rp)" type="number" value={rekBSI} onChange={setRekBSI}/>
 <Inp label="Saldo Bank BCA (Rp)" type="number" value={rekBCA} onChange={setRekBCA}/>
@@ -4532,7 +4532,7 @@ return <div style={{overflowX:"auto"}}>
 {katPenArr.length>0&&<Card><div style={{fontWeight:700,color:C.gl2,marginBottom:8,fontSize:13}}>💸 Pengeluaran per Kategori</div><RTbl headers={["Kategori","Total","% dari Pengeluaran"]} rows={katPenArr.map(([k,v])=>[k,<b style={{color:C.rlt}}>{fR(v)}</b>,(totalOutB>0?(v/totalOutB*100).toFixed(1):0)+"%"])}/></Card>}
 <Card>
 <div style={{fontWeight:700,color:C.gl2,marginBottom:10,fontSize:13}}>💰 Input Cash untuk Simpan Bulanan</div>
-<div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(150px,1fr))",gap:8,marginBottom:10}}>
+<div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(150px,210px))",gap:8,marginBottom:10}}>
 <Inp label="Cash di Laci (Rp)" type="number" value={cashLaci} onChange={setCashLaci}/>
 <Inp label="Saldo Bank BSI (Rp)" type="number" value={rekBSI} onChange={setRekBSI}/>
 <Inp label="Saldo Bank BCA (Rp)" type="number" value={rekBCA} onChange={setRekBCA}/>
@@ -5112,7 +5112,7 @@ return <tr style={{background:"#0a1f44",color:"white",fontWeight:700}}>
 </div>}
 {tab==="pengeluaran"&&<div>
 {/* Summary */}
-<div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(150px,1fr))",gap:8,marginBottom:12}}>
+<div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(150px,210px))",gap:8,marginBottom:12}}>
 <div style={{background:C.card,borderRadius:8,padding:"10px 12px",border:"1px solid "+C.bdr}}><div style={{fontSize:10,color:C.gl2}}>Total Pengeluaran</div><div style={{fontSize:15,fontWeight:900,color:C.rlt}}>{fR(totalPenBln)}</div></div>
 <div style={{background:C.card,borderRadius:8,padding:"10px 12px",border:"1px solid "+C.bdr}}><div style={{fontSize:10,color:C.gl2}}>Jumlah Kategori</div><div style={{fontSize:15,fontWeight:900,color:C.wht}}>{katArr.length}</div></div>
 <div style={{background:C.card,borderRadius:8,padding:"10px 12px",border:"1px solid "+C.bdr}}><div style={{fontSize:10,color:C.gl2}}>Jumlah Transaksi</div><div style={{fontSize:15,fontWeight:900,color:C.wht}}>{penBlnAll.length}</div></div>
@@ -5366,7 +5366,7 @@ var posOpts=["Owner/Komisaris","Manajer","Admin","Kasir/Akuntan","Sales Driver",
 function save(){if(!f.nama||!f.username)return;if(edit){setData(d=>({...d,employees:(d.employees||[]).map(e=>e.id===edit.id?{...e,...f,gajiPokok:Number(f.gajiPokok||0),uangMakan:Number(f.uangMakan||15000)}:e)}));setEdit(null);}else setData(d=>({...d,employees:[{id:uid(),...f,gajiPokok:Number(f.gajiPokok||0),uangMakan:Number(f.uangMakan||15000)},...(d.employees||[])]}));setF({...blk});toast("✓ Karyawan disimpan!");}
 return <div>
 <STitle icon="👤" children="Karyawan & Akun"/>
-<Card><div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(155px,1fr))",gap:10}}><Inp label="Nama" value={f.nama} onChange={v=>setF(p=>({...p,nama:v}))}/><Sel label="Posisi" value={f.posisi} onChange={v=>setF(p=>({...p,posisi:v}))} opts={posOpts}/><Sel label="Role" value={f.role} onChange={v=>setF(p=>({...p,role:v}))} opts={Object.keys(ROLE_LBL).map(k=>({v:k,l:ROLE_LBL[k]}))}/><Inp label="Username" value={f.username} onChange={v=>setF(p=>({...p,username:v}))}/><Inp label="Password" type="password" value={f.password} onChange={v=>setF(p=>({...p,password:v}))}/><Inp label="Telepon" value={f.telepon} onChange={v=>setF(p=>({...p,telepon:v}))}/><Inp label="Alamat" value={f.alamat} onChange={v=>setF(p=>({...p,alamat:v}))}/><Inp label="Gaji Pokok" type="number" value={f.gajiPokok} onChange={v=>setF(p=>({...p,gajiPokok:v}))}/><Inp label="Uang Makan/Hari" type="number" value={f.uangMakan} onChange={v=>setF(p=>({...p,uangMakan:v}))}/><Sel label="Mode Uang Makan" value={f.uangMakanMode} onChange={v=>setF(p=>({...p,uangMakanMode:v}))} opts={[{v:"harian",l:"💰 Harian"},{v:"akhir_bulan",l:"📅 Akhir Bulan"}]}/></div><Btn color="green" onClick={save} dis={!f.nama||!f.username}>➕ Tambah Karyawan</Btn></Card>
+<Card><div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(155px,210px))",gap:10}}><Inp label="Nama" value={f.nama} onChange={v=>setF(p=>({...p,nama:v}))}/><Sel label="Posisi" value={f.posisi} onChange={v=>setF(p=>({...p,posisi:v}))} opts={posOpts}/><Sel label="Role" value={f.role} onChange={v=>setF(p=>({...p,role:v}))} opts={Object.keys(ROLE_LBL).map(k=>({v:k,l:ROLE_LBL[k]}))}/><Inp label="Username" value={f.username} onChange={v=>setF(p=>({...p,username:v}))}/><Inp label="Password" type="password" value={f.password} onChange={v=>setF(p=>({...p,password:v}))}/><Inp label="Telepon" value={f.telepon} onChange={v=>setF(p=>({...p,telepon:v}))}/><Inp label="Alamat" value={f.alamat} onChange={v=>setF(p=>({...p,alamat:v}))}/><Inp label="Gaji Pokok" type="number" value={f.gajiPokok} onChange={v=>setF(p=>({...p,gajiPokok:v}))}/><Inp label="Uang Makan/Hari" type="number" value={f.uangMakan} onChange={v=>setF(p=>({...p,uangMakan:v}))}/><Sel label="Mode Uang Makan" value={f.uangMakanMode} onChange={v=>setF(p=>({...p,uangMakanMode:v}))} opts={[{v:"harian",l:"💰 Harian"},{v:"akhir_bulan",l:"📅 Akhir Bulan"}]}/></div><Btn color="green" onClick={save} dis={!f.nama||!f.username}>➕ Tambah Karyawan</Btn></Card>
 <Card><RTbl headers={["Nama","Posisi","Role","Status","Absensi","Aksi"]} widths={[190,150,130,100,90,180]} rows={(data.employees||[]).map(e=>[<div><b style={{color:C.wht}}>{e.nama}</b><div style={{fontSize:11,color:C.gl2}}>{e.telepon}</div></div>,e.posisi,<Bdg color={["admin","owner"].includes(e.role)?"red":"blue"}>{ROLE_LBL[e.role]||e.role}</Bdg>,e.aktif?<Bdg color="green">Aktif</Bdg>:<Bdg color="gray">Non-aktif</Bdg>,<div style={{display:"flex",gap:5}}><button onClick={()=>setData(d=>({...d,employees:(d.employees||[]).map(x=>x.id===e.id?{...x,aktif:!x.aktif}:x)}))} style={{background:C.nav,border:"1px solid "+C.bdr,borderRadius:7,padding:"5px 9px",color:C.gl2,cursor:"pointer",fontSize:12}}>{e.aktif?"🔒":"🔓"}</button><button onClick={()=>setData(d=>({...d,employees:(d.employees||[]).map(x=>x.id===e.id?{...x,ikutAbsensi:!x.ikutAbsensi}:x)}))} title="Toggle Absensi" style={{background:e.ikutAbsensi?C.grn:C.nav,border:"1px solid "+(e.ikutAbsensi?C.glt:C.bdr),borderRadius:7,padding:"5px 9px",color:e.ikutAbsensi?C.glt:C.gl2,cursor:"pointer",fontSize:11,fontWeight:700}}>{e.ikutAbsensi?"📅":"—"}</button>
 <ActBtns onEdit={()=>{setEdit(e);setF({...e,gajiPokok:String(e.gajiPokok||""),uangMakan:String(e.uangMakan||15000)});}} onDel={()=>setDelId(e)}/></div>])}/></Card>
 
@@ -5605,11 +5605,11 @@ return <div>
 </Card>
 <Card><div style={{fontWeight:700,color:C.gl2,marginBottom:12,fontSize:13}}>🏭 Kode Pertamina</div>
 <div style={{fontSize:11,color:C.gl2,marginBottom:10,fontStyle:"italic"}}>🔒 Kode penebusan (permanen — tidak berubah)</div>
-<div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(150px,1fr))",gap:10,marginBottom:12}}>
+<div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(150px,210px))",gap:10,marginBottom:12}}>
 {[["soldTo","Sold To"],["shipToKCR","Ship To KCR"],["shipToMGL","Ship To MGL"]].map(([k,l])=><Inp key={k} label={l} value={f[k]||""} onChange={v=>setF(p=>({...p,[k]:v}))}/>)}
 </div>
 <div style={{fontSize:11,color:C.olt,marginBottom:10,fontStyle:"italic"}}>🔄 Kode SA bulanan (update setiap bulan terima SA baru dari Pertamina)</div>
-<div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(150px,1fr))",gap:10}}>
+<div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(150px,210px))",gap:10}}>
 <Inp label="Bulan SA Aktif" value={f.saBulan||""} onChange={v=>setF(p=>({...p,saBulan:v}))} placeholder="Juni 2026"/>
 <Inp label="SA 12kg — KCR" value={f.sa12KCR||""} onChange={v=>setF(p=>({...p,sa12KCR:v}))}/>
 <Inp label="SA 5,5kg — KCR" value={f.sa55KCR||""} onChange={v=>setF(p=>({...p,sa55KCR:v}))}/>
