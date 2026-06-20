@@ -450,13 +450,15 @@ pw.document.write(
 "<title>Cetak Laporan</title>"+
 "<style>"+
 "*{box-sizing:border-box;margin:0;padding:0;}"+
-"body{font-family:'Plus Jakarta Sans',Arial,sans-serif;color:#111;background:white;padding:12mm;}"+
+"html,body{width:210mm;}"+
+"body{font-family:'Plus Jakarta Sans',Arial,sans-serif;color:#111;background:white;padding:0;}"+
 "table{width:100%;border-collapse:collapse;margin-bottom:12px;}"+
 "th{background:#0a1f44;color:white;padding:6px 8px;font-size:10px;font-weight:700;text-align:center;border:1px solid #ccc;}"+
 "td{padding:5px 8px;font-size:11px;border:1px solid #ddd;vertical-align:top;}"+
 "tr{page-break-inside:avoid;}"+
 "thead{display:table-header-group;}"+
-"@page{margin:12mm;size:A4;}"+
+"#_inv,#_slip,#_ba,#_slip_setoran_sales,#_slip_setor{max-width:210mm!important;width:210mm!important;margin:0 auto!important;border-radius:0!important;box-shadow:none!important;}"+
+"@page{margin:10mm;size:A4;}"+
 "@media print{body{padding:0;}}"+
 "</style></head><body>"+
 html+
@@ -632,6 +634,8 @@ return <div id="_inv_wrap" style={{position:"fixed",inset:0,background:"#cdd3db"
 <div style={{fontSize:26,fontWeight:800,color:NAVY,letterSpacing:3,textAlign:"center"}}>I N V O I C E</div>
 {isLunas
 ?<div style={{position:"absolute",right:0,fontSize:10,fontWeight:700,padding:"3px 11px",borderRadius:20,background:"#D1FAE5",border:"1px solid #10B981",color:"#065F46"}}>✓ Lunas</div>
+:inv.bonSebagian
+?<div style={{position:"absolute",right:0,fontSize:10,fontWeight:700,padding:"3px 11px",borderRadius:20,background:"#FEF3C7",border:"1px solid #F59E0B",color:"#92400E"}}>◐ Sebagian</div>
 :<div style={{position:"absolute",right:0,fontSize:10,fontWeight:700,padding:"3px 11px",borderRadius:20,background:"#FEE2E2",border:"1px solid #EF4444",color:"#991B1B"}}>— Belum Lunas</div>}
 </div>
 {/* No invoice di bawah judul */}
@@ -713,6 +717,16 @@ return <tr key={i} style={{background:i%2===0?WHITE:G100}}>
 :<div style={{fontSize:13,fontWeight:800,color:RED,border:"2px solid "+RED,padding:"5px 11px",borderRadius:3,letterSpacing:4,opacity:.88,transform:"rotate(-5deg)",whiteSpace:"nowrap"}}>L U N A S</div>)}
 </div>
 <div style={{minWidth:190,padding:"13px 16px",background:WHITE,borderLeft:"2px solid "+G200,display:"flex",flexDirection:"column",justifyContent:"center",alignItems:"flex-end"}}>
+{inv.bonSebagian&&<div style={{width:"100%",marginBottom:8,paddingBottom:8,borderBottom:"1px dashed "+G200}}>
+<div style={{display:"flex",justifyContent:"space-between",gap:10,marginBottom:3}}>
+<span style={{fontSize:9,fontWeight:600,color:G600}}>Telah Dibayar</span>
+<span style={{fontSize:11,fontWeight:700,color:"#059669"}}>Rp {Number(inv.totalDibayar||0).toLocaleString("id-ID")}</span>
+</div>
+<div style={{display:"flex",justifyContent:"space-between",gap:10}}>
+<span style={{fontSize:9,fontWeight:600,color:G600}}>Sisa</span>
+<span style={{fontSize:11,fontWeight:700,color:RED}}>Rp {Number(inv.sisaTagihan||0).toLocaleString("id-ID")}</span>
+</div>
+</div>}
 <div style={{fontSize:8,fontWeight:700,letterSpacing:1,textTransform:"uppercase",color:G400,marginBottom:4}}>Grand Total</div>
 <div style={{display:"flex",alignItems:"baseline",gap:4}}>
 <span style={{fontSize:13,fontWeight:600,color:G400}}>Rp</span>
@@ -2332,18 +2346,21 @@ var[gabungKons,setGabungKons]=useState("");// filter konsumen untuk gabung
 var[tabBon,setTabBon]=useState("aktif");// aktif | lunas
 var salesList=sortEmp((data.employees||[]).filter(e=>e.aktif));
 
-function makeBonInvObj(b){var plg=(data.pelanggan||[]).find(x=>x.id===b.konsumenId);return{noInv:b.noInv||"#HTS/INV/-/-",tanggal:b.tanggal,konsumen:b.konsumen,kota:plg?.alamat?.split(",").pop()?.trim()||"Banda Aceh",items:(b.items||[]).map(it=>({ukuran:it.ukuran,jenis:it.jenis,qty:Number(it.qty),price:Number(it.price),tglDO:it.tglDO||b.tanggal})),total:b.total,metodeBayar:b.status==="lunas"?"BON (LUNAS)":"BON",isBon:b.status!=="lunas",isGabungan:b.isGabungan||false,catatan:b.ket||"",bonLunas:b.status==="lunas"};}
+function makeBonInvObj(b){var plg=(data.pelanggan||[]).find(x=>x.id===b.konsumenId);var emp=(data.employees||[]).find(x=>x.id===b.salesId);var totalDibayar=(b.pembayaran||[]).reduce((a,p)=>a+Number(p.nominal||0),0);return{noInv:b.noInv||"#HTS/INV/-/-",tanggal:b.tanggal,konsumen:b.konsumen,kota:plg?.alamat?.split(",").pop()?.trim()||"Banda Aceh",salesNama:emp?.nama||"",items:(b.items||[]).map(it=>({ukuran:it.ukuran,jenis:it.jenis,qty:Number(it.qty),price:Number(it.price),tglDO:it.tglDO||b.tanggal})),total:b.total,metodeBayar:b.status==="lunas"?"BON (LUNAS)":"BON",isBon:b.status!=="lunas",isGabungan:b.isGabungan||false,catatan:b.ket||"",bonLunas:b.status==="lunas",bonSebagian:b.status==="sebagian",totalDibayar,sisaTagihan:b.status==="lunas"?0:(b.sisaTagihan!=null?b.sisaTagihan:b.total-totalDibayar)};}
 
 // ── Invoice Gabungan Object ──
 function makeGabungInvObj(bons,noInvBaru){
 var plg=(data.pelanggan||[]).find(x=>x.id===bons[0]?.konsumenId);
+var emp=(data.employees||[]).find(x=>x.id===bons[0]?.salesId);
 // items: satu row per BON, dengan tanggal DO
 var items=bons.flatMap(b=>(b.items||[]).map(it=>({...it,qty:Number(it.qty),price:Number(it.price),tglDO:b.tanggal})));
 var total=bons.reduce((a,b)=>a+(b.sisaTagihan||b.total||0),0);
 var allLunas=bons.every(b=>b.status==="lunas");
+var anySebagian=bons.some(b=>b.status==="sebagian"||(b.pembayaran||[]).length>0)&&!allLunas;
 var totalSisa=bons.reduce((a,b)=>a+(b.status==="lunas"?0:(b.sisaTagihan||b.total||0)),0);
 var totalAll=bons.reduce((a,b)=>a+(b.total||0),0);
-return{noInv:noInvBaru,tanggal:toDay(),konsumen:bons[0]?.konsumen||"",kota:plg?.alamat?.split(",").pop()?.trim()||"Banda Aceh",items,total:totalAll,sisaTagihan:totalSisa,metodeBayar:allLunas?"BON (LUNAS)":"BON (GABUNGAN)",isBon:!allLunas,isGabungan:true,bonLunas:allLunas,bonAsal:bons.map(b=>b.id),catatan:"Invoice gabungan dari "+bons.length+" BON"};
+var totalDibayarAll=bons.reduce((a,b)=>a+(b.pembayaran||[]).reduce((aa,p)=>aa+Number(p.nominal||0),0),0);
+return{noInv:noInvBaru,tanggal:toDay(),konsumen:bons[0]?.konsumen||"",kota:plg?.alamat?.split(",").pop()?.trim()||"Banda Aceh",salesNama:emp?.nama||"",items,total:totalAll,sisaTagihan:totalSisa,metodeBayar:allLunas?"BON (LUNAS)":"BON (GABUNGAN)",isBon:!allLunas,isGabungan:true,bonLunas:allLunas,bonSebagian:anySebagian,totalDibayar:totalDibayarAll,bonAsal:bons.map(b=>b.id),catatan:"Invoice gabungan dari "+bons.length+" BON"};
 }
 
 function bayar(b){
@@ -2421,9 +2438,10 @@ var cols=[
 {key:"sisaTagihan",label:"Sisa",render:r=><b style={{color:r.status==="lunas"?C.glt:r.status==="digabung"?C.gl2:C.rlt}}>{fR(r.sisaTagihan)}</b>,filterable:false},
 {key:"status",label:"Status",render:r=>r.status==="lunas"?<Bdg color="green">Lunas</Bdg>:r.status==="sebagian"?<Bdg color="orange">Sebagian</Bdg>:r.status==="digabung"?<Bdg color="gray">Digabung</Bdg>:r.isGabungan?<Bdg color="blue">Gabungan</Bdg>:<Bdg color="red">Belum</Bdg>,filterable:true,filterType:"select",options:[{v:"lunas",l:"Lunas"},{v:"sebagian",l:"Sebagian"},{v:"belum",l:"Belum"},{v:"digabung",l:"Digabung"}]},
 {key:"_aksi",label:"Aksi",sortable:false,filterable:false,render:r=><div style={{display:"flex",gap:4}}><button onClick={()=>{if(r.isGabungan){var bonsAsal=(data.bon||[]).filter(b=>(r.bonAsal||[]).includes(b.id));var invObj=bonsAsal.length>0?makeGabungInvObj(bonsAsal,r.noInv):makeBonInvObj(r);
-// Status lunas ditentukan dari record gabungan ITU SENDIRI (r.status), bukan status BON asal yang sudah berubah jadi "digabung" setelah penggabungan
+// Status lunas/sebagian & nominal dibayar ditentukan dari record gabungan ITU SENDIRI (r), bukan hasil hitung ulang dari BON asal yang sudah berubah status jadi "digabung" setelah penggabungan
 var lunasReal=r.status==="lunas";
-invObj={...invObj,bonLunas:lunasReal,isBon:!lunasReal,metodeBayar:lunasReal?"BON (LUNAS)":"BON (GABUNGAN)",sisaTagihan:lunasReal?0:invObj.sisaTagihan};
+var totalDibayarReal=(r.pembayaran||[]).reduce((a,p)=>a+Number(p.nominal||0),0);
+invObj={...invObj,bonLunas:lunasReal,bonSebagian:r.status==="sebagian",totalDibayar:totalDibayarReal,isBon:!lunasReal,metodeBayar:lunasReal?"BON (LUNAS)":"BON (GABUNGAN)",sisaTagihan:lunasReal?0:r.sisaTagihan};
 setInv(invObj);}else{setInv(makeBonInvObj(r));}}} title="Cetak Invoice BON" style={{background:C.inHv,border:"1px solid "+C.blt,borderRadius:6,padding:"4px 7px",color:C.blt,cursor:"pointer",fontSize:12}}>🖨️</button>{(r.status==="belum"||r.status==="sebagian")&&<button onClick={()=>{setOpenId(r.id);setBF({nominal:"",metode:"cash",bank:"BSI",salesPenerimaId:r.salesId||""});}} style={{background:C.grn,border:"none",borderRadius:6,padding:"4px 7px",color:"white",cursor:"pointer",fontSize:12}}>💳</button>}{(r.pembayaran||[]).length>0&&<button onClick={()=>setEditPayBon({bon:r,payIdx:null})} title="Edit/Cancel Pembayaran" style={{background:"#78350F",border:"1px solid #F59E0B",borderRadius:6,padding:"4px 7px",color:"#FCD34D",cursor:"pointer",fontSize:12}}>✏️</button>}<button onClick={()=>setDelId(r)} style={{background:C.inHvE,border:"1px solid "+C.rlt,borderRadius:6,padding:"4px 7px",color:C.rlt,cursor:"pointer",fontSize:12}}>🗑️</button></div>},
 ];
 var bonActive=(data.bon||[]).filter(b=>b.status!=="lunas"&&b.status!=="digabung");
