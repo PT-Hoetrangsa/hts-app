@@ -1328,19 +1328,26 @@ return <>
 </div>
 {penjLap.length===0?<div style={{color:"#94A3B8",fontSize:12,padding:"10px 0",fontStyle:"italic"}}>Tidak ada penjualan pada tanggal ini.</div>:
 <div style={{background:"white",borderRadius:8,border:"1px solid #E2E8F0",color:"#111",fontFamily:"Arial,sans-serif",overflowX:"auto"}}>
-<table style={{width:"100%",borderCollapse:"collapse",fontSize:11,minWidth:700}}>
+<table style={{width:"100%",borderCollapse:"collapse",fontSize:13,tableLayout:"fixed",minWidth:920}}>
+<colgroup>
+<col style={{width:"130px"}}/><col style={{width:"150px"}}/>
+<col style={{width:"55px"}}/><col style={{width:"90px"}}/>
+<col style={{width:"55px"}}/><col style={{width:"90px"}}/>
+<col style={{width:"55px"}}/><col style={{width:"90px"}}/>
+<col style={{width:"100px"}}/><col style={{width:"80px"}}/>
+</colgroup>
 <thead>
 <tr style={{background:"#0a1f44"}}>
-<th style={{padding:"5px 7px",color:"white",fontWeight:700,textAlign:"left",border:"1px solid #1e3a5f",fontSize:10}} rowSpan={2}>Nama Sales</th>
-<th style={{padding:"5px 7px",color:"white",fontWeight:700,textAlign:"left",border:"1px solid #1e3a5f",fontSize:10}} rowSpan={2}>Konsumen</th>
-<th style={{padding:"5px 7px",color:"white",fontWeight:700,textAlign:"center",border:"1px solid #1e3a5f",fontSize:10}} colSpan={2}>5,5 kg</th>
-<th style={{padding:"5px 7px",color:"white",fontWeight:700,textAlign:"center",border:"1px solid #1e3a5f",fontSize:10}} colSpan={2}>12 kg</th>
-<th style={{padding:"5px 7px",color:"white",fontWeight:700,textAlign:"center",border:"1px solid #1e3a5f",fontSize:10}} colSpan={2}>50 kg</th>
-<th style={{padding:"5px 7px",color:"white",fontWeight:700,textAlign:"right",border:"1px solid #1e3a5f",fontSize:10}} rowSpan={2}>Total</th>
-<th style={{padding:"5px 7px",color:"white",fontWeight:700,textAlign:"center",border:"1px solid #1e3a5f",fontSize:10}} rowSpan={2}>Transaksi</th>
+<th style={{padding:"7px 8px",color:"white",fontWeight:700,textAlign:"left",border:"1px solid #1e3a5f",fontSize:11.5}} rowSpan={2}>Nama Sales</th>
+<th style={{padding:"7px 8px",color:"white",fontWeight:700,textAlign:"left",border:"1px solid #1e3a5f",fontSize:11.5}} rowSpan={2}>Konsumen</th>
+<th style={{padding:"7px 8px",color:"white",fontWeight:700,textAlign:"center",border:"1px solid #1e3a5f",fontSize:11.5}} colSpan={2}>5,5 kg</th>
+<th style={{padding:"7px 8px",color:"white",fontWeight:700,textAlign:"center",border:"1px solid #1e3a5f",fontSize:11.5}} colSpan={2}>12 kg</th>
+<th style={{padding:"7px 8px",color:"white",fontWeight:700,textAlign:"center",border:"1px solid #1e3a5f",fontSize:11.5}} colSpan={2}>50 kg</th>
+<th style={{padding:"7px 8px",color:"white",fontWeight:700,textAlign:"right",border:"1px solid #1e3a5f",fontSize:11.5}} rowSpan={2}>Total</th>
+<th style={{padding:"7px 8px",color:"white",fontWeight:700,textAlign:"center",border:"1px solid #1e3a5f",fontSize:11.5}} rowSpan={2}>Transaksi</th>
 </tr>
 <tr style={{background:"#1e3a5f"}}>
-{["Qty","Harga","Qty","Harga","Qty","Harga"].map((h,i)=><th key={i} style={{padding:"4px 6px",color:"#93C5FD",fontWeight:700,textAlign:"center",border:"1px solid #2d4a6f",fontSize:9}}>{h}</th>)}
+{["Qty","Harga","Qty","Harga","Qty","Harga"].map((h,i)=><th key={i} style={{padding:"5px 6px",color:"#93C5FD",fontWeight:700,textAlign:"center",border:"1px solid #2d4a6f",fontSize:10.5}}>{h}</th>)}
 </tr>
 </thead>
 <tbody>
@@ -1351,49 +1358,49 @@ var it12=(p.items||[]).filter(it=>it.ukuran==="12 kg");var q12p=it12.reduce((a,i
 var it50=(p.items||[]).filter(it=>it.ukuran==="50 kg");var q50p=it50.reduce((a,it)=>a+Number(it.qty||0),0);var h50p=it50.length>0?Number(it50[0].price||0):0;
 var byrl=(p.bayar||"").toLowerCase();
 return <tr key={p.id} style={{background:i%2===0?"white":"#f9f9f9",borderBottom:"1px solid #e5e7eb"}}>
-{i===0&&<td style={{padding:"4px 7px",fontWeight:700,color:"#0a1f44",border:"1px solid #e5e7eb",verticalAlign:"top",background:"#EFF6FF"}} rowSpan={sg.items.length+1}>{sg.nama}</td>}
-<td style={{padding:"4px 7px",color:"#111",border:"1px solid #e5e7eb"}}>{p.konsumen}</td>
-<td style={{padding:"4px 7px",textAlign:"center",color:q55p>0?"#15803D":"#94A3B8",border:"1px solid #e5e7eb",fontWeight:q55p>0?700:400}}>{q55p||"—"}</td>
-<td style={{padding:"4px 7px",textAlign:"right",color:q55p>0?"#374151":"#94A3B8",border:"1px solid #e5e7eb",fontSize:10}}>{q55p>0?fR(h55p):"—"}</td>
-<td style={{padding:"4px 7px",textAlign:"center",color:q12p>0?"#1D4ED8":"#94A3B8",border:"1px solid #e5e7eb",fontWeight:q12p>0?700:400}}>{q12p||"—"}</td>
-<td style={{padding:"4px 7px",textAlign:"right",color:q12p>0?"#374151":"#94A3B8",border:"1px solid #e5e7eb",fontSize:10}}>{q12p>0?fR(h12p):"—"}</td>
-<td style={{padding:"4px 7px",textAlign:"center",color:q50p>0?"#B45309":"#94A3B8",border:"1px solid #e5e7eb",fontWeight:q50p>0?700:400}}>{q50p||"—"}</td>
-<td style={{padding:"4px 7px",textAlign:"right",color:q50p>0?"#374151":"#94A3B8",border:"1px solid #e5e7eb",fontSize:10}}>{q50p>0?fR(h50p):"—"}</td>
-<td style={{padding:"4px 7px",textAlign:"right",fontWeight:700,color:"#111",border:"1px solid #e5e7eb"}}>{fR(p.total)}</td>
-<td style={{padding:"4px 7px",textAlign:"center",border:"1px solid #e5e7eb",color:byrl==="cash"?"#15803D":byrl==="bon"?"#DC2626":"#1D4ED8",fontWeight:700,fontSize:10}}>{p.bayar}</td>
+{i===0&&<td style={{padding:"6px 8px",fontWeight:700,color:"#0a1f44",border:"1px solid #e5e7eb",verticalAlign:"top",background:"#EFF6FF",fontSize:12.5}} rowSpan={sg.items.length+1}>{sg.nama}</td>}
+<td style={{padding:"6px 8px",color:"#111",border:"1px solid #e5e7eb",fontSize:12.5}}>{p.konsumen}</td>
+<td style={{padding:"6px 8px",textAlign:"center",color:q55p>0?"#15803D":"#94A3B8",border:"1px solid #e5e7eb",fontWeight:q55p>0?700:400,fontSize:12.5}}>{q55p||"—"}</td>
+<td style={{padding:"6px 8px",textAlign:"right",color:q55p>0?"#374151":"#94A3B8",border:"1px solid #e5e7eb",fontSize:12,whiteSpace:"nowrap"}}>{q55p>0?fR(h55p):"—"}</td>
+<td style={{padding:"6px 8px",textAlign:"center",color:q12p>0?"#1D4ED8":"#94A3B8",border:"1px solid #e5e7eb",fontWeight:q12p>0?700:400,fontSize:12.5}}>{q12p||"—"}</td>
+<td style={{padding:"6px 8px",textAlign:"right",color:q12p>0?"#374151":"#94A3B8",border:"1px solid #e5e7eb",fontSize:12,whiteSpace:"nowrap"}}>{q12p>0?fR(h12p):"—"}</td>
+<td style={{padding:"6px 8px",textAlign:"center",color:q50p>0?"#B45309":"#94A3B8",border:"1px solid #e5e7eb",fontWeight:q50p>0?700:400,fontSize:12.5}}>{q50p||"—"}</td>
+<td style={{padding:"6px 8px",textAlign:"right",color:q50p>0?"#374151":"#94A3B8",border:"1px solid #e5e7eb",fontSize:12,whiteSpace:"nowrap"}}>{q50p>0?fR(h50p):"—"}</td>
+<td style={{padding:"6px 8px",textAlign:"right",fontWeight:700,color:"#111",border:"1px solid #e5e7eb",fontSize:12.5,whiteSpace:"nowrap"}}>{fR(p.total)}</td>
+<td style={{padding:"6px 8px",textAlign:"center",border:"1px solid #e5e7eb",color:byrl==="cash"?"#15803D":byrl==="bon"?"#DC2626":"#1D4ED8",fontWeight:700,fontSize:11.5}}>{p.bayar}</td>
 </tr>;});
 // Total laku per sales
 var tq55sg=sg.items.reduce((a,p)=>a+(p.items||[]).filter(it=>it.ukuran==="5.5 kg").reduce((b,it)=>b+Number(it.qty||0),0),0);
 var tq12sg=sg.items.reduce((a,p)=>a+(p.items||[]).filter(it=>it.ukuran==="12 kg").reduce((b,it)=>b+Number(it.qty||0),0),0);
 var tq50sg=sg.items.reduce((a,p)=>a+(p.items||[]).filter(it=>it.ukuran==="50 kg").reduce((b,it)=>b+Number(it.qty||0),0),0);
 var totalLakuRow=<tr key={"tl"+gi} style={{background:"#EFF6FF",fontWeight:700,borderBottom:"2px solid #BFDBFE"}}>
-<td style={{padding:"5px 7px",color:"#1D4ED8",fontStyle:"italic",border:"1px solid #BFDBFE",fontSize:10}}>Total Laku</td>
-<td style={{padding:"5px 7px",textAlign:"center",color:"#15803D",border:"1px solid #BFDBFE"}}>{tq55sg||"—"}</td>
-<td style={{padding:"5px 7px",border:"1px solid #BFDBFE"}}></td>
-<td style={{padding:"5px 7px",textAlign:"center",color:"#1D4ED8",border:"1px solid #BFDBFE"}}>{tq12sg||"—"}</td>
-<td style={{padding:"5px 7px",border:"1px solid #BFDBFE"}}></td>
-<td style={{padding:"5px 7px",textAlign:"center",color:"#B45309",border:"1px solid #BFDBFE"}}>{tq50sg||"—"}</td>
-<td style={{padding:"5px 7px",border:"1px solid #BFDBFE"}}></td>
-<td style={{padding:"5px 7px",textAlign:"right",color:"#0a1f44",border:"1px solid #BFDBFE"}}>{fR(sg.omzet)}</td>
-<td style={{padding:"5px 7px",border:"1px solid #BFDBFE"}}></td>
+<td style={{padding:"7px 8px",color:"#1D4ED8",fontStyle:"italic",border:"1px solid #BFDBFE",fontSize:12}}>Total Laku</td>
+<td style={{padding:"7px 8px",textAlign:"center",color:"#15803D",border:"1px solid #BFDBFE",fontSize:12.5}}>{tq55sg||"—"}</td>
+<td style={{padding:"7px 8px",border:"1px solid #BFDBFE"}}></td>
+<td style={{padding:"7px 8px",textAlign:"center",color:"#1D4ED8",border:"1px solid #BFDBFE",fontSize:12.5}}>{tq12sg||"—"}</td>
+<td style={{padding:"7px 8px",border:"1px solid #BFDBFE"}}></td>
+<td style={{padding:"7px 8px",textAlign:"center",color:"#B45309",border:"1px solid #BFDBFE",fontSize:12.5}}>{tq50sg||"—"}</td>
+<td style={{padding:"7px 8px",border:"1px solid #BFDBFE"}}></td>
+<td style={{padding:"7px 8px",textAlign:"right",color:"#0a1f44",border:"1px solid #BFDBFE",fontSize:12.5,whiteSpace:"nowrap"}}>{fR(sg.omzet)}</td>
+<td style={{padding:"7px 8px",border:"1px solid #BFDBFE"}}></td>
 </tr>;
 return [...sgRows, totalLakuRow];
 })}
 {/* Grand total */}
 <tr style={{background:"#0a1f44",fontWeight:700}}>
-<td colSpan={2} style={{padding:"6px 8px",color:"white",border:"1px solid #1e3a5f"}}>TOTAL KESELURUHAN</td>
-<td style={{padding:"6px 8px",textAlign:"center",color:"#86EFAC",border:"1px solid #1e3a5f"}}>{totQ55||"—"}</td>
-<td style={{padding:"6px 8px",border:"1px solid #1e3a5f"}}></td>
-<td style={{padding:"6px 8px",textAlign:"center",color:"#93C5FD",border:"1px solid #1e3a5f"}}>{totQ12||"—"}</td>
-<td style={{padding:"6px 8px",border:"1px solid #1e3a5f"}}></td>
-<td style={{padding:"6px 8px",textAlign:"center",color:"#FCD34D",border:"1px solid #1e3a5f"}}>{totQ50||"—"}</td>
-<td style={{padding:"6px 8px",border:"1px solid #1e3a5f"}}></td>
+<td colSpan={2} style={{padding:"8px 9px",color:"white",border:"1px solid #1e3a5f",fontSize:12.5}}>TOTAL KESELURUHAN</td>
+<td style={{padding:"8px 9px",textAlign:"center",color:"#86EFAC",border:"1px solid #1e3a5f",fontSize:12.5}}>{totQ55||"—"}</td>
+<td style={{padding:"8px 9px",border:"1px solid #1e3a5f"}}></td>
+<td style={{padding:"8px 9px",textAlign:"center",color:"#93C5FD",border:"1px solid #1e3a5f",fontSize:12.5}}>{totQ12||"—"}</td>
+<td style={{padding:"8px 9px",border:"1px solid #1e3a5f"}}></td>
+<td style={{padding:"8px 9px",textAlign:"center",color:"#FCD34D",border:"1px solid #1e3a5f",fontSize:12.5}}>{totQ50||"—"}</td>
+<td style={{padding:"8px 9px",border:"1px solid #1e3a5f"}}></td>
 <td style={{padding:"6px 8px",textAlign:"right",color:"white",fontSize:13,border:"1px solid #1e3a5f"}}>{fR(totalOmzetLap)}</td>
 <td style={{padding:"6px 8px",border:"1px solid #1e3a5f"}}></td>
 </tr>
 <tr style={{background:"#0f2744"}}>
-<td colSpan={2} style={{padding:"5px 8px",color:"#93C5FD",fontSize:10,border:"1px solid #1e3a5f"}}>Cash: {fR(totCash)} &nbsp;|&nbsp; TF: {fR(totTF)} &nbsp;|&nbsp; BON: {fR(totBon)}</td>
-<td colSpan={8} style={{padding:"5px 8px",color:"#6B7280",fontSize:10,border:"1px solid #1e3a5f"}}>* BON = piutang baru, belum masuk kas</td>
+<td colSpan={2} style={{padding:"7px 8px",color:"#93C5FD",fontSize:11.5,border:"1px solid #1e3a5f"}}>Cash: {fR(totCash)} &nbsp;|&nbsp; TF: {fR(totTF)} &nbsp;|&nbsp; BON: {fR(totBon)}</td>
+<td colSpan={8} style={{padding:"7px 8px",color:"#9CA3AF",fontSize:11.5,border:"1px solid #1e3a5f"}}>* BON = piutang baru, belum masuk kas</td>
 </tr>
 </tbody>
 </table>
@@ -2283,21 +2290,26 @@ return <div ref={formRef}>
 <button onClick={exportExcelDO} disabled={!rowsBulanIni.length} style={{background:rowsBulanIni.length?"#15803D":C.gry,color:"white",border:"none",padding:"8px 14px",borderRadius:8,fontSize:12,cursor:rowsBulanIni.length?"pointer":"not-allowed",fontWeight:700,whiteSpace:"nowrap"}}>📥 Export Excel</button>
 </div>
 </div>
-<table style={{width:"100%",borderCollapse:"collapse",fontSize:10.5,tableLayout:"fixed"}}>
+<table style={{width:"100%",borderCollapse:"collapse",fontSize:12.5,tableLayout:"fixed"}}>
+<colgroup>
+<col style={{width:"82px"}}/><col style={{width:"75px"}}/><col style={{width:"115px"}}/><col style={{width:"85px"}}/>
+<col style={{width:"55px"}}/><col style={{width:"85px"}}/><col style={{width:"55px"}}/><col style={{width:"85px"}}/><col style={{width:"55px"}}/><col style={{width:"85px"}}/>
+<col style={{width:"110px"}}/><col style={{width:"55px"}}/><col style={{width:"90px"}}/>
+</colgroup>
 <thead><tr style={{background:C.nav}}>
-<th style={{width:"8%",padding:"5px 4px",color:C.gl2,textAlign:"left",border:"1px solid "+C.bdr,fontSize:9,fontWeight:700}}>Tgl</th>
-<th style={{width:"11%",padding:"5px 4px",color:C.gl2,textAlign:"left",border:"1px solid "+C.bdr,fontSize:9,fontWeight:700}}>Trip</th>
-<th style={{width:"10%",padding:"5px 4px",color:C.gl2,textAlign:"left",border:"1px solid "+C.bdr,fontSize:9,fontWeight:700}}>Driver</th>
-<th style={{width:"9%",padding:"5px 4px",color:C.gl2,textAlign:"left",border:"1px solid "+C.bdr,fontSize:9,fontWeight:700}}>SPPBE</th>
-<th style={{width:"7%",padding:"5px 2px",color:C.gl2,textAlign:"right",border:"1px solid "+C.bdr,fontSize:9,fontWeight:700}}>Qty 5,5</th>
-<th style={{width:"8%",padding:"5px 2px",color:C.gl2,textAlign:"right",border:"1px solid "+C.bdr,fontSize:9,fontWeight:700}}>Hrg 5,5</th>
-<th style={{width:"7%",padding:"5px 2px",color:C.gl2,textAlign:"right",border:"1px solid "+C.bdr,fontSize:9,fontWeight:700}}>Qty 12</th>
-<th style={{width:"8%",padding:"5px 2px",color:C.gl2,textAlign:"right",border:"1px solid "+C.bdr,fontSize:9,fontWeight:700}}>Hrg 12</th>
-<th style={{width:"7%",padding:"5px 2px",color:C.gl2,textAlign:"right",border:"1px solid "+C.bdr,fontSize:9,fontWeight:700}}>Qty 50</th>
-<th style={{width:"8%",padding:"5px 2px",color:C.gl2,textAlign:"right",border:"1px solid "+C.bdr,fontSize:9,fontWeight:700}}>Hrg 50</th>
-<th style={{width:"9%",padding:"5px 4px",color:C.gl2,textAlign:"right",border:"1px solid "+C.bdr,fontSize:9,fontWeight:700}}>Total DO</th>
-<th style={{width:"5%",padding:"5px 2px",color:C.gl2,border:"1px solid "+C.bdr,fontSize:9,fontWeight:700}}>St.</th>
-<th style={{width:"8%",padding:"5px 2px",color:C.gl2,border:"1px solid "+C.bdr,fontSize:9,fontWeight:700}}>Aksi</th>
+<th style={{padding:"8px 6px",color:C.gl2,textAlign:"left",border:"1px solid "+C.bdr,fontSize:11.5,fontWeight:700}}>Tgl</th>
+<th style={{padding:"8px 6px",color:C.gl2,textAlign:"left",border:"1px solid "+C.bdr,fontSize:11.5,fontWeight:700}}>Trip</th>
+<th style={{padding:"8px 6px",color:C.gl2,textAlign:"left",border:"1px solid "+C.bdr,fontSize:11.5,fontWeight:700}}>Driver</th>
+<th style={{padding:"8px 6px",color:C.gl2,textAlign:"left",border:"1px solid "+C.bdr,fontSize:11.5,fontWeight:700}}>SPPBE</th>
+<th style={{padding:"8px 4px",color:C.gl2,textAlign:"right",border:"1px solid "+C.bdr,fontSize:11.5,fontWeight:700}}>Qty 5,5</th>
+<th style={{padding:"8px 4px",color:C.gl2,textAlign:"right",border:"1px solid "+C.bdr,fontSize:11.5,fontWeight:700}}>Hrg 5,5</th>
+<th style={{padding:"8px 4px",color:C.gl2,textAlign:"right",border:"1px solid "+C.bdr,fontSize:11.5,fontWeight:700}}>Qty 12</th>
+<th style={{padding:"8px 4px",color:C.gl2,textAlign:"right",border:"1px solid "+C.bdr,fontSize:11.5,fontWeight:700}}>Hrg 12</th>
+<th style={{padding:"8px 4px",color:C.gl2,textAlign:"right",border:"1px solid "+C.bdr,fontSize:11.5,fontWeight:700}}>Qty 50</th>
+<th style={{padding:"8px 4px",color:C.gl2,textAlign:"right",border:"1px solid "+C.bdr,fontSize:11.5,fontWeight:700}}>Hrg 50</th>
+<th style={{padding:"8px 6px",color:C.gl2,textAlign:"right",border:"1px solid "+C.bdr,fontSize:11.5,fontWeight:700}}>Total DO</th>
+<th style={{padding:"8px 4px",color:C.gl2,border:"1px solid "+C.bdr,fontSize:11.5,fontWeight:700}}>St.</th>
+<th style={{padding:"8px 4px",color:C.gl2,border:"1px solid "+C.bdr,fontSize:11.5,fontWeight:700}}>Aksi</th>
 </tr></thead>
 <tbody>
 {rowsBulanIni.length===0&&<tr><td colSpan={13} style={{padding:20,textAlign:"center",color:C.gl2,border:"1px solid "+C.bdr,fontSize:11}}>Belum ada DO di bulan ini</td></tr>}
@@ -2306,27 +2318,27 @@ if(r._src==="trip"){
 var trip=r._raw;
 var allGantung=trip.items.every(it=>it.status==="gantung");
 return <tr key={r._id} style={{background:ri%2===0?C.bg:C.nav}}>
-<td style={{padding:"4px 4px",color:C.wht,border:"1px solid "+C.bdr,fontSize:9.5,overflow:"hidden",textOverflow:"ellipsis"}}>{fDs(r.tanggal)}</td>
-<td style={{padding:"4px 4px",color:C.wht,border:"1px solid "+C.bdr,fontWeight:700,fontSize:9.5,overflow:"hidden",textOverflow:"ellipsis"}}>{r.trip}</td>
-<td style={{padding:"4px 4px",color:C.wht,border:"1px solid "+C.bdr,fontSize:9.5,overflow:"hidden",textOverflow:"ellipsis"}}>{r.driver||"-"}</td>
-<td style={{padding:"4px 4px",color:C.gl2,border:"1px solid "+C.bdr,fontSize:9.5,overflow:"hidden",textOverflow:"ellipsis"}}>{r.sppbe}</td>
+<td style={{padding:"7px 6px",color:C.wht,border:"1px solid "+C.bdr,fontSize:12,overflow:"hidden",textOverflow:"ellipsis"}}>{fDs(r.tanggal)}</td>
+<td style={{padding:"7px 6px",color:C.wht,border:"1px solid "+C.bdr,fontWeight:700,fontSize:12,overflow:"hidden",textOverflow:"ellipsis"}}>{r.trip}</td>
+<td style={{padding:"7px 6px",color:C.wht,border:"1px solid "+C.bdr,fontSize:12,overflow:"hidden",textOverflow:"ellipsis"}}>{r.driver||"-"}</td>
+<td style={{padding:"7px 6px",color:C.gl2,border:"1px solid "+C.bdr,fontSize:12,overflow:"hidden",textOverflow:"ellipsis"}}>{r.sppbe}</td>
 {["5.5 kg","12 kg","50 kg"].flatMap(uk=>{var it=r.per[uk];return[
-<td key={uk+"q"} style={{padding:"4px 2px",textAlign:"right",color:it?C.glt:C.gry,fontWeight:it?700:400,border:"1px solid "+C.bdr,fontSize:9.5}}>{it?it.qty:"-"}</td>,
-<td key={uk+"h"} style={{padding:"4px 2px",textAlign:"right",color:it?C.wht:C.gry,border:"1px solid "+C.bdr,fontSize:9}}>{it?fR(it.hppUnit).replace("Rp ",""):"-"}</td>
+<td key={uk+"q"} style={{padding:"7px 4px",textAlign:"right",color:it?C.glt:C.gry,fontWeight:it?700:400,border:"1px solid "+C.bdr,fontSize:12}}>{it?it.qty:"-"}</td>,
+<td key={uk+"h"} style={{padding:"7px 4px",textAlign:"right",color:it?C.wht:C.gry,border:"1px solid "+C.bdr,fontSize:11.5}}>{it?fR(it.hppUnit).replace("Rp ",""):"-"}</td>
 ];})}
-<td style={{padding:"4px 4px",textAlign:"right",color:C.olt,fontWeight:800,border:"1px solid "+C.bdr,fontSize:9.5}}>{fR(r.totalNilai).replace("Rp ","")}</td>
-<td style={{padding:"3px 2px",border:"1px solid "+C.bdr}}>
-<div style={{display:"flex",flexDirection:"column",gap:1,alignItems:"center"}}>
-{trip.items.map(it=><span key={it.id} title={it.ukuran} style={{fontSize:8}}>{it.status==="gantung"?"⏳":it.status==="sangkut"?"⚠️":"✅"}</span>)}
+<td style={{padding:"7px 6px",textAlign:"right",color:C.olt,fontWeight:800,border:"1px solid "+C.bdr,fontSize:12.5}}>{fR(r.totalNilai).replace("Rp ","")}</td>
+<td style={{padding:"6px 4px",border:"1px solid "+C.bdr}}>
+<div style={{display:"flex",flexDirection:"column",gap:2,alignItems:"center"}}>
+{trip.items.map(it=><span key={it.id} title={it.ukuran} style={{fontSize:11}}>{it.status==="gantung"?"⏳":it.status==="sangkut"?"⚠️":"✅"}</span>)}
 </div>
 </td>
-<td style={{padding:"3px 2px",border:"1px solid "+C.bdr}}>
-<div style={{display:"flex",flexDirection:"column",gap:2,alignItems:"center"}}>
-{allGantung&&<button onClick={()=>mulaiEditTrip(trip)} title="Edit Trip" style={{background:editTripId===trip.id?"#B45309":"#1D4ED8",border:"none",borderRadius:4,padding:"2px 4px",color:"white",fontSize:8,fontWeight:700,cursor:"pointer",width:"100%"}}>✏️</button>}
-{trip.items.map(it=><div key={it.id} style={{display:"flex",gap:2,justifyContent:"center"}}>
-{it.status==="gantung"&&<><button onClick={()=>terimaTripItem(trip,it)} title={it.ukuran+" Terima"} style={{background:"#15803D",border:"none",borderRadius:3,padding:"1px 3px",color:"white",fontSize:8,cursor:"pointer"}}>✅</button><button onClick={()=>sangkutTripItem(trip,it)} title={it.ukuran+" Sangkut"} style={{background:"#B45309",border:"none",borderRadius:3,padding:"1px 3px",color:"white",fontSize:8,cursor:"pointer"}}>⚠️</button></>}
-{it.status==="sangkut"&&<button onClick={()=>releaseTripItem(trip,it)} title={it.ukuran+" Release"} style={{background:"#1D4ED8",border:"none",borderRadius:3,padding:"1px 3px",color:"white",fontSize:8,cursor:"pointer"}}>🔓</button>}
-<button onClick={()=>hapusTripItem(trip,it)} title={it.ukuran+" Hapus"} style={{background:"#991B1B",border:"none",borderRadius:3,padding:"1px 3px",color:"white",fontSize:8,cursor:"pointer"}}>🗑️</button>
+<td style={{padding:"6px 4px",border:"1px solid "+C.bdr}}>
+<div style={{display:"flex",flexDirection:"column",gap:3,alignItems:"center"}}>
+{allGantung&&<button onClick={()=>mulaiEditTrip(trip)} title="Edit Trip" style={{background:editTripId===trip.id?"#B45309":"#1D4ED8",border:"none",borderRadius:5,padding:"4px 6px",color:"white",fontSize:11,fontWeight:700,cursor:"pointer",width:"100%"}}>✏️</button>}
+{trip.items.map(it=><div key={it.id} style={{display:"flex",gap:3,justifyContent:"center"}}>
+{it.status==="gantung"&&<><button onClick={()=>terimaTripItem(trip,it)} title={it.ukuran+" Terima"} style={{background:"#15803D",border:"none",borderRadius:4,padding:"3px 5px",color:"white",fontSize:11,cursor:"pointer"}}>✅</button><button onClick={()=>sangkutTripItem(trip,it)} title={it.ukuran+" Sangkut"} style={{background:"#B45309",border:"none",borderRadius:4,padding:"3px 5px",color:"white",fontSize:11,cursor:"pointer"}}>⚠️</button></>}
+{it.status==="sangkut"&&<button onClick={()=>releaseTripItem(trip,it)} title={it.ukuran+" Release"} style={{background:"#1D4ED8",border:"none",borderRadius:4,padding:"3px 5px",color:"white",fontSize:11,cursor:"pointer"}}>🔓</button>}
+<button onClick={()=>hapusTripItem(trip,it)} title={it.ukuran+" Hapus"} style={{background:"#991B1B",border:"none",borderRadius:4,padding:"3px 5px",color:"white",fontSize:11,cursor:"pointer"}}>🗑️</button>
 </div>)}
 </div>
 </td>
@@ -2335,27 +2347,27 @@ return <tr key={r._id} style={{background:ri%2===0?C.bg:C.nav}}>
 // legacy
 var d=r._raw;var st=d.status||"diterima";
 var stIcon=st==="gantung"?"⏳":st==="sangkut"?"⚠️":"✅";
-var aksiBtn=st==="gantung"?<div style={{display:"flex",flexDirection:"column",gap:2,alignItems:"center"}}>
-<button onClick={()=>terimaDO(d)} title="Terima" style={{background:"#15803D",border:"none",borderRadius:3,padding:"1px 4px",color:"white",fontSize:8,cursor:"pointer",width:"100%"}}>✅</button>
-<button onClick={()=>mulaiEdit(d)} title="Edit" style={{background:editId===d.id?"#B45309":"#1D4ED8",border:"none",borderRadius:3,padding:"1px 4px",color:"white",fontSize:8,cursor:"pointer",width:"100%"}}>✏️</button>
-<button onClick={()=>sangkutDO(d)} title="Sangkut" style={{background:"#B45309",border:"none",borderRadius:3,padding:"1px 4px",color:"white",fontSize:8,cursor:"pointer",width:"100%"}}>⚠️</button>
+var aksiBtn=st==="gantung"?<div style={{display:"flex",flexDirection:"column",gap:3,alignItems:"center"}}>
+<button onClick={()=>terimaDO(d)} title="Terima" style={{background:"#15803D",border:"none",borderRadius:4,padding:"3px 6px",color:"white",fontSize:11,cursor:"pointer",width:"100%"}}>✅</button>
+<button onClick={()=>mulaiEdit(d)} title="Edit" style={{background:editId===d.id?"#B45309":"#1D4ED8",border:"none",borderRadius:4,padding:"3px 6px",color:"white",fontSize:11,cursor:"pointer",width:"100%"}}>✏️</button>
+<button onClick={()=>sangkutDO(d)} title="Sangkut" style={{background:"#B45309",border:"none",borderRadius:4,padding:"3px 6px",color:"white",fontSize:11,cursor:"pointer",width:"100%"}}>⚠️</button>
 <ActBtns onDel={()=>setDelId(d)}/>
-</div>:st==="sangkut"?<div style={{display:"flex",flexDirection:"column",gap:2,alignItems:"center"}}>
-<button onClick={()=>releaseDO(d)} title="Release" style={{background:"#1D4ED8",border:"none",borderRadius:3,padding:"1px 4px",color:"white",fontSize:8,cursor:"pointer",width:"100%"}}>🔓</button>
+</div>:st==="sangkut"?<div style={{display:"flex",flexDirection:"column",gap:3,alignItems:"center"}}>
+<button onClick={()=>releaseDO(d)} title="Release" style={{background:"#1D4ED8",border:"none",borderRadius:4,padding:"3px 6px",color:"white",fontSize:11,cursor:"pointer",width:"100%"}}>🔓</button>
 <ActBtns onDel={()=>setDelId(d)}/>
 </div>:<ActBtns onDel={()=>setDelId(d)}/>;
 return <tr key={r._id} style={{background:ri%2===0?C.bg:C.nav,opacity:.92}}>
-<td style={{padding:"4px 4px",color:C.wht,border:"1px solid "+C.bdr,fontSize:9.5,overflow:"hidden",textOverflow:"ellipsis"}}>{fDs(r.tanggal)}</td>
-<td style={{padding:"4px 4px",color:C.wht,border:"1px solid "+C.bdr,fontWeight:700,fontSize:9,overflow:"hidden",textOverflow:"ellipsis"}}>{r.trip}</td>
-<td style={{padding:"4px 4px",color:C.wht,border:"1px solid "+C.bdr,fontSize:9.5,overflow:"hidden",textOverflow:"ellipsis"}}>{r.driver||"-"}</td>
-<td style={{padding:"4px 4px",color:C.gl2,border:"1px solid "+C.bdr,fontSize:9.5,overflow:"hidden",textOverflow:"ellipsis"}}>{r.sppbe}</td>
+<td style={{padding:"7px 6px",color:C.wht,border:"1px solid "+C.bdr,fontSize:12,overflow:"hidden",textOverflow:"ellipsis"}}>{fDs(r.tanggal)}</td>
+<td style={{padding:"7px 6px",color:C.wht,border:"1px solid "+C.bdr,fontWeight:700,fontSize:11,overflow:"hidden",textOverflow:"ellipsis"}}>{r.trip}</td>
+<td style={{padding:"7px 6px",color:C.wht,border:"1px solid "+C.bdr,fontSize:12,overflow:"hidden",textOverflow:"ellipsis"}}>{r.driver||"-"}</td>
+<td style={{padding:"7px 6px",color:C.gl2,border:"1px solid "+C.bdr,fontSize:12,overflow:"hidden",textOverflow:"ellipsis"}}>{r.sppbe}</td>
 {["5.5 kg","12 kg","50 kg"].flatMap(uk=>{var match=d.ukuran===uk;return[
-<td key={uk+"q"} style={{padding:"4px 2px",textAlign:"right",color:match?C.glt:C.gry,fontWeight:match?700:400,border:"1px solid "+C.bdr,fontSize:9.5}}>{match?d.qty:"-"}</td>,
-<td key={uk+"h"} style={{padding:"4px 2px",textAlign:"right",color:match?C.wht:C.gry,border:"1px solid "+C.bdr,fontSize:9}}>{match?fR(d.hppUnit||0).replace("Rp ",""):"-"}</td>
+<td key={uk+"q"} style={{padding:"7px 4px",textAlign:"right",color:match?C.glt:C.gry,fontWeight:match?700:400,border:"1px solid "+C.bdr,fontSize:12}}>{match?d.qty:"-"}</td>,
+<td key={uk+"h"} style={{padding:"7px 4px",textAlign:"right",color:match?C.wht:C.gry,border:"1px solid "+C.bdr,fontSize:11.5}}>{match?fR(d.hppUnit||0).replace("Rp ",""):"-"}</td>
 ];})}
-<td style={{padding:"4px 4px",textAlign:"right",color:C.olt,fontWeight:800,border:"1px solid "+C.bdr,fontSize:9.5}}>{fR(d.totalHPP||0).replace("Rp ","")}</td>
-<td style={{padding:"3px 2px",border:"1px solid "+C.bdr,textAlign:"center",fontSize:9}}>{stIcon}</td>
-<td style={{padding:"3px 2px",border:"1px solid "+C.bdr}}>{aksiBtn}</td>
+<td style={{padding:"7px 6px",textAlign:"right",color:C.olt,fontWeight:800,border:"1px solid "+C.bdr,fontSize:12.5}}>{fR(d.totalHPP||0).replace("Rp ","")}</td>
+<td style={{padding:"6px 4px",border:"1px solid "+C.bdr,textAlign:"center",fontSize:11}}>{stIcon}</td>
+<td style={{padding:"6px 4px",border:"1px solid "+C.bdr}}>{aksiBtn}</td>
 </tr>;
 })}
 </tbody>
@@ -2364,12 +2376,12 @@ return <tr key={r._id} style={{background:ri%2===0?C.bg:C.nav,opacity:.92}}>
 var qtyTot={"5.5 kg":0,"12 kg":0,"50 kg":0};var hppTot={"5.5 kg":0,"12 kg":0,"50 kg":0};var grandTotal=0;
 rowsBulanIni.forEach(r=>{SIZES.forEach(uk=>{if(r.per[uk]){qtyTot[uk]+=r.per[uk].qty||0;hppTot[uk]+=(r.per[uk].qty||0)*(r.per[uk].hppUnit||0);}});grandTotal+=r.totalNilai||0;});
 return <tr style={{background:C.olt}}>
-<td colSpan={4} style={{padding:"6px 4px",border:"1px solid "+C.bdr,color:"white",fontWeight:800,fontSize:10}}>TOTAL BULAN INI</td>
+<td colSpan={4} style={{padding:"9px 6px",border:"1px solid "+C.bdr,color:"white",fontWeight:800,fontSize:12.5}}>TOTAL BULAN INI</td>
 {["5.5 kg","12 kg","50 kg"].flatMap(uk=>[
-<td key={uk+"q"} style={{padding:"6px 2px",border:"1px solid "+C.bdr,textAlign:"right",color:"white",fontWeight:900,fontSize:9.5}}>{qtyTot[uk]}</td>,
-<td key={uk+"h"} style={{padding:"6px 2px",border:"1px solid "+C.bdr,textAlign:"right",color:"white",fontWeight:700,fontSize:8.5}}>{fR(hppTot[uk]).replace("Rp ","")}</td>
+<td key={uk+"q"} style={{padding:"9px 4px",border:"1px solid "+C.bdr,textAlign:"right",color:"white",fontWeight:900,fontSize:12}}>{qtyTot[uk]}</td>,
+<td key={uk+"h"} style={{padding:"9px 4px",border:"1px solid "+C.bdr,textAlign:"right",color:"white",fontWeight:700,fontSize:11}}>{fR(hppTot[uk]).replace("Rp ","")}</td>
 ])}
-<td style={{padding:"6px 4px",border:"1px solid "+C.bdr,textAlign:"right",color:"white",fontWeight:900,fontSize:10}}>{fR(grandTotal).replace("Rp ","")}</td>
+<td style={{padding:"9px 6px",border:"1px solid "+C.bdr,textAlign:"right",color:"white",fontWeight:900,fontSize:12.5}}>{fR(grandTotal).replace("Rp ","")}</td>
 <td colSpan={2} style={{border:"1px solid "+C.bdr}}/>
 </tr>;
 })()}
@@ -2490,19 +2502,19 @@ var rowsTab=tabBon==="lunas"?rowsLunas:rowsAktif;
 var bonAktifGabung=(data.bon||[]).filter(b=>b.status!=="digabung").filter(b=>!gabungKons||b.konsumen.toLowerCase().includes(gabungKons.toLowerCase()));
 
 var cols=[
-{key:"tanggal",label:"Tgl",render:r=>fDs(r.tanggal),sortVal:r=>r.tanggal,filterable:true},
-{key:"konsumen",label:"Konsumen",render:r=><b style={{color:C.wht,display:"block",minWidth:120}}>{r.konsumen}</b>,filterable:true,width:127},
-{key:"salesNama",label:"Sales",filterable:true},
-{key:"deadline",label:"Jatuh Tempo",render:r=>r.deadline?<span style={{color:r.dl<0&&r.status!=="lunas"?C.rlt:r.dl<=3&&r.status!=="lunas"?C.olt:C.gl2}}>{fDs(r.deadline)}{r.status!=="lunas"&&r.dl!=null?" ("+(r.dl<0?Math.abs(r.dl)+"h LEWAT":r.dl+"h)"):""}</span>:"-",filterable:false},
-{key:"total",label:"Total",render:r=>fR(r.total),filterable:false},
-{key:"sisaTagihan",label:"Sisa",render:r=><b style={{color:r.status==="lunas"?C.glt:r.status==="digabung"?C.gl2:C.rlt}}>{fR(r.sisaTagihan)}</b>,filterable:false},
-{key:"status",label:"Status",render:r=>r.status==="lunas"?<Bdg color="green">Lunas</Bdg>:r.status==="sebagian"?<Bdg color="orange">Sebagian</Bdg>:r.status==="digabung"?<Bdg color="gray">Digabung</Bdg>:r.isGabungan?<Bdg color="blue">Gabungan</Bdg>:<Bdg color="red">Belum</Bdg>,filterable:true,filterType:"select",options:[{v:"lunas",l:"Lunas"},{v:"sebagian",l:"Sebagian"},{v:"belum",l:"Belum"},{v:"digabung",l:"Digabung"}]},
-{key:"_aksi",label:"Aksi",sortable:false,filterable:false,render:r=><div style={{display:"flex",gap:4}}><button onClick={()=>{if(r.isGabungan){var bonsAsal=(data.bon||[]).filter(b=>(r.bonAsal||[]).includes(b.id));var invObj=bonsAsal.length>0?makeGabungInvObj(bonsAsal,r.noInv):makeBonInvObj(r);
+{key:"tanggal",label:"Tgl",width:88,render:r=>fDs(r.tanggal),sortVal:r=>r.tanggal,filterable:true},
+{key:"konsumen",label:"Konsumen",render:r=><b style={{color:C.wht}}>{r.konsumen}</b>,filterable:true,width:170},
+{key:"salesNama",label:"Sales",width:120,filterable:true},
+{key:"deadline",label:"Jatuh Tempo",width:140,render:r=>r.deadline?<span style={{whiteSpace:"nowrap",color:r.dl<0&&r.status!=="lunas"?C.rlt:r.dl<=3&&r.status!=="lunas"?C.olt:C.gl2}}>{fDs(r.deadline)}{r.status!=="lunas"&&r.dl!=null?" ("+(r.dl<0?Math.abs(r.dl)+"h LEWAT":r.dl+"h)"):""}</span>:"-",filterable:false},
+{key:"total",label:"Total",width:130,render:r=><span style={{whiteSpace:"nowrap"}}>{fR(r.total)}</span>,filterable:false},
+{key:"sisaTagihan",label:"Sisa",width:130,render:r=><b style={{color:r.status==="lunas"?C.glt:r.status==="digabung"?C.gl2:C.rlt,whiteSpace:"nowrap"}}>{fR(r.sisaTagihan)}</b>,filterable:false},
+{key:"status",label:"Status",width:110,render:r=>r.status==="lunas"?<Bdg color="green">Lunas</Bdg>:r.status==="sebagian"?<Bdg color="orange">Sebagian</Bdg>:r.status==="digabung"?<Bdg color="gray">Digabung</Bdg>:r.isGabungan?<Bdg color="blue">Gabungan</Bdg>:<Bdg color="red">Belum</Bdg>,filterable:true,filterType:"select",options:[{v:"lunas",l:"Lunas"},{v:"sebagian",l:"Sebagian"},{v:"belum",l:"Belum"},{v:"digabung",l:"Digabung"}]},
+{key:"_aksi",label:"Aksi",width:150,sortable:false,filterable:false,render:r=><div style={{display:"flex",gap:5}}><button onClick={()=>{if(r.isGabungan){var bonsAsal=(data.bon||[]).filter(b=>(r.bonAsal||[]).includes(b.id));var invObj=bonsAsal.length>0?makeGabungInvObj(bonsAsal,r.noInv):makeBonInvObj(r);
 // Status lunas/sebagian & nominal dibayar ditentukan dari record gabungan ITU SENDIRI (r), bukan hasil hitung ulang dari BON asal yang sudah berubah status jadi "digabung" setelah penggabungan
 var lunasReal=r.status==="lunas";
 var totalDibayarReal=(r.pembayaran||[]).reduce((a,p)=>a+Number(p.nominal||0),0);
 invObj={...invObj,bonLunas:lunasReal,bonSebagian:r.status==="sebagian",totalDibayar:totalDibayarReal,isBon:!lunasReal,metodeBayar:lunasReal?"BON (LUNAS)":"BON (GABUNGAN)",sisaTagihan:lunasReal?0:r.sisaTagihan};
-setInv(invObj);}else{setInv(makeBonInvObj(r));}}} title="Cetak Invoice BON" style={{background:C.inHv,border:"1px solid "+C.blt,borderRadius:6,padding:"4px 7px",color:C.blt,cursor:"pointer",fontSize:12}}>🖨️</button>{(r.status==="belum"||r.status==="sebagian")&&<button onClick={()=>{setOpenId(r.id);setBF({nominal:"",metode:"cash",bank:"BSI",salesPenerimaId:r.salesId||""});}} style={{background:C.grn,border:"none",borderRadius:6,padding:"4px 7px",color:"white",cursor:"pointer",fontSize:12}}>💳</button>}{(r.pembayaran||[]).length>0&&<button onClick={()=>setEditPayBon({bon:r,payIdx:null})} title="Edit/Cancel Pembayaran" style={{background:"#78350F",border:"1px solid #F59E0B",borderRadius:6,padding:"4px 7px",color:"#FCD34D",cursor:"pointer",fontSize:12}}>✏️</button>}<button onClick={()=>setDelId(r)} style={{background:C.inHvE,border:"1px solid "+C.rlt,borderRadius:6,padding:"4px 7px",color:C.rlt,cursor:"pointer",fontSize:12}}>🗑️</button></div>},
+setInv(invObj);}else{setInv(makeBonInvObj(r));}}} title="Cetak Invoice BON" style={{background:C.inHv,border:"1px solid "+C.blt,borderRadius:7,padding:"6px 9px",color:C.blt,cursor:"pointer",fontSize:13}}>🖨️</button>{(r.status==="belum"||r.status==="sebagian")&&<button onClick={()=>{setOpenId(r.id);setBF({nominal:"",metode:"cash",bank:"BSI",salesPenerimaId:r.salesId||""});}} style={{background:C.grn,border:"none",borderRadius:7,padding:"6px 9px",color:"white",cursor:"pointer",fontSize:13}}>💳</button>}{(r.pembayaran||[]).length>0&&<button onClick={()=>setEditPayBon({bon:r,payIdx:null})} title="Edit/Cancel Pembayaran" style={{background:"#78350F",border:"1px solid #F59E0B",borderRadius:7,padding:"6px 9px",color:"#FCD34D",cursor:"pointer",fontSize:13}}>✏️</button>}<button onClick={()=>setDelId(r)} style={{background:C.inHvE,border:"1px solid "+C.rlt,borderRadius:7,padding:"6px 9px",color:C.rlt,cursor:"pointer",fontSize:13}}>🗑️</button></div>},
 ];
 var bonActive=(data.bon||[]).filter(b=>b.status!=="lunas"&&b.status!=="digabung");
 var totPiutang=bonActive.reduce((a,b)=>a+b.sisaTagihan,0);
@@ -3032,13 +3044,13 @@ var totalPen=penFiltered.reduce((a,p)=>a+Number(p.nominal||0),0);
 var cashPen=penFiltered.filter(p=>p.metode==="cash").reduce((a,p)=>a+Number(p.nominal||0),0);
 var tfPen=penFiltered.filter(p=>p.metode==="transfer").reduce((a,p)=>a+Number(p.nominal||0),0);
 var cols=[
-{key:"tanggal",label:"Tgl",render:r=>fDs(r.tanggal),sortVal:r=>r.tanggal,filterable:true},
-{key:"kategori",label:"Kategori",render:r=><Bdg color="gray">{r.kategori}</Bdg>,filterable:true},
-{key:"keperluan",label:"Keperluan",render:r=>r.keperluan==="perusahaan"?<Bdg color="gray">Perusahaan</Bdg>:<Bdg color="blue">{r.karyawanNama||r.keperluan}</Bdg>,filterable:true},
+{key:"tanggal",label:"Tgl",width:90,render:r=>fDs(r.tanggal),sortVal:r=>r.tanggal,filterable:true},
+{key:"kategori",label:"Kategori",width:170,render:r=><Bdg color="gray">{r.kategori}</Bdg>,filterable:true},
+{key:"keperluan",label:"Keperluan",width:150,render:r=>r.keperluan==="perusahaan"?<Bdg color="gray">Perusahaan</Bdg>:<Bdg color="blue">{r.karyawanNama||r.keperluan}</Bdg>,filterable:true},
 {key:"ket",label:"Keterangan",render:r=>r.ket||"-",filterable:true},
-{key:"nominal",label:"Nominal",render:r=><b style={{color:C.rlt}}>{fR(r.nominal)}</b>,sortVal:r=>r.nominal,filterable:false},
-{key:"metode",label:"Metode",render:r=><Bdg color={r.metode==="transfer"?"blue":"green"}>{r.metode}</Bdg>,filterable:true,filterType:"select",options:[{v:"cash",l:"Cash"},{v:"transfer",l:"Transfer"}]},
-{key:"_aksi",label:"Aksi",sortable:false,filterable:false,render:r=><button onClick={()=>setDelId(r)} style={{background:C.inHvE,border:"1px solid "+C.rlt,borderRadius:6,padding:"4px 7px",color:C.rlt,cursor:"pointer",fontSize:12}}>🗑️</button>},
+{key:"nominal",label:"Nominal",width:140,render:r=><b style={{color:C.rlt,whiteSpace:"nowrap"}}>{fR(r.nominal)}</b>,sortVal:r=>r.nominal,filterable:false},
+{key:"metode",label:"Metode",width:100,render:r=><Bdg color={r.metode==="transfer"?"blue":"green"}>{r.metode}</Bdg>,filterable:true,filterType:"select",options:[{v:"cash",l:"Cash"},{v:"transfer",l:"Transfer"}]},
+{key:"_aksi",label:"Aksi",width:70,sortable:false,filterable:false,render:r=><button onClick={()=>setDelId(r)} style={{background:C.inHvE,border:"1px solid "+C.rlt,borderRadius:7,padding:"6px 9px",color:C.rlt,cursor:"pointer",fontSize:13}}>🗑️</button>},
 ];
 return <div>
 <STitle icon="💸" children="Pengeluaran"/>
