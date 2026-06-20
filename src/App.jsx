@@ -1239,7 +1239,7 @@ return <div>
 <div style={{gridColumn:mob?"1/-1":"auto"}}><AutoInp label="Nama Konsumen" value={f.konsumen} onChange={v=>setF(p=>({...p,konsumen:v}))} options={kNames} placeholder="Ketik nama..." onSelect={onKons}/></div>
 </div>
 {f.konsumenId&&(()=>{var plg=(data.pelanggan||[]).find(x=>x.id===f.konsumenId);return plg&&(Array.isArray(plg.hargaKhusus)?plg.hargaKhusus:[]).length>0?<div style={{padding:"6px 10px",background:C.mode==="dark"?"#0A1A2A":"#DBEAFE",borderRadius:6,fontSize:11,color:C.blt,marginBottom:10}}>💲 Pelanggan memiliki <b>{plg.hargaKhusus.length}</b> harga khusus — otomatis terpasang</div>:null;})()}
-<div style={{border:"1px solid "+C.bdr,borderRadius:8,overflow:"hidden",marginBottom:10}}>
+<div style={{border:"1px solid "+C.bdr,borderRadius:8,overflow:"hidden",marginBottom:10,width:mob?"100%":"fit-content",maxWidth:"100%"}}>
 <div style={{display:"grid",gridTemplateColumns:mob?"85px 100px 55px 95px 28px":"95px 110px 60px 110px 90px 28px",background:C.nav,padding:"6px 10px",fontSize:11,color:C.gl2,fontWeight:700,gap:5}}><span>Ukuran</span><span>Jenis</span><span>Qty</span><span>Harga</span>{!mob&&<span>Subtotal</span>}<span/></div>
 {f.items.map((it,i)=><div key={i} style={{display:"grid",gridTemplateColumns:mob?"85px 100px 55px 95px 28px":"95px 110px 60px 110px 90px 28px",padding:"5px 10px",borderTop:"1px solid "+C.bdr,alignItems:"center",gap:5}}>
 <select value={it.ukuran} onChange={e=>setProduct(i,e.target.value,it.jenis)} style={{background:C.nav,border:"1px solid "+C.bdr,borderRadius:6,padding:"5px 4px",color:C.wht,fontSize:12,outline:"none"}}>{SIZES.map(s=><option key={s}>{s}</option>)}</select>
@@ -1498,7 +1498,7 @@ return <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.8)",zIndex:
 <button onClick={()=>setEditInv(null)} style={{background:"transparent",border:"none",color:C.gl2,cursor:"pointer",fontSize:20}}>✕</button>
 </div>
 <div style={{padding:16}}>
-<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:10}}>
+<div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(180px,260px))",width:"fit-content",maxWidth:"100%",gap:10,marginBottom:10}}>
 <Inp label="Tanggal" type="date" value={ef.tanggal||""} onChange={v=>setEf(p=>({...p,tanggal:v}))}/>
 <Sel label="Sales" value={ef.salesId||""} onChange={v=>setEf(p=>({...p,salesId:v}))} opts={[{v:"",l:"-- Pilih --"},...salesEmpE.map(e=>({v:e.id,l:e.nama}))]}/>
 </div>
@@ -2673,7 +2673,7 @@ return <tr style={{background:C.nav,borderTop:"2px solid "+C.bdr}}>
 <Btn sm color="gray" onClick={()=>setOpenId(null)}>Batal</Btn>
 </div>
 <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:10}}>{[["Total",b.total,C.wht],["Dibayar",paid,C.glt],["Sisa",b.sisaTagihan,C.rlt]].map(x=><div key={x[0]} style={{background:C.nav,borderRadius:8,padding:"6px 10px",textAlign:"center",border:"1px solid "+C.bdr}}><div style={{fontSize:10,color:C.gl2}}>{x[0]}</div><div style={{fontSize:13,fontWeight:900,color:x[2]}}>{fR(x[1])}</div></div>)}</div>
-<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:10}}>
+<div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(180px,260px))",width:"fit-content",maxWidth:"100%",gap:10,marginBottom:10}}>
 <div><Inp label="Nominal" type="number" value={bF.nominal} onChange={v=>setBF(p=>({...p,nominal:v}))} placeholder={String(b.sisaTagihan)} style={{marginBottom:4}}/><button onClick={()=>setBF(p=>({...p,nominal:String(b.sisaTagihan)}))} style={{background:C.inHv,border:"1px solid "+C.blt,borderRadius:5,padding:"3px 8px",color:C.blt,cursor:"pointer",fontSize:11}}>Isi Semua</button></div>
 <Sel label="Sales Penerima" value={bF.salesPenerimaId} onChange={v=>setBF(p=>({...p,salesPenerimaId:v}))} opts={[{v:"",l:"Admin/Kantor"},...salesList.map(e=>({v:e.id,l:e.nama}))]}/>
 </div>
@@ -2744,7 +2744,7 @@ toast("✓ Dicancel. Status: "+newStatus);
 </div>
 </div>
 {isEdit&&editPayBon.editForm&&<div>
-<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:8}}>
+<div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(180px,260px))",width:"fit-content",maxWidth:"100%",gap:8,marginBottom:8}}>
 <div><div style={{fontSize:10,color:C.gl2,marginBottom:3}}>Nominal</div>
 <input type="number" value={editPayBon.editForm.jumlah||""} onChange={e=>setEditPayBon(p=>({...p,editForm:{...p.editForm,jumlah:Number(e.target.value)||0}}))} style={{background:C.bg,border:"1px solid "+C.bdr,borderRadius:6,padding:"7px 9px",color:C.wht,fontSize:12,outline:"none",width:"100%"}}/></div>
 <div><div style={{fontSize:10,color:C.gl2,marginBottom:3}}>Tanggal</div>
@@ -3055,7 +3055,7 @@ var cols=[
 return <div>
 <STitle icon="💸" children="Pengeluaran"/>
 <Card>
-<div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,marginBottom:10}}>
+<div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(180px,220px))",gap:10,marginBottom:10,width:"fit-content",maxWidth:"100%"}}>
 <Inp label="Tanggal" type="date" value={f.tanggal} onChange={v=>setF(p=>({...p,tanggal:v}))} style={{marginBottom:0}}/>
 <div>
 <label style={{display:"block",fontSize:11,color:C.gl2,marginBottom:3,fontWeight:600}}>Kategori</label>
@@ -3065,7 +3065,7 @@ return <div>
 <Sel label="Keperluan / Atas Nama" value={f.keperluan} onChange={v=>setF(p=>({...p,keperluan:v}))} opts={[{v:"perusahaan",l:"🏢 Perusahaan"},...karList.map(e=>({v:e.id,l:e.nama}))]} style={{marginBottom:0}}/>
 </div>
 <Inp label="Keterangan" value={f.ket} onChange={v=>setF(p=>({...p,ket:v}))} placeholder="Detail pengeluaran..." style={{marginBottom:10}}/>
-<div style={{display:"grid",gridTemplateColumns:"90px auto 1fr auto 1fr",gap:4,alignItems:"flex-end",marginBottom:isPancung?6:10}}>
+<div style={{display:"grid",gridTemplateColumns:"90px auto 180px auto 180px",gap:4,alignItems:"flex-end",marginBottom:isPancung?6:10,width:"fit-content",maxWidth:"100%"}}>
 <Inp label={isPancung?"Qty Tabung":"Qty (opsional)"} type="number" value={f.qty||""} onChange={v=>{var n=Number(v)||0;var h=Number(f.hargaSatuan)||0;setF(p=>({...p,qty:v,nominal:n&&h?String(n*h):p.nominal}));}} placeholder="1" style={{marginBottom:0}}/>
 <div style={{textAlign:"center",color:C.gl2,fontSize:14,paddingBottom:10}}>×</div>
 <Inp label={isPancung?"Biaya Jasa/Tbg":"Harga Satuan"} type="number" step="1000" value={f.hargaSatuan||(isPancung?String(KAT_AUTO_HARGA[f.kategori]||""):"")} onChange={v=>{var h=Number(v)||0;var q=Number(f.qty)||0;setF(p=>({...p,hargaSatuan:v,nominal:q&&h?String(q*h):p.nominal}));}} placeholder="opsional" style={{marginBottom:0}}/>
@@ -3175,7 +3175,7 @@ return <div>
 
 <Card style={{border:"1px solid "+(editId?C.olt:C.bdr)}}>
 <div style={{fontWeight:700,color:editId?C.olt:C.gl2,marginBottom:10,fontSize:13}}>{editId?"✏️ Edit Jualan Lain":"➕ Tambah Jualan Lain"}</div>
-<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+<div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(180px,260px))",width:"fit-content",maxWidth:"100%",gap:10}}>
 <Inp label="Tanggal" type="date" value={tgl} onChange={setTgl}/>
 <Inp label="Nama Barang" value={nama} onChange={setNama} placeholder="Gas Kaleng / Selang / dll"/>
 <Inp label="Qty" type="number" value={qty} onChange={setQty} placeholder="1"/>
@@ -3412,7 +3412,7 @@ return <div>
 </div>
 
 {tabF==="batch"&&<>
-<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:14}}>
+<div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(180px,260px))",width:"fit-content",maxWidth:"100%",gap:10,marginBottom:14}}>
 <div style={{background:C.card,borderRadius:10,border:"1px solid "+C.bdr,padding:14}}>
 <div style={{fontSize:11,color:C.gl2,marginBottom:4}}>Nilai Stok (Metode FIFO)</div>
 <div style={{fontSize:18,fontWeight:900,color:C.glt}}>{fR(nilaiStokTotal)}</div>
@@ -3616,7 +3616,7 @@ return <div ref={formRef}>
 </div>}
 
 <Card>
-<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+<div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(180px,260px))",width:"fit-content",maxWidth:"100%",gap:10}}>
 <Sel label="Sales" value={salesId} onChange={v=>{if(!editingLogId)setSalesId(v);}} opts={[{v:"",l:"-- Pilih --"},...salesList.map(e=>({v:e.id,l:e.nama}))]}/>
 <Inp label="Tanggal" type="date" value={tgl} onChange={v=>{if(!editingLogId)setTgl(v);}} ro={!!editingLogId}/>
 </div>
@@ -4306,7 +4306,7 @@ var kurangSetorKasir=(data.ambilan||[]).filter(a=>a.tanggal===tgl&&(a.ket||"").t
 var wajibSetorKasir=Math.max(0,totalCashMasuk-penCashTgl-kurangSetorKasir-tarikTFTgl+setorTFTgl);
 return <Card style={{border:"2px solid "+C.glt}}>
 <div style={{fontWeight:700,color:C.glt,marginBottom:10,fontSize:13}}>🏦 Cash Wajib Setor Kasir — {fDs(tgl)}</div>
-<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+<div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(180px,260px))",width:"fit-content",maxWidth:"100%",gap:12}}>
 <div>
 <div style={{fontSize:11,fontWeight:700,color:C.gl2,marginBottom:6,textTransform:"uppercase",letterSpacing:.5}}>Cash Masuk</div>
 {[["Cash Penjualan (semua sales)",cashPenjTgl,C.glt],["Bayar BON Cash (semua)",bonBayarCashTgl,C.glt],...(jualanLainCashTgl>0?[["Jualan Lain (Cash)",jualanLainCashTgl,C.glt]]:[]),...(setorTFTgl>0?[["Setor TF (Bank → Laci)",setorTFTgl,C.glt]]:[])].map(x=><div key={x[0]} style={{display:"flex",justifyContent:"space-between",padding:"5px 8px",background:C.bg,borderRadius:5,marginBottom:3,border:"1px solid "+C.bdr}}>
@@ -6142,7 +6142,7 @@ return <div>
 <button onClick={()=>setTfJenis("tarik")} style={{flex:1,background:tfJenis==="tarik"?C.rdk:C.nav,color:tfJenis==="tarik"?"white":C.wht,border:"1px solid "+(tfJenis==="tarik"?C.rdk:C.bdr),borderRadius:8,padding:"10px",fontWeight:700,fontSize:12,cursor:"pointer"}}>📤 Tarik TF<div style={{fontSize:10,fontWeight:400,marginTop:2,opacity:.9}}>Laci → Bank</div></button>
 <button onClick={()=>setTfJenis("setor")} style={{flex:1,background:tfJenis==="setor"?C.grn:C.nav,color:tfJenis==="setor"?"white":C.wht,border:"1px solid "+(tfJenis==="setor"?C.grn:C.bdr),borderRadius:8,padding:"10px",fontWeight:700,fontSize:12,cursor:"pointer"}}>📥 Setor TF<div style={{fontSize:10,fontWeight:400,marginTop:2,opacity:.9}}>Bank → Laci</div></button>
 </div>
-<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+<div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(180px,260px))",width:"fit-content",maxWidth:"100%",gap:10}}>
 <Inp label="Tanggal" type="date" value={tfTgl} onChange={setTfTgl}/>
 <Sel label={tfJenis==="tarik"?"Bank Tujuan":"Bank Asal"} value={tfBank} onChange={setTfBank} opts={[{v:"BSI",l:"BSI"},{v:"BCA",l:"BCA"}]}/>
 <Inp label="Nominal" type="number" value={tfNominal} onChange={setTfNominal} placeholder="0"/>
@@ -6159,7 +6159,7 @@ return <div>
 </div>
 </Card>
 
-<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:12}}>
+<div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(180px,260px))",width:"fit-content",maxWidth:"100%",gap:10,marginBottom:12}}>
 <div style={{background:C.card,borderRadius:10,border:"1px solid "+C.bdr,padding:12}}>
 <div style={{fontSize:11,color:C.gl2,marginBottom:4}}>Total Tarik TF (Laci → Bank)</div>
 <div style={{fontSize:16,fontWeight:900,color:C.rlt}}>{fR(totalTarik)}</div>
@@ -6195,7 +6195,7 @@ var st=bank==="BSI"?setupBSI:setupBCA;
 var setSt=bank==="BSI"?setSetupBSI:setSetupBCA;
 return <Card key={bank}>
 <div style={{fontWeight:700,color:C.blt,marginBottom:12,fontSize:13}}>🏦 Bank {bank}</div>
-<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:10}}>
+<div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(180px,260px))",width:"fit-content",maxWidth:"100%",gap:10,marginBottom:10}}>
 <Inp label="Tanggal Efektif" type="date" value={st.tanggal} onChange={v=>setSt(p=>({...p,tanggal:v}))}/>
 <Inp label="Saldo Awal (Rp)" type="number" value={st.nominal} onChange={v=>setSt(p=>({...p,nominal:v}))} placeholder="0"/>
 </div>
@@ -6217,14 +6217,14 @@ toast("✓ Saldo awal "+bank+" disimpan!");
 var ef=editSetorF||editSetor;
 var setEf=setEditSetorF;
 return <div>
-<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:10}}>
+<div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(180px,260px))",width:"fit-content",maxWidth:"100%",gap:8,marginBottom:10}}>
 <Inp label="Tanggal Setor" type="date" value={ef.tanggal||""} onChange={v=>setEf({...ef,tanggal:v})}/>
 <Sel label="Bank" value={ef.bank||"BSI"} onChange={v=>setEf({...ef,bank:v})} opts={[{v:"BSI",l:"BSI"},{v:"BCA",l:"BCA"}]}/>
 <Inp label="Nominal (Rp)" type="number" value={String(ef.nominal||"")} onChange={v=>setEf({...ef,nominal:Number(v)})}/>
 <Inp label="Penyetor" value={ef.penyetor||""} onChange={v=>setEf({...ef,penyetor:v})}/>
 </div>
 <div style={{fontSize:11,fontWeight:700,color:C.gl2,marginBottom:6}}>Pecahan Real (Tabel 2):</div>
-<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6,marginBottom:12}}>
+<div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(180px,260px))",width:"fit-content",maxWidth:"100%",gap:6,marginBottom:12}}>
 {DENOMS.map(d=><div key={d} style={{display:"flex",alignItems:"center",gap:6,background:C.nav,borderRadius:6,padding:"4px 8px",border:"1px solid "+C.bdr}}>
 <span style={{fontSize:11,color:C.gl2,minWidth:70}}>{fR(d)}</span>
 <input type="number" value={(ef.pecahReal||ef.pecah||{})[d]||""} placeholder="0" onChange={e=>{var pr={...(ef.pecahReal||ef.pecah||{})};pr[d]=Number(e.target.value)||0;setEf({...ef,pecahReal:pr});}} style={{background:"transparent",border:"none",color:C.wht,fontSize:11,outline:"none",width:60,textAlign:"center"}}/>
