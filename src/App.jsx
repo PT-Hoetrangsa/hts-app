@@ -177,6 +177,9 @@ function fR(n){return"Rp "+Number(n||0).toLocaleString("id-ID");}
 function dLeft(ds){if(!ds)return null;var t=new Date();t.setHours(0,0,0,0);return Math.ceil((new Date(ds+"T00:00:00")-t)/86400000);}
 function iTotal(its){return its.reduce((a,it)=>a+Number(it.qty||0)*Number(it.price||0),0);}
 function daysInMonth(ym){var[y,m]=ym.split("-").map(Number);return new Date(y,m,0).getDate();}
+// Kategori pengeluaran yang BUKAN biaya operasional (beli aset / piutang karyawan) — dipakai di Tutup Buku & Buku Kas Harian
+var NON_OPS_CATS=["belanja modal","pancung","belanja tabung","kasbon","ambilan"];
+function isNonOps(kat){kat=(kat||"").toLowerCase();return NON_OPS_CATS.some(k=>kat.includes(k));}
 
 // ── buildStokHarian: rekonstruksi tabel stok per hari dalam sebulan ──
 // ─── Buku Kas Harian (Rekap Bulanan) — semua otomatis dari data sistem ────────
@@ -4111,9 +4114,7 @@ var hppH=omzetH-marginH;
 // Jualan Lain (gas kaleng, aksesoris) — TIDAK masuk omzet/laba, hanya cash/TF masuk tambahan
 var jualLainH=(data.jualanLain||[]).filter(j=>j.tanggal===tgl);
 var omzetJualLainH=jualLainH.reduce((a,j)=>a+Number(j.total||0),0);
-// Kategori pengeluaran yang BUKAN biaya operasional (beli aset / piutang karyawan)
-var NON_OPS_CATS=["belanja modal","pancung","belanja tabung","kasbon","ambilan"];
-function isNonOps(kat){kat=(kat||"").toLowerCase();return NON_OPS_CATS.some(k=>kat.includes(k));}
+// Kategori pengeluaran non-operasional & fungsi isNonOps sekarang pakai versi global (lihat dekat daysInMonth)
 var penH=(data.pengeluaran||[]).filter(e=>e.tanggal===tgl);
 var totalOutH=penH.filter(e=>!isNonOps(e.kategori)).reduce((a,e)=>a+Number(e.nominal||0),0);
 var labaBersihH=marginH-totalOutH;
