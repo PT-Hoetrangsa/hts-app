@@ -2420,7 +2420,11 @@ var cols=[
 {key:"total",label:"Total",render:r=>fR(r.total),filterable:false},
 {key:"sisaTagihan",label:"Sisa",render:r=><b style={{color:r.status==="lunas"?C.glt:r.status==="digabung"?C.gl2:C.rlt}}>{fR(r.sisaTagihan)}</b>,filterable:false},
 {key:"status",label:"Status",render:r=>r.status==="lunas"?<Bdg color="green">Lunas</Bdg>:r.status==="sebagian"?<Bdg color="orange">Sebagian</Bdg>:r.status==="digabung"?<Bdg color="gray">Digabung</Bdg>:r.isGabungan?<Bdg color="blue">Gabungan</Bdg>:<Bdg color="red">Belum</Bdg>,filterable:true,filterType:"select",options:[{v:"lunas",l:"Lunas"},{v:"sebagian",l:"Sebagian"},{v:"belum",l:"Belum"},{v:"digabung",l:"Digabung"}]},
-{key:"_aksi",label:"Aksi",sortable:false,filterable:false,render:r=><div style={{display:"flex",gap:4}}><button onClick={()=>{if(r.isGabungan){var bonsAsal=(data.bon||[]).filter(b=>(r.bonAsal||[]).includes(b.id));setInv(bonsAsal.length>0?makeGabungInvObj(bonsAsal,r.noInv):makeBonInvObj(r));}else{setInv(makeBonInvObj(r));}}} title="Cetak Invoice BON" style={{background:C.inHv,border:"1px solid "+C.blt,borderRadius:6,padding:"4px 7px",color:C.blt,cursor:"pointer",fontSize:12}}>🖨️</button>{(r.status==="belum"||r.status==="sebagian")&&<button onClick={()=>{setOpenId(r.id);setBF({nominal:"",metode:"cash",bank:"BSI",salesPenerimaId:r.salesId||""});}} style={{background:C.grn,border:"none",borderRadius:6,padding:"4px 7px",color:"white",cursor:"pointer",fontSize:12}}>💳</button>}{(r.pembayaran||[]).length>0&&<button onClick={()=>setEditPayBon({bon:r,payIdx:null})} title="Edit/Cancel Pembayaran" style={{background:"#78350F",border:"1px solid #F59E0B",borderRadius:6,padding:"4px 7px",color:"#FCD34D",cursor:"pointer",fontSize:12}}>✏️</button>}<button onClick={()=>setDelId(r)} style={{background:C.inHvE,border:"1px solid "+C.rlt,borderRadius:6,padding:"4px 7px",color:C.rlt,cursor:"pointer",fontSize:12}}>🗑️</button></div>},
+{key:"_aksi",label:"Aksi",sortable:false,filterable:false,render:r=><div style={{display:"flex",gap:4}}><button onClick={()=>{if(r.isGabungan){var bonsAsal=(data.bon||[]).filter(b=>(r.bonAsal||[]).includes(b.id));var invObj=bonsAsal.length>0?makeGabungInvObj(bonsAsal,r.noInv):makeBonInvObj(r);
+// Status lunas ditentukan dari record gabungan ITU SENDIRI (r.status), bukan status BON asal yang sudah berubah jadi "digabung" setelah penggabungan
+var lunasReal=r.status==="lunas";
+invObj={...invObj,bonLunas:lunasReal,isBon:!lunasReal,metodeBayar:lunasReal?"BON (LUNAS)":"BON (GABUNGAN)",sisaTagihan:lunasReal?0:invObj.sisaTagihan};
+setInv(invObj);}else{setInv(makeBonInvObj(r));}}} title="Cetak Invoice BON" style={{background:C.inHv,border:"1px solid "+C.blt,borderRadius:6,padding:"4px 7px",color:C.blt,cursor:"pointer",fontSize:12}}>🖨️</button>{(r.status==="belum"||r.status==="sebagian")&&<button onClick={()=>{setOpenId(r.id);setBF({nominal:"",metode:"cash",bank:"BSI",salesPenerimaId:r.salesId||""});}} style={{background:C.grn,border:"none",borderRadius:6,padding:"4px 7px",color:"white",cursor:"pointer",fontSize:12}}>💳</button>}{(r.pembayaran||[]).length>0&&<button onClick={()=>setEditPayBon({bon:r,payIdx:null})} title="Edit/Cancel Pembayaran" style={{background:"#78350F",border:"1px solid #F59E0B",borderRadius:6,padding:"4px 7px",color:"#FCD34D",cursor:"pointer",fontSize:12}}>✏️</button>}<button onClick={()=>setDelId(r)} style={{background:C.inHvE,border:"1px solid "+C.rlt,borderRadius:6,padding:"4px 7px",color:C.rlt,cursor:"pointer",fontSize:12}}>🗑️</button></div>},
 ];
 var bonActive=(data.bon||[]).filter(b=>b.status!=="lunas"&&b.status!=="digabung");
 var totPiutang=bonActive.reduce((a,b)=>a+b.sisaTagihan,0);
@@ -6130,9 +6134,10 @@ return <ThemeCtx.Provider value={C}>
 <button onClick={()=>setSideOpen(!sideOpen)} style={{background:"none",border:"none",color:C.gl2,fontSize:22,cursor:"pointer",padding:"8px",borderRadius:6}}>☰</button>
 <div style={{display:"flex",alignItems:"center",gap:8}}>
 {<CompanyLogo h={32} variant={C.mode==="dark"?"dark":"light"}/>}
-{!mobile&&<div><div style={{fontSize:14,fontWeight:900,color:C.blt,lineHeight:1}}>PT. HOE TRANG SA</div><div style={{fontSize:10,color:C.gl2}}>Distributor LPG Pertamina</div></div>}
 </div>
 </div>
+<div style={{display:"flex",alignItems:"center",gap:12}}>
+{!mobile&&<PertaminaLogo h={22} variant={C.mode==="dark"?"dark":"light"}/>}
 <div style={{display:"flex",alignItems:"center",gap:8}}>
 {bonAlerts>0&&<div style={{background:C.mode==="dark"?"#3D1A05":"#FFEDD5",border:"1px solid "+C.olt,borderRadius:20,padding:"3px 9px",fontSize:11,color:C.olt,fontWeight:700}}>⚠️ {bonAlerts}</div>}
 <button onClick={themeToggle} style={{background:C.nav,border:"1px solid "+C.bdr,color:C.gl2,borderRadius:8,padding:"6px 10px",cursor:"pointer",fontSize:14}}>{theme==="light"?"🌙":"☀️"}</button>
@@ -6140,6 +6145,7 @@ return <ThemeCtx.Provider value={C}>
 <button onClick={handlePull} title="Ambil data dari Google Sheets" style={{background:C.nav,border:"1px solid "+C.bdr,color:C.gl2,borderRadius:8,padding:"6px 10px",cursor:"pointer",fontSize:13}}>⬇️</button>
 <div style={{textAlign:"right"}}><div style={{fontSize:12,fontWeight:700,color:C.wht}}>{user.nama.split(" ")[0]}</div>{!mobile&&<div style={{fontSize:10,color:C.gl2}}>{user.posisi}</div>}</div>
 <button onClick={()=>setUser(null)} style={{background:C.rdk,border:"none",borderRadius:8,color:"#FFF",fontSize:11,padding:"8px 10px",cursor:"pointer",fontWeight:700}}>⏻</button>
+</div>
 </div>
 </div>
 <div style={{flex:1,position:"relative",minHeight:0}}>
