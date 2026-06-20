@@ -164,7 +164,7 @@ stockLog:[],doList:[],doTrip:[],modalHistory:[],hetPrices:{},titipList:[],
 penjualan:[],bon:[],pengeluaran:[],employees:DEF_EMP.slice(),
 tutupBuku:[],pelanggan:[],setoranSales:[],setoranLog:[],setoranBank:[],kas:{},saldoAwalBank:{BSI:{nominal:0,tanggal:""},BCA:{nominal:0,tanggal:""}},absensi:[],ambilan:[],payrollLog:[],jualanLain:[],kasBankTF:[],stokBatch:{},stokBatchInit:false,invoiceManual:[],
 counters:{inv:{},sg:{},reg:0},theme:"light",
-company:{nama:"PT. HOE TRANG SA",alamat:"Jl. Jendral Sudirman No.80, Geuce Iniem, Kec. Banda Raya, Kota Banda Aceh",telepon:"0812 6900 2121",telepon2:"(0651) 21221",email:"npso.pthoetrangsa@gmail.com",website:"pt-hoetrangsa.business.site",npwp:"",slogan:"DEALER LPG PERTAMINA",bankNama:"BSI",bankAtasNama:"PT. HOE TRANG SA",bankRekening:"812 69 2121 8",logo:"",logoPertamina:"",ttdKasir:"",ttdDirektur:"",stempelLunas:"",direkturNama:"Muhammad Haekal",kasirNama:"MANARUL HIDAYAT",soldTo:"731070",shipToKCR:"862070",shipToMGL:"782092",saBulan:"Juni 2026",sa12KCR:"2845075",sa55KCR:"2845111",sa12MGL:"",sa55MGL:"",assetArmada:0,hargaTbgKosong:{"5.5 kg":0,"12 kg":0,"50 kg":0},hppFixedSPPBE:{"SPPBE KCR":{"5.5 kg":0,"12 kg":0,"50 kg":0},"SPPBE MGL":{"5.5 kg":0,"12 kg":0,"50 kg":0}}}
+company:{nama:"PT. HOE TRANG SA",alamat:"Jl. Jendral Sudirman No.80, Geuce Iniem, Kec. Banda Raya, Kota Banda Aceh",telepon:"0812 6900 2121",telepon2:"(0651) 21221",email:"npso.pthoetrangsa@gmail.com",website:"pt-hoetrangsa.business.site",npwp:"",slogan:"DEALER LPG PERTAMINA",bankNama:"BSI",bankAtasNama:"PT. HOE TRANG SA",bankRekening:"812 69 2121 8",logo:"",logoPertamina:"",ttdKasir:"",ttdDirektur:"",stempelLunas:"",direkturNama:"Muhammad Haekal",kasirNama:"MANARUL HIDAYAT",soldTo:"731070",shipToKCR:"862070",shipToMGL:"782092",saBulan:"Juni 2026",sa12KCR:"2845075",sa55KCR:"2845111",sa12MGL:"",sa55MGL:"",assetArmada:0,hargaTbgKosong:{"5.5 kg":0,"12 kg":0,"50 kg":0},hppFixedSPPBE:{"SPPBE KCR":{"5.5 kg":0,"12 kg":0,"50 kg":0},"SPPBE MGL":{"5.5 kg":0,"12 kg":0,"50 kg":0}},appWidth:1600}
 };
 
 // ─── HELPERS ──────────────────────────────────────────────────────────────────
@@ -4404,6 +4404,8 @@ return <Card style={{border:"2px solid "+C.glt}}>
 </div>
 </Card>
 
+<div style={{display:"flex",gap:14,flexWrap:"wrap",alignItems:"flex-start"}}>
+<div style={{flex:"1 1 360px",minWidth:300}}>
 {/* 5. VERIFIKASI CASH FLOW */}
 <Card style={{border:"1px solid "+(Math.abs(deltaSelisih)<1000?C.glt:C.olt)}}>
 <div style={{fontWeight:700,color:C.gl2,marginBottom:10,fontSize:13}}>✅ Verifikasi Cash Flow</div>
@@ -4413,7 +4415,8 @@ return <Card style={{border:"2px solid "+C.glt}}>
 {Math.abs(deltaSelisih)<1000&&<div style={{marginTop:8,padding:"6px 12px",background:C.grn,borderRadius:6,fontSize:12,fontWeight:700,color:"white"}}>✅ Selisih = 0. Cash flow balance!</div>}
 {Math.abs(deltaSelisih)>=1000&&<div style={{marginTop:8,padding:"6px 12px",background:C.rdk,borderRadius:6,fontSize:12,color:"white"}}>⚠️ Ada selisih {fR(Math.abs(deltaSelisih))}. Periksa input cash atau ada transaksi yang terlewat.</div>}
 </Card>
-
+</div>
+<div style={{flex:"1 1 360px",minWidth:300}}>
 {/* 6. TOTAL ASSET */}
 <Card style={{border:"1px solid "+C.olt}}>
 <div style={{fontWeight:700,color:C.olt,marginBottom:12,fontSize:13}}>🏦 TOTAL ASSET</div>
@@ -4421,6 +4424,8 @@ return <Card style={{border:"2px solid "+C.glt}}>
 {[["Total Cash Flow",cashFlowOmset,C.blt,false],["Asset Tabung Milik PT",assetTabungMilikPT,C.gl2,false],["Asset Armada",assetArmada,C.gl2,false],["TOTAL ASSET",assetValue,C.olt,true]].map((x,i)=><div key={i} style={{display:"flex",justifyContent:"space-between",padding:x[3]?"12px 14px":"8px 14px",background:x[3]?C.nav:"transparent",borderBottom:"1px solid "+C.bdr}}><span style={{fontSize:x[3]?14:12,color:x[3]?C.wht:C.gl2,fontWeight:x[3]?800:400}}>{x[0]}</span><span style={{fontSize:x[3]?18:13,fontWeight:x[3]?900:600,color:x[2]}}>{fR(x[1])}</span></div>)}
 </div>
 </Card>
+</div>
+</div>
 
 {/* 7. LAPORAN STOK HARIAN */}
 <Card>
@@ -5562,6 +5567,17 @@ return <div>
 <button onClick={()=>setTheme("dark")} style={{flex:1,padding:"12px",background:theme==="dark"?C.blu:C.nav,color:theme==="dark"?"white":C.wht,border:"1px solid "+(theme==="dark"?C.blt:C.bdr),borderRadius:8,fontWeight:700,fontSize:13,cursor:"pointer"}}>🌙 Gelap Premium</button>
 </div>
 </Card>
+<Card style={{border:"1px solid "+C.blt}}>
+<div style={{fontWeight:700,color:C.blt,marginBottom:6,fontSize:13}}>📐 Lebar Tampilan Desktop</div>
+<div style={{fontSize:11,color:C.gl2,marginBottom:12}}>Atur seberapa lebar konten aplikasi memenuhi layar (khusus PC/laptop — tampilan HP tidak terpengaruh). Berlaku permanen di semua device setelah disimpan.</div>
+<div style={{display:"flex",alignItems:"center",gap:14}}>
+<span style={{fontSize:10,color:C.gl2,whiteSpace:"nowrap"}}>Sempit</span>
+<input type="range" min="1000" max="2200" step="50" value={f.appWidth||1600} onChange={e=>{var v=Number(e.target.value);setF(p=>({...p,appWidth:v}));setData(d=>({...d,company:{...d.company,appWidth:v}}));}} style={{flex:1}}/>
+<span style={{fontSize:10,color:C.gl2,whiteSpace:"nowrap"}}>Lebar</span>
+</div>
+<div style={{textAlign:"center",margin:"8px 0 14px",fontSize:16,fontWeight:800,color:C.blt}}>{f.appWidth||1600}px</div>
+<Btn color="blue" onClick={saveCompany}>💾 Simpan Lebar Tampilan</Btn>
+</Card>
 <Card><div style={{fontWeight:700,color:C.gl2,marginBottom:12,fontSize:13}}>🖼️ Logo & Tanda Tangan Elektronik</div>
 <div style={{background:C.nav,border:"1px solid "+C.bdr,borderRadius:8,padding:"10px 12px",marginBottom:14,fontSize:11,color:C.gl2}}>ℹ️ Logo PT. Hoe Trang Sa & Pertamina sudah terpasang tetap (tidak perlu upload), otomatis tampil di semua dokumen & device.</div>
 <UploadSlot label="TTD Kasir" value={f.ttdKasir} refEl={ttdKRef} onUpload={e=>handleUpload(e,"ttdKasir","TTD Kasir")} onClear={()=>clearUpload("ttdKasir","TTD Kasir")} desc="Tanda tangan di Invoice"/>
@@ -6189,13 +6205,14 @@ r.ket||"—",
 })()}
 
 {/* ── TAB SETUP SALDO AWAL ── */}
-{tabK==="setup"&&<div>
+{tabK==="setup"&&<div style={{display:"flex",gap:14,flexWrap:"wrap",alignItems:"flex-start"}}>
 {["BSI","BCA"].map(bank=>{
 var st=bank==="BSI"?setupBSI:setupBCA;
 var setSt=bank==="BSI"?setSetupBSI:setSetupBCA;
-return <Card key={bank} style={{width:"fit-content",maxWidth:"100%"}}>
+return <div key={bank} style={{flex:"0 1 320px",minWidth:280}}>
+<Card style={{width:"100%"}}>
 <div style={{fontWeight:700,color:C.blt,marginBottom:12,fontSize:13}}>🏦 Bank {bank}</div>
-<div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(180px,260px))",width:"fit-content",maxWidth:"100%",gap:10,marginBottom:10}}>
+<div style={{display:"grid",gridTemplateColumns:"1fr",gap:10,marginBottom:10}}>
 <Inp label="Tanggal Efektif" type="date" value={st.tanggal} onChange={v=>setSt(p=>({...p,tanggal:v}))}/>
 <Inp label="Saldo Awal (Rp)" type="number" value={st.nominal} onChange={v=>setSt(p=>({...p,nominal:v}))} placeholder="0"/>
 </div>
@@ -6206,7 +6223,8 @@ setData(d=>({...d,saldoAwalBank:newSaldo}));
 toast("✓ Saldo awal "+bank+" disimpan!");
 }}>💾 Simpan Saldo Awal {bank}</Btn>
 <div style={{marginTop:8,fontSize:11,color:C.gl2}}>Saldo saat ini: <b style={{color:C.glt}}>{fR(bank==="BSI"?mutBSI.saldoAkhir:mutBCA.saldoAkhir)}</b></div>
-</Card>;})}
+</Card>
+</div>;})}
 </div>}
 
 {/* ── MODAL EDIT SETORAN ── */}
@@ -6493,7 +6511,7 @@ return <ThemeCtx.Provider value={C}>
 <div style={{display:"flex",gap:5,marginBottom:14,overflowX:"auto",paddingBottom:4}}>
 {tabs.map(t=><button key={t.id} onClick={()=>setTab(t.id)} style={{background:curTab?.id===t.id?C.blu:C.card,color:curTab?.id===t.id?"#FFF":C.gl2,border:"1px solid "+(curTab?.id===t.id?C.blt:C.bdr),borderRadius:8,padding:mobile?"8px 10px":"6px 13px",fontSize:mobile?11:12,fontWeight:curTab?.id===t.id?700:400,cursor:"pointer",whiteSpace:"nowrap",flexShrink:0}}>{t.icon}{!mobile&&" "+t.label}</button>)}
 </div>
-<div style={{maxWidth:mobile?980:1600,margin:"0 auto"}}>{renderContent()}</div>
+<div style={{maxWidth:mobile?980:(data.company?.appWidth||1600),margin:"0 auto"}}>{renderContent()}</div>
 </div>
 </div>
 {inv&&<InvoiceView inv={inv} company={data.company} onClose={()=>setInv(null)}/>}
