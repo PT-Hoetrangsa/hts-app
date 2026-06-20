@@ -57,7 +57,7 @@ var LOGO_HTS_LIGHT="./assets/logo-hts-light-bg.png";// untuk latar terang (invoi
 var LOGO_PERTAMINA_DARK="./assets/logo-pertamina-dark-bg.png";// untuk latar gelap (header app)
 var LOGO_PERTAMINA_LIGHT="./assets/logo-pertamina-light-bg.png";// untuk latar terang (invoice/cetak)
 var GAS_SECRET="HTS2026";
-var SYNC_TABLES=["penjualan","bon","pengeluaran","pelanggan","employees","stok","doList","doTrip","absensi","payrollLog","ambilan","titipList","setoranLog","tutupBuku","config","jualanLain","kasBankTF"];
+var SYNC_TABLES=["penjualan","bon","pengeluaran","pelanggan","employees","stok","doList","doTrip","absensi","payrollLog","ambilan","titipList","setoranLog","tutupBuku","config","jualanLain","kasBankTF","invoiceManual"];
 
 // CORS-safe: kirim via form POST ke GAS
 function gasPost(payload){
@@ -123,6 +123,7 @@ async function pushAll(data,setSyncStatus){
     tasks.push(gasWrite("tutupBuku",data.tutupBuku||[]));
     tasks.push(gasWrite("jualanLain",data.jualanLain||[]));
     tasks.push(gasWrite("kasBankTF",data.kasBankTF||[]));
+    tasks.push(gasWrite("invoiceManual",data.invoiceManual||[]));
     // stok & config sebagai object → wrap dalam array
     tasks.push(gasWrite("stok",[{key:"stok",val:JSON.stringify({stock:data.stock,stokKosong:data.stokKosong,totalTabung:data.totalTabung,stokHarian:data.stokHarian,stockLog:data.stockLog,modalHistory:data.modalHistory,hetPrices:data.hetPrices,counters:data.counters,theme:data.theme,stokBatch:data.stokBatch,stokBatchInit:data.stokBatchInit})}]));
     tasks.push(gasWrite("config",[{key:"company",val:JSON.stringify(data.company||{})}]));
@@ -136,11 +137,11 @@ async function pushAll(data,setSyncStatus){
 async function pullAll(setSyncStatus){
   setSyncStatus("pulling");
   try{
-    var [penj,bon,pen,plg,emp,doL,abs,pay,amb,titip,setor,tb,stokRaw,confRaw,jualLain,kbTF,doT]=await Promise.all([
+    var [penj,bon,pen,plg,emp,doL,abs,pay,amb,titip,setor,tb,stokRaw,confRaw,jualLain,kbTF,doT,invMan]=await Promise.all([
       gasRead("penjualan"),gasRead("bon"),gasRead("pengeluaran"),gasRead("pelanggan"),
       gasRead("employees"),gasRead("doList"),gasRead("absensi"),gasRead("payrollLog"),
       gasRead("ambilan"),gasRead("titipList"),gasRead("setoranLog"),gasRead("tutupBuku"),
-      gasRead("stok"),gasRead("config"),gasRead("jualanLain"),gasRead("kasBankTF"),gasRead("doTrip")
+      gasRead("stok"),gasRead("config"),gasRead("jualanLain"),gasRead("kasBankTF"),gasRead("doTrip"),gasRead("invoiceManual")
     ]);
     var stokMeta={};
     if(stokRaw&&stokRaw.length>0){try{stokMeta=JSON.parse(stokRaw[0].val);}catch(e){}}
@@ -151,7 +152,7 @@ async function pullAll(setSyncStatus){
       employees:emp.length>0?emp:null,
       doList:doL,doTrip:doT,absensi:abs,payrollLog:pay,ambilan:amb,
       titipList:titip,setoranLog:setor,tutupBuku:tb,
-      jualanLain:jualLain,kasBankTF:kbTF,
+      jualanLain:jualLain,kasBankTF:kbTF,invoiceManual:invMan,
       company,
       ...stokMeta};
   }catch(e){setSyncStatus("error");return null;}
@@ -161,7 +162,7 @@ var INIT={
 stock:{"5.5 kg":0,"12 kg":0,"50 kg":0},stokKosong:{"5.5 kg":0,"12 kg":0,"50 kg":0},totalTabung:{"5.5 kg":0,"12 kg":0,"50 kg":0},
 stockLog:[],doList:[],doTrip:[],modalHistory:[],hetPrices:{},titipList:[],
 penjualan:[],bon:[],pengeluaran:[],employees:DEF_EMP.slice(),
-tutupBuku:[],pelanggan:[],setoranSales:[],setoranLog:[],setoranBank:[],kas:{},saldoAwalBank:{BSI:{nominal:0,tanggal:""},BCA:{nominal:0,tanggal:""}},absensi:[],ambilan:[],payrollLog:[],jualanLain:[],kasBankTF:[],stokBatch:{},stokBatchInit:false,
+tutupBuku:[],pelanggan:[],setoranSales:[],setoranLog:[],setoranBank:[],kas:{},saldoAwalBank:{BSI:{nominal:0,tanggal:""},BCA:{nominal:0,tanggal:""}},absensi:[],ambilan:[],payrollLog:[],jualanLain:[],kasBankTF:[],stokBatch:{},stokBatchInit:false,invoiceManual:[],
 counters:{inv:{},sg:{},reg:0},theme:"light",
 company:{nama:"PT. HOE TRANG SA",alamat:"Jl. Jendral Sudirman No.80, Geuce Iniem, Kec. Banda Raya, Kota Banda Aceh",telepon:"0812 6900 2121",telepon2:"(0651) 21221",email:"npso.pthoetrangsa@gmail.com",website:"pt-hoetrangsa.business.site",npwp:"",slogan:"DEALER LPG PERTAMINA",bankNama:"BSI",bankAtasNama:"PT. HOE TRANG SA",bankRekening:"812 69 2121 8",logo:"",logoPertamina:"",ttdKasir:"",ttdDirektur:"",stempelLunas:"",direkturNama:"Muhammad Haekal",kasirNama:"MANARUL HIDAYAT",soldTo:"731070",shipToKCR:"862070",shipToMGL:"782092",saBulan:"Juni 2026",sa12KCR:"2845075",sa55KCR:"2845111",sa12MGL:"",sa55MGL:"",assetArmada:0,hargaTbgKosong:{"5.5 kg":0,"12 kg":0,"50 kg":0},hppFixedSPPBE:{"SPPBE KCR":{"5.5 kg":0,"12 kg":0,"50 kg":0},"SPPBE MGL":{"5.5 kg":0,"12 kg":0,"50 kg":0}}}
 };
@@ -3144,6 +3145,152 @@ x.bayar==="cash"?"💵 Cash":"🏦 TF",
 </div>;
 }
 
+// ─── INVOICE MANUAL — form bebas, tidak terhubung Penjualan/BON/Piutang ──────
+function InvoiceManualMod({data,setData,setInv,user,toast}){
+var C=useTheme();
+var blankItem=()=>({id:uid(),tanggal:toDay(),produk:"",qty:"",price:""});
+var blankForm=()=>({noInv:"",tanggal:toDay(),konsumen:"",konsumenManual:"",kota:"",salesId:"",salesManual:"",status:"belum",totalDibayar:"",catatan:"",items:[blankItem()]});
+var[f,setF]=useState(blankForm());
+var[editId,setEditId]=useState(null);
+var[delId,setDelId]=useState(null);
+var[filterKons,setFilterKons]=useState("");
+
+var plgList=(data.pelanggan||[]).slice().sort((a,b)=>(a.nama||"").localeCompare(b.nama||""));
+var salesList=(data.employees||[]).filter(e=>e.aktif);
+
+function setItem(id,k,v){setF(p=>({...p,items:p.items.map(it=>it.id===id?{...it,[k]:v}:it)}));}
+function addItem(){setF(p=>({...p,items:[...p.items,blankItem()]}));}
+function delItem(id){setF(p=>({...p,items:p.items.filter(it=>it.id!==id)}));}
+
+var validItems=f.items.filter(it=>it.produk&&Number(it.qty)>0);
+var totalForm=validItems.reduce((a,it)=>a+Number(it.qty||0)*Number(it.price||0),0);
+
+function resetForm(){setF(blankForm());setEditId(null);}
+
+function mulaiEdit(rec){
+setF({noInv:rec.noInv,tanggal:rec.tanggal,
+  konsumen:rec.konsumenId||"",konsumenManual:rec.konsumenId?"":(rec.konsumen||""),
+  kota:rec.kota||"",salesId:rec.salesId||"",salesManual:rec.salesId?"":(rec.salesNama||""),
+  status:rec.status||"belum",totalDibayar:rec.totalDibayar?String(rec.totalDibayar):"",catatan:rec.catatan||"",
+  items:(rec.items||[]).map(it=>({id:uid(),tanggal:it.tglDO||rec.tanggal,produk:it.ukuran||"",qty:String(it.qty||""),price:String(it.price||"")}))});
+setEditId(rec.id);
+}
+
+function save(){
+if(!f.noInv||!validItems.length){toast("⚠️ No. Invoice & minimal 1 produk wajib diisi","error");return;}
+var plg=plgList.find(p=>p.id===f.konsumen);
+var konsumenNama=plg?plg.nama:(f.konsumenManual||"-");
+var kotaFinal=f.kota||plg?.alamat?.split(",").pop()?.trim()||"Banda Aceh";
+var emp=salesList.find(e=>e.id===f.salesId);
+var salesNamaFinal=emp?emp.nama:(f.salesManual||"");
+var totalDibayarNum=Number(f.totalDibayar)||0;
+var rec={
+  id:editId||uid(),noInv:f.noInv,tanggal:f.tanggal,
+  konsumenId:plg?.id||"",konsumen:konsumenNama,kota:kotaFinal,
+  salesId:emp?.id||"",salesNama:salesNamaFinal,
+  items:validItems.map(it=>({ukuran:it.produk,jenis:"",qty:Number(it.qty),price:Number(it.price),tglDO:it.tanggal})),
+  total:totalForm,status:f.status,
+  totalDibayar:f.status==="sebagian"?totalDibayarNum:(f.status==="lunas"?totalForm:0),
+  sisaTagihan:f.status==="lunas"?0:f.status==="sebagian"?Math.max(0,totalForm-totalDibayarNum):totalForm,
+  catatan:f.catatan,dibuatOleh:user?.nama||"",updatedAt:new Date().toISOString()
+};
+setData(d=>({...d,invoiceManual:editId?(d.invoiceManual||[]).map(x=>x.id===editId?rec:x):[rec,...(d.invoiceManual||[])]}));
+toast(editId?"✓ Invoice manual diperbarui!":"✓ Invoice manual disimpan!");
+resetForm();
+}
+
+function bukaCetak(rec){
+var inv={
+  noInv:rec.noInv,tanggal:rec.tanggal,konsumen:rec.konsumen,kota:rec.kota||"Banda Aceh",
+  salesNama:rec.salesNama||"",items:(rec.items||[]).map(it=>({ukuran:it.ukuran,jenis:it.jenis||"",qty:it.qty,price:it.price,tglDO:it.tglDO})),
+  total:rec.total,catatan:rec.catatan||"",
+  metodeBayar:rec.status==="lunas"?"LUNAS":rec.status==="sebagian"?"SEBAGIAN":"BELUM LUNAS",
+  isBon:rec.status!=="lunas",bonLunas:rec.status==="lunas",bonSebagian:rec.status==="sebagian",
+  totalDibayar:rec.totalDibayar||0,sisaTagihan:rec.sisaTagihan!=null?rec.sisaTagihan:rec.total,
+  isGabungan:false
+};
+setInv(inv);
+}
+
+var rowsFiltered=(data.invoiceManual||[]).filter(r=>!filterKons||(r.konsumen||"").toLowerCase().includes(filterKons.toLowerCase())||(r.noInv||"").toLowerCase().includes(filterKons.toLowerCase()));
+
+return <div>
+<STitle icon="🧾" children="Invoice Manual"/>
+<div style={{fontSize:11,color:C.gl2,marginBottom:12,marginTop:-8}}>Form invoice bebas — diisi & disesuaikan sendiri (no. invoice, konsumen, sales, tanggal, produk, qty). Tidak memengaruhi data Penjualan, BON, Piutang, stok, atau laporan apapun. Murni dokumen tampilan/cetak.</div>
+
+{editId&&<div style={{background:"linear-gradient(90deg,#92400e,#b45309)",border:"1px solid #f59e0b",borderRadius:10,padding:"10px 16px",marginBottom:12,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+<div style={{color:"#fef3c7",fontWeight:800,fontSize:13}}>✏️ Mode Edit Invoice Manual</div>
+<button onClick={resetForm} style={{background:"rgba(0,0,0,.25)",border:"1px solid #f59e0b",borderRadius:7,padding:"6px 12px",color:"#fef3c7",cursor:"pointer",fontWeight:700,fontSize:11}}>✕ Batal Edit</button>
+</div>}
+
+<Card style={{border:editId?"1px solid #f59e0b":undefined}}>
+<div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(170px,1fr))",gap:10}}>
+<Inp label="No. Invoice" value={f.noInv} onChange={v=>setF(p=>({...p,noInv:v}))} placeholder="#HTS/INV/VI.26/001"/>
+<Inp label="Tanggal" type="date" value={f.tanggal} onChange={v=>setF(p=>({...p,tanggal:v}))}/>
+<div style={{marginBottom:10}}>
+<label style={{display:"block",fontSize:11,color:C.gl2,marginBottom:3,fontWeight:600}}>Konsumen (pilih atau ketik manual)</label>
+<select value={f.konsumen||""} onChange={e=>setF(p=>({...p,konsumen:e.target.value}))} style={{width:"100%",border:"1px solid "+C.bdr,borderRadius:8,padding:"9px 11px",color:C.wht,fontSize:13,outline:"none",background:C.nav,boxSizing:"border-box",marginBottom:6}}>
+<option value="">— Ketik manual di bawah —</option>
+{plgList.map(p=><option key={p.id} value={p.id}>{p.nama}</option>)}
+</select>
+{!f.konsumen&&<input value={f.konsumenManual} onChange={e=>setF(p=>({...p,konsumenManual:e.target.value}))} placeholder="Nama konsumen manual" style={{width:"100%",border:"1px solid "+C.bdr,borderRadius:8,padding:"9px 11px",color:C.wht,fontSize:13,outline:"none",background:C.nav,boxSizing:"border-box"}}/>}
+</div>
+<Inp label="Kota / Lokasi" value={f.kota} onChange={v=>setF(p=>({...p,kota:v}))} placeholder="Banda Aceh"/>
+<div style={{marginBottom:10}}>
+<label style={{display:"block",fontSize:11,color:C.gl2,marginBottom:3,fontWeight:600}}>Sales (pilih atau ketik manual)</label>
+<select value={f.salesId||""} onChange={e=>setF(p=>({...p,salesId:e.target.value}))} style={{width:"100%",border:"1px solid "+C.bdr,borderRadius:8,padding:"9px 11px",color:C.wht,fontSize:13,outline:"none",background:C.nav,boxSizing:"border-box",marginBottom:6}}>
+<option value="">— Ketik manual di bawah —</option>
+{salesList.map(e=><option key={e.id} value={e.id}>{e.nama}</option>)}
+</select>
+{!f.salesId&&<input value={f.salesManual} onChange={e=>setF(p=>({...p,salesManual:e.target.value}))} placeholder="Nama sales manual (opsional)" style={{width:"100%",border:"1px solid "+C.bdr,borderRadius:8,padding:"9px 11px",color:C.wht,fontSize:13,outline:"none",background:C.nav,boxSizing:"border-box"}}/>}
+</div>
+<Sel label="Status Pembayaran" value={f.status} onChange={v=>setF(p=>({...p,status:v}))} opts={[{v:"belum",l:"Belum Lunas"},{v:"sebagian",l:"Sebagian"},{v:"lunas",l:"Lunas"}]}/>
+{f.status==="sebagian"&&<Inp label="Telah Dibayar (Rp)" type="number" value={f.totalDibayar} onChange={v=>setF(p=>({...p,totalDibayar:v}))}/>}
+</div>
+
+<div style={{fontSize:11,fontWeight:700,color:C.gl2,marginTop:6,marginBottom:8}}>📦 Detail Produk</div>
+<div style={{fontSize:10,color:C.gl2,marginBottom:8,fontStyle:"italic"}}>Kolom "Produk" bebas diisi (mis. "12 kg", "5.5 kg", "Jasa Antar", "Aksesoris") — tampil sebagai badge di invoice.</div>
+{f.items.map((it,i)=><div key={it.id} style={{display:"grid",gridTemplateColumns:"130px 1.4fr 90px 140px 28px",gap:6,marginBottom:6,alignItems:"flex-end"}}>
+<Inp label={i===0?"Tanggal":""} type="date" value={it.tanggal} onChange={v=>setItem(it.id,"tanggal",v)} style={{marginBottom:0}}/>
+<Inp label={i===0?"Produk":""} value={it.produk} onChange={v=>setItem(it.id,"produk",v)} placeholder="mis. 12 kg" style={{marginBottom:0}}/>
+<Inp label={i===0?"Qty":""} type="number" value={it.qty} onChange={v=>setItem(it.id,"qty",v)} style={{marginBottom:0}}/>
+<Inp label={i===0?"Harga Satuan":""} type="number" value={it.price} onChange={v=>setItem(it.id,"price",v)} style={{marginBottom:0}}/>
+<button onClick={()=>delItem(it.id)} style={{background:C.inHvE,border:"none",borderRadius:6,color:C.rlt,cursor:"pointer",fontSize:13,padding:"9px 6px"}} title="Hapus baris">✕</button>
+</div>)}
+<Btn sm color="blue" onClick={addItem}>+ Tambah Baris</Btn>
+
+<div style={{marginTop:14,marginBottom:10}}><Inp label="Catatan (opsional)" value={f.catatan} onChange={v=>setF(p=>({...p,catatan:v}))}/></div>
+
+<div style={{display:"flex",justifyContent:"space-between",alignItems:"center",background:C.nav,borderRadius:8,padding:"10px 14px",marginBottom:12}}>
+<span style={{fontSize:12,color:C.gl2,fontWeight:700}}>Total Invoice</span>
+<span style={{fontSize:18,fontWeight:900,color:C.olt}}>{fR(totalForm)}</span>
+</div>
+
+<div style={{display:"flex",gap:8}}>
+<Btn color={editId?"orange":"green"} onClick={save} dis={!f.noInv||!validItems.length}>{editId?"💾 Simpan Perubahan":"💾 Simpan Invoice Manual"}</Btn>
+{editId&&<Btn color="gray" onClick={resetForm}>✕ Batal</Btn>}
+</div>
+</Card>
+
+<Card>
+<div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10,flexWrap:"wrap",gap:8}}>
+<div style={{fontWeight:700,color:C.gl2,fontSize:13}}>Riwayat Invoice Manual</div>
+<input value={filterKons} onChange={e=>setFilterKons(e.target.value)} placeholder="Cari konsumen / no. invoice..." style={{border:"1px solid "+C.bdr,borderRadius:8,padding:"7px 11px",color:C.wht,fontSize:12,outline:"none",background:C.nav,minWidth:200}}/>
+</div>
+<RTbl headers={["No. Invoice","Tgl","Konsumen","Sales","Total","Status","Aksi"]} rows={rowsFiltered.slice(0,150).map(r=>{
+var stBadge=r.status==="lunas"?<Bdg color="green">Lunas</Bdg>:r.status==="sebagian"?<Bdg color="orange">Sebagian</Bdg>:<Bdg color="red">Belum</Bdg>;
+return[<b style={{color:C.blt,fontSize:11}}>{r.noInv}</b>,fDs(r.tanggal),r.konsumen,r.salesNama||"-",<b style={{color:C.olt}}>{fR(r.total)}</b>,stBadge,
+<div style={{display:"flex",gap:3}}>
+<button onClick={()=>bukaCetak(r)} title="Cetak" style={{background:C.inHv,border:"1px solid "+C.blt,borderRadius:5,padding:"3px 7px",color:C.blt,cursor:"pointer",fontSize:11}}>🖨️</button>
+<button onClick={()=>mulaiEdit(r)} title="Edit" style={{background:"#78350F",border:"1px solid #F59E0B",borderRadius:5,padding:"3px 7px",color:"#FCD34D",cursor:"pointer",fontSize:11}}>✏️</button>
+<button onClick={()=>setDelId(r)} title="Hapus" style={{background:C.inHvE,border:"1px solid "+C.rlt,borderRadius:5,padding:"3px 7px",color:C.rlt,cursor:"pointer",fontSize:11}}>🗑️</button>
+</div>];
+})} empty="Belum ada invoice manual"/>
+</Card>
+{delId&&<ConfirmDel msg={"Hapus invoice manual "+delId.noInv+" ("+delId.konsumen+")?"} onCancel={()=>setDelId(null)} onConfirm={()=>{setData(d=>({...d,invoiceManual:(d.invoiceManual||[]).filter(x=>x.id!==delId.id)}));setDelId(null);toast("✓ Dihapus");}}/>}
+</div>;
+}
+
 // ─── FIFO DETAIL — khusus Admin (Haekal) ──────────────────────────────────────
 function FIFODetailMod({data,setData,user,toast}){
 var C=useTheme();
@@ -6025,7 +6172,7 @@ var ALL_TABS=[
 {id:"pengeluaran",label:"Pengeluaran",icon:"💸"},{id:"tutupbuku",label:"Tutup Buku",icon:"📒"},
 {id:"pelanggan",label:"Pelanggan",icon:"👥"},{id:"karyawan",label:"Karyawan",icon:"👤"},
 {id:"absensi",label:"Absensi & Payroll",icon:"📅"},{id:"jualanlain",label:"Jualan Lain",icon:"🛒"},
-{id:"kas",label:"Buku Kas",icon:"📒"},{id:"do",label:"DO",icon:"🚚"},{id:"fifo",label:"FIFO Detail",icon:"🔬",adminOnly:true},{id:"settings",label:"Pengaturan",icon:"⚙️"},
+{id:"kas",label:"Buku Kas",icon:"📒"},{id:"do",label:"DO",icon:"🚚"},{id:"invoicemanual",label:"Invoice Manual",icon:"🧾"},{id:"fifo",label:"FIFO Detail",icon:"🔬",adminOnly:true},{id:"settings",label:"Pengaturan",icon:"⚙️"},
 ];
 function getVisibleTabs(user){if(!user)return[];var rt=ROLE_TABS[user.role];var base=(rt===null||rt===undefined)?ALL_TABS:ALL_TABS.filter(t=>rt.includes(t.id));return base.filter(t=>!t.adminOnly||user.role==="admin");}
 
@@ -6142,6 +6289,7 @@ if(t==="jualanlain")return <JualanLainMod {...props}/>;
 if(t==="fifo")return user?.role==="admin"?<FIFODetailMod {...props}/>:null;
 if(t==="kas")return <KasBankMod {...props}/>;
 if(t==="do")return <DOMod {...props}/>;
+if(t==="invoicemanual")return <InvoiceManualMod {...props} setInv={setInv}/>;
 if(t==="settings")return <SettingsMod data={data} setData={setDataP} toast={toast} theme={theme} setTheme={setTheme}/>;
 return null;}
 return <ThemeCtx.Provider value={C}>
