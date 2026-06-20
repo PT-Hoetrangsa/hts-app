@@ -52,10 +52,10 @@ var DEF_EMP=[
 // ─── GOOGLE SHEETS SYNC ───────────────────────────────────────────────────────
 var GAS_URL="https://script.google.com/macros/s/AKfycbxSLJPfpPA_CTx9CMocRmUWKeNSH1md-_J1R4B09qlQDrsPhXql1mrWPbBVnx8u2sJ2/exec";
 // Logo tetap perusahaan & Pertamina — disimpan di public/assets/, tidak perlu upload manual per device
-var LOGO_HTS_DARK="/assets/logo-hts-dark-bg.png";// untuk latar gelap (header app)
-var LOGO_HTS_LIGHT="/assets/logo-hts-light-bg.png";// untuk latar terang (invoice/cetak)
-var LOGO_PERTAMINA_DARK="/assets/logo-pertamina-dark-bg.png";// untuk latar gelap (header app)
-var LOGO_PERTAMINA_LIGHT="/assets/logo-pertamina-light-bg.png";// untuk latar terang (invoice/cetak)
+var LOGO_HTS_DARK="./assets/logo-hts-dark-bg.png";// untuk latar gelap (header app)
+var LOGO_HTS_LIGHT="./assets/logo-hts-light-bg.png";// untuk latar terang (invoice/cetak)
+var LOGO_PERTAMINA_DARK="./assets/logo-pertamina-dark-bg.png";// untuk latar gelap (header app)
+var LOGO_PERTAMINA_LIGHT="./assets/logo-pertamina-light-bg.png";// untuk latar terang (invoice/cetak)
 var GAS_SECRET="HTS2026";
 var SYNC_TABLES=["penjualan","bon","pengeluaran","pelanggan","employees","stok","doList","doTrip","absensi","payrollLog","ambilan","titipList","setoranLog","tutupBuku","config","jualanLain","kasBankTF"];
 
