@@ -179,6 +179,61 @@ function iTotal(its){return its.reduce((a,it)=>a+Number(it.qty||0)*Number(it.pri
 function daysInMonth(ym){var[y,m]=ym.split("-").map(Number);return new Date(y,m,0).getDate();}
 
 // ── buildStokHarian: rekonstruksi tabel stok per hari dalam sebulan ──
+// ─── Buku Kas Harian (Rekap Bulanan) — semua otomatis dari data sistem ────────
+function buildBukuKasHarian(data,bulan){
+var dim=daysInMonth(bulan);
+var rows=[];
+var HARI_ID=["Minggu","Senin","Selasa","Rabu","Kamis","Jumat","Sabtu"];
+
+for(var d=1;d<=dim;d++){
+var tgl=bulan+"-"+String(d).padStart(2,"0");
+var dayName=HARI_ID[new Date(tgl+"T00:00:00").getDay()];
+
+// ── DO diterima hari ini (gabungan doTrip baru + doList lama) ──
+var doQty={"5.5 kg":0,"12 kg":0,"50 kg":0};var doNilai=0;
+(data.doTrip||[]).forEach(trip=>{
+  if(trip.tanggal!==tgl)return;
+  trip.items.forEach(it=>{if(it.status==="diterima"){doQty[it.ukuran]=(doQty[it.ukuran]||0)+it.qty;doNilai+=it.totalHPP||(it.qty*it.hppUnit)||0;}});
+});
+(data.doList||[]).forEach(d_=>{
+  if(d_.tanggal!==tgl||(d_.status||"diterima")!=="diterima")return;
+  doQty[d_.ukuran]=(doQty[d_.ukuran]||0)+(d_.qty||0);doNilai+=d_.totalHPP||0;
+});
+
+// ── Penjualan hari ini ──
+var penjHari=(data.penjualan||[]).filter(p=>p.tanggal===tgl);
+var penjQty={"5.5 kg":0,"12 kg":0,"50 kg":0};
+penjHari.forEach(p=>(p.items||[]).forEach(it=>{if(penjQty[it.ukuran]!=null)penjQty[it.ukuran]+=Number(it.qty||0);}));
+var totalPenjualan=penjHari.reduce((a,p)=>a+(p.total||0),0);
+var marginKotor=penjHari.reduce((a,p)=>a+(p.margin||0),0);
+
+// ── Penerimaan Kas & TF (penjualan cash/transfer murni, split payment dipecah) ──
+var kasTF=penjHari.reduce((a,p)=>{
+  if(p.splitDetail)return a+Number(p.splitDetail.cash||0)+Number(p.splitDetail.tf||0);
+  if(p.bayar==="cash"||p.bayar==="transfer")return a+(p.total||0);
+  return a;
+},0);
+
+// ── BON baru hari ini (piutang bertambah) ──
+var bonBaru=(data.bon||[]).filter(b=>b.tanggal===tgl).reduce((a,b)=>a+(b.total||0),0);
+
+// ── Bayar BON hari ini (piutang dilunasi/dicicil) ──
+var bayarBon=0;
+(data.bon||[]).forEach(b=>(b.pembayaran||[]).forEach(p=>{if((p.tanggal||"").slice(0,10)===tgl)bayarBon+=Number(p.nominal||0);}));
+
+// ── Pengeluaran Operasional hari ini (exclude non-ops, konsisten dgn Tutup Buku) ──
+var pengeluaranOps=(data.pengeluaran||[]).filter(p=>p.tanggal===tgl&&!isNonOps(p.kategori)).reduce((a,p)=>a+Number(p.nominal||0),0);
+
+// ── Laba Bersih & Estimasi PPN ──
+var labaBersih=marginKotor-pengeluaranOps;
+var estimasiPPN=marginKotor*0.11;
+
+var adaData=doNilai>0||totalPenjualan>0||pengeluaranOps>0||bonBaru>0||bayarBon>0;
+
+rows.push({tgl,dayName,doQty,doNilai,penjQty,totalPenjualan,marginKotor,kasTF,bonBaru,bayarBon,pengeluaranOps,labaBersih,estimasiPPN,adaData});
+}
+return rows;
+}
 function buildStokHarian(data,bulan){
   var dim=daysInMonth(bulan);
   var rows=[];
@@ -4725,7 +4780,7 @@ return <div>
 <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(160px,1fr))",gap:10,marginBottom:14}}>
 {[["Omzet",omzet,C.wht,"📈"],["Laba Kotor",margin,C.blt,"💹"],["Pengeluaran",pengeluaran,C.rlt,"💸"],["Laba Bersih",labaBersih,labaBersih>=0?C.glt:C.rlt,"🏆"],["Transaksi",penjFilt.length+" trx",C.gl2,"🧾"]].map(x=><SC key={x[0]} label={x[0]} value={typeof x[1]==="number"?fR(x[1]):x[1]} icon={x[3]} color={x[2]}/>)}
 </div>
-<div style={{display:"flex",gap:5,marginBottom:14,flexWrap:"wrap"}}>{[["harian","🗓️ Lap. Harian"],["ringkasan","📊 Ringkasan"],["grafik","📈 Grafik"],["stok","📋 Stok Harian"],["pengeluaran","💸 Pengeluaran"],["sales","👤 Per Sales"],["kategori","🏷️ Per Kategori"],["produk","📦 Per Produk"],["pelanggan","👥 Per Pelanggan"],["matrix","📋 Sales×Kategori"],["detail","🔍 Detail"]].map(x=><button key={x[0]} onClick={()=>setTab(x[0])} style={{background:tab===x[0]?C.blu:C.nav,color:tab===x[0]?"white":C.wht,border:"1px solid "+(tab===x[0]?C.blt:C.bdr),borderRadius:8,padding:"6px 11px",fontWeight:700,fontSize:11,cursor:"pointer"}}>{x[1]}</button>)}</div>
+<div style={{display:"flex",gap:5,marginBottom:14,flexWrap:"wrap"}}>{[["harian","🗓️ Lap. Harian"],["bukukas","📔 Buku Kas Harian"],["grafik","📈 Grafik"],["stok","📋 Stok Harian"],["pengeluaran","💸 Pengeluaran"],["sales","👤 Per Sales"],["produk","📦 Per Produk"],["pelanggan","👥 Per Pelanggan"],["matrix","📋 Sales×Kategori"],["detail","🔍 Detail"]].map(x=><button key={x[0]} onClick={()=>setTab(x[0])} style={{background:tab===x[0]?C.blu:C.nav,color:tab===x[0]?"white":C.wht,border:"1px solid "+(tab===x[0]?C.blt:C.bdr),borderRadius:8,padding:"6px 11px",fontWeight:700,fontSize:11,cursor:"pointer"}}>{x[1]}</button>)}</div>
 {tab==="harian"&&(()=>{
 // ── Data hari ini ──
 var HARI_ID=["Minggu","Senin","Selasa","Rabu","Kamis","Jumat","Sabtu"];
@@ -5029,12 +5084,7 @@ return <tr style={{background:"#0a1f44",color:"white",fontWeight:700}}>
 </div>;
 })()}
 
-{tab==="ringkasan"&&<>
-<Card><div style={{fontWeight:700,color:C.gl2,marginBottom:10,fontSize:13}}>💰 Komposisi Pembayaran</div><div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8}}>{[["Cash",cash,C.glt],["Transfer",tf,C.blt],["BON",bon,C.olt]].map(x=><div key={x[0]} style={{background:C.nav,borderRadius:8,padding:"10px 12px",border:"1px solid "+C.bdr,textAlign:"center"}}><div style={{fontSize:11,color:C.gl2}}>{x[0]}</div><div style={{fontSize:14,fontWeight:900,color:x[2]}}>{fR(x[1])}</div><div style={{fontSize:10,color:C.gl2,marginTop:2}}>{omzet>0?(x[1]/omzet*100).toFixed(1):0}%</div></div>)}</div></Card>
-
-</>}
 {tab==="sales"&&<Card><div style={{fontWeight:700,color:C.gl2,marginBottom:10,fontSize:13}}>👤 Per Sales</div><FilterTbl columns={salesCols} data={salesArr} empty="Tidak ada data"/></Card>}
-{tab==="kategori"&&<Card><div style={{fontWeight:700,color:C.gl2,marginBottom:10,fontSize:13}}>🏷️ Per Kategori Pelanggan</div><FilterTbl columns={katCols} data={katArr} empty="Tidak ada data"/>{katArr.length>0&&<div style={{marginTop:14}}><ResponsiveContainer width="100%" height={220}><PieChart><Pie data={katArr.slice(0,8)} dataKey="omzet" nameKey="kategori" cx="50%" cy="50%" outerRadius={80} label={x=>x.kategori}>{katArr.slice(0,8).map((e,i)=><Cell key={i} fill={PIE_COLORS[i%PIE_COLORS.length]}/>)}</Pie><Tooltip formatter={v=>fR(v)} contentStyle={{background:C.card,border:"1px solid "+C.bdr,color:C.wht}}/></PieChart></ResponsiveContainer></div>}</Card>}
 {tab==="produk"&&<Card><div style={{fontWeight:700,color:C.gl2,marginBottom:10,fontSize:13}}>📦 Per Produk</div><RTbl headers={["Ukuran","Qty","Omzet","% Omzet"]} rows={prodArr.map(p=>[<b style={{color:C.wht}}>{p.ukuran}</b>,<b style={{color:C.glt}}>{p.qty} tab</b>,<b style={{color:C.blt}}>{fR(p.omzet)}</b>,(omzet>0?(p.omzet/omzet*100).toFixed(1):0)+"%"])}/></Card>}
 {tab==="pelanggan"&&<Card><div style={{fontWeight:700,color:C.gl2,marginBottom:10,fontSize:13}}>👥 Ranking Pelanggan per Omzet</div><FilterTbl columns={plgCols} data={plgArr} empty="Tidak ada data"/></Card>}
 {tab==="matrix"&&<Card><div style={{fontWeight:700,color:C.gl2,marginBottom:10,fontSize:13}}>📋 Sales × Kategori</div><FilterTbl columns={skCols} data={skArr} empty="Tidak ada data"/></Card>}
@@ -5184,6 +5234,110 @@ p.karyawanNama||"-",
 </BarChart></ResponsiveContainer></Card>}
 
 </>}
+</div>}
+{tab==="bukukas"&&<div>
+{mode!=="bulanan"?<Card><div style={{textAlign:"center",padding:30,color:C.gl2,fontSize:12}}>📔 Buku Kas Harian hanya tersedia di mode Bulanan. Ubah filter di atas ke "📆 Bulanan".</div></Card>:(()=>{
+var bkRows=buildBukuKasHarian(data,bln);
+var totalRow=bkRows.reduce((a,r)=>({
+  doQty:{"5.5 kg":a.doQty["5.5 kg"]+r.doQty["5.5 kg"],"12 kg":a.doQty["12 kg"]+r.doQty["12 kg"],"50 kg":a.doQty["50 kg"]+r.doQty["50 kg"]},
+  doNilai:a.doNilai+r.doNilai,
+  penjQty:{"5.5 kg":a.penjQty["5.5 kg"]+r.penjQty["5.5 kg"],"12 kg":a.penjQty["12 kg"]+r.penjQty["12 kg"],"50 kg":a.penjQty["50 kg"]+r.penjQty["50 kg"]},
+  totalPenjualan:a.totalPenjualan+r.totalPenjualan,marginKotor:a.marginKotor+r.marginKotor,kasTF:a.kasTF+r.kasTF,
+  bonBaru:a.bonBaru+r.bonBaru,bayarBon:a.bayarBon+r.bayarBon,pengeluaranOps:a.pengeluaranOps+r.pengeluaranOps,
+  labaBersih:a.labaBersih+r.labaBersih,estimasiPPN:a.estimasiPPN+r.estimasiPPN
+}),{doQty:{"5.5 kg":0,"12 kg":0,"50 kg":0},doNilai:0,penjQty:{"5.5 kg":0,"12 kg":0,"50 kg":0},totalPenjualan:0,marginKotor:0,kasTF:0,bonBaru:0,bayarBon:0,pengeluaranOps:0,labaBersih:0,estimasiPPN:0});
+
+function exportBukuKas(){
+var wb=XLSX.utils.book_new();
+var header=["Hari","Tanggal","DO 5,5kg","DO 12kg","DO 50kg","Pembelian DO (Modal)","Penjualan 5,5kg","Penjualan 12kg","Penjualan 50kg","Total Penjualan","Margin Kotor/Laba Kotor","Penerimaan Kas & TF","BON Baru (Piutang)","Bayar BON (Piutang Dilunasi)","Pengeluaran Operasional","Laba Bersih","Estimasi PPN (internal)"];
+var aoa=[header,...bkRows.map(r=>[r.dayName,fDs(r.tgl),r.doQty["5.5 kg"]||"",r.doQty["12 kg"]||"",r.doQty["50 kg"]||"",r.doNilai||"",r.penjQty["5.5 kg"]||"",r.penjQty["12 kg"]||"",r.penjQty["50 kg"]||"",r.totalPenjualan||"",r.marginKotor||"",r.kasTF||"",r.bonBaru||"",r.bayarBon||"",r.pengeluaranOps||"",r.labaBersih||"",r.estimasiPPN||""])];
+aoa.push(["Jumlah","",totalRow.doQty["5.5 kg"],totalRow.doQty["12 kg"],totalRow.doQty["50 kg"],totalRow.doNilai,totalRow.penjQty["5.5 kg"],totalRow.penjQty["12 kg"],totalRow.penjQty["50 kg"],totalRow.totalPenjualan,totalRow.marginKotor,totalRow.kasTF,totalRow.bonBaru,totalRow.bayarBon,totalRow.pengeluaranOps,totalRow.labaBersih,totalRow.estimasiPPN]);
+var ws=XLSX.utils.aoa_to_sheet(aoa);
+ws["!cols"]=header.map(()=>({wch:14}));
+XLSX.utils.book_append_sheet(wb,ws,"Buku Kas Harian");
+XLSX.writeFile(wb,"Buku_Kas_Harian_"+bln+".xlsx");
+toast("✓ Excel Buku Kas Harian didownload!");
+}
+
+return <>
+<div style={{fontSize:11,color:C.gl2,marginBottom:12,fontStyle:"italic"}}>Semua angka otomatis dari data sistem (DO, Penjualan, BON, Pengeluaran). "Estimasi PPN (internal)" adalah perkiraan 11% dari margin kotor untuk catatan internal — bukan angka resmi pajak, konsultasikan ke akuntan/konsultan pajak untuk pelaporan resmi.</div>
+<div style={{display:"flex",justifyContent:"flex-end",marginBottom:10}}>
+<button onClick={exportBukuKas} style={{background:"#15803D",color:"white",border:"none",padding:"8px 16px",borderRadius:8,fontSize:12,cursor:"pointer",fontWeight:700}}>📥 Export Excel</button>
+</div>
+<Card>
+<div style={{overflowX:"auto"}}>
+<table style={{width:"100%",borderCollapse:"collapse",fontSize:10.5,minWidth:1500}}>
+<thead>
+<tr style={{background:C.nav}}>
+<th rowSpan={2} style={{padding:"6px 8px",border:"1px solid "+C.bdr,color:C.gl2,fontSize:9}}>Hari</th>
+<th rowSpan={2} style={{padding:"6px 8px",border:"1px solid "+C.bdr,color:C.gl2,fontSize:9}}>Tanggal</th>
+<th colSpan={4} style={{padding:"6px 8px",border:"1px solid "+C.bdr,color:C.wht,fontSize:10,fontWeight:800}}>DO / Pembelian</th>
+<th colSpan={4} style={{padding:"6px 8px",border:"1px solid "+C.bdr,color:C.wht,fontSize:10,fontWeight:800}}>Penjualan</th>
+<th rowSpan={2} style={{padding:"6px 8px",border:"1px solid "+C.bdr,color:C.gl2,fontSize:9}}>Margin Kotor</th>
+<th rowSpan={2} style={{padding:"6px 8px",border:"1px solid "+C.bdr,color:C.gl2,fontSize:9}}>Kas & TF</th>
+<th rowSpan={2} style={{padding:"6px 8px",border:"1px solid "+C.bdr,color:C.gl2,fontSize:9}}>BON Baru</th>
+<th rowSpan={2} style={{padding:"6px 8px",border:"1px solid "+C.bdr,color:C.gl2,fontSize:9}}>Bayar BON</th>
+<th rowSpan={2} style={{padding:"6px 8px",border:"1px solid "+C.bdr,color:C.gl2,fontSize:9}}>Pengeluaran Ops</th>
+<th rowSpan={2} style={{padding:"6px 8px",border:"1px solid "+C.bdr,color:C.glt,fontSize:9}}>Laba Bersih</th>
+<th rowSpan={2} style={{padding:"6px 8px",border:"1px solid "+C.bdr,color:C.rlt,fontSize:9}}>Estimasi PPN</th>
+</tr>
+<tr style={{background:C.nav}}>
+<th style={{padding:"4px 6px",border:"1px solid "+C.bdr,color:C.gl2,fontSize:8.5}}>5,5kg</th>
+<th style={{padding:"4px 6px",border:"1px solid "+C.bdr,color:C.gl2,fontSize:8.5}}>12kg</th>
+<th style={{padding:"4px 6px",border:"1px solid "+C.bdr,color:C.gl2,fontSize:8.5}}>50kg</th>
+<th style={{padding:"4px 6px",border:"1px solid "+C.bdr,color:C.gl2,fontSize:8.5}}>Modal (Rp)</th>
+<th style={{padding:"4px 6px",border:"1px solid "+C.bdr,color:C.gl2,fontSize:8.5}}>5,5kg</th>
+<th style={{padding:"4px 6px",border:"1px solid "+C.bdr,color:C.gl2,fontSize:8.5}}>12kg</th>
+<th style={{padding:"4px 6px",border:"1px solid "+C.bdr,color:C.gl2,fontSize:8.5}}>50kg</th>
+<th style={{padding:"4px 6px",border:"1px solid "+C.bdr,color:C.gl2,fontSize:8.5}}>Total (Rp)</th>
+</tr>
+</thead>
+<tbody>
+{bkRows.map((r,i)=><tr key={r.tgl} style={{background:r.dayName==="Minggu"?(C.mode==="dark"?"#2A1515":"#FEE2E2"):i%2===0?C.bg:C.nav,opacity:r.adaData?1:.45}}>
+<td style={{padding:"4px 6px",border:"1px solid "+C.bdr,color:C.wht,fontSize:9.5}}>{r.dayName}</td>
+<td style={{padding:"4px 6px",border:"1px solid "+C.bdr,color:C.wht,fontSize:9.5,whiteSpace:"nowrap"}}>{fDs(r.tgl)}</td>
+<td style={{padding:"4px 6px",border:"1px solid "+C.bdr,textAlign:"right",color:r.doQty["5.5 kg"]?C.glt:C.gry}}>{r.doQty["5.5 kg"]||"-"}</td>
+<td style={{padding:"4px 6px",border:"1px solid "+C.bdr,textAlign:"right",color:r.doQty["12 kg"]?C.glt:C.gry}}>{r.doQty["12 kg"]||"-"}</td>
+<td style={{padding:"4px 6px",border:"1px solid "+C.bdr,textAlign:"right",color:r.doQty["50 kg"]?C.glt:C.gry}}>{r.doQty["50 kg"]||"-"}</td>
+<td style={{padding:"4px 6px",border:"1px solid "+C.bdr,textAlign:"right",color:r.doNilai?C.olt:C.gry,fontWeight:r.doNilai?700:400}}>{r.doNilai?fR(r.doNilai).replace("Rp ",""):"-"}</td>
+<td style={{padding:"4px 6px",border:"1px solid "+C.bdr,textAlign:"right",color:r.penjQty["5.5 kg"]?C.wht:C.gry}}>{r.penjQty["5.5 kg"]||"-"}</td>
+<td style={{padding:"4px 6px",border:"1px solid "+C.bdr,textAlign:"right",color:r.penjQty["12 kg"]?C.wht:C.gry}}>{r.penjQty["12 kg"]||"-"}</td>
+<td style={{padding:"4px 6px",border:"1px solid "+C.bdr,textAlign:"right",color:r.penjQty["50 kg"]?C.wht:C.gry}}>{r.penjQty["50 kg"]||"-"}</td>
+<td style={{padding:"4px 6px",border:"1px solid "+C.bdr,textAlign:"right",color:r.totalPenjualan?C.wht:C.gry,fontWeight:r.totalPenjualan?700:400}}>{r.totalPenjualan?fR(r.totalPenjualan).replace("Rp ",""):"-"}</td>
+<td style={{padding:"4px 6px",border:"1px solid "+C.bdr,textAlign:"right",color:r.marginKotor?C.blt:C.gry}}>{r.marginKotor?fR(r.marginKotor).replace("Rp ",""):"-"}</td>
+<td style={{padding:"4px 6px",border:"1px solid "+C.bdr,textAlign:"right",color:r.kasTF?C.glt:C.gry}}>{r.kasTF?fR(r.kasTF).replace("Rp ",""):"-"}</td>
+<td style={{padding:"4px 6px",border:"1px solid "+C.bdr,textAlign:"right",color:r.bonBaru?C.olt:C.gry}}>{r.bonBaru?fR(r.bonBaru).replace("Rp ",""):"-"}</td>
+<td style={{padding:"4px 6px",border:"1px solid "+C.bdr,textAlign:"right",color:r.bayarBon?C.glt:C.gry}}>{r.bayarBon?fR(r.bayarBon).replace("Rp ",""):"-"}</td>
+<td style={{padding:"4px 6px",border:"1px solid "+C.bdr,textAlign:"right",color:r.pengeluaranOps?C.rlt:C.gry}}>{r.pengeluaranOps?fR(r.pengeluaranOps).replace("Rp ",""):"-"}</td>
+<td style={{padding:"4px 6px",border:"1px solid "+C.bdr,textAlign:"right",color:r.labaBersih>0?C.glt:r.labaBersih<0?C.rlt:C.gry,fontWeight:700}}>{r.labaBersih?fR(r.labaBersih).replace("Rp ",""):"-"}</td>
+<td style={{padding:"4px 6px",border:"1px solid "+C.bdr,textAlign:"right",color:r.estimasiPPN?C.rlt:C.gry,fontStyle:"italic"}}>{r.estimasiPPN?fR(Math.round(r.estimasiPPN)).replace("Rp ",""):"-"}</td>
+</tr>)}
+</tbody>
+<tfoot>
+<tr style={{background:C.olt}}>
+<td colSpan={2} style={{padding:"8px 6px",border:"1px solid "+C.bdr,color:"white",fontWeight:800,fontSize:11}}>JUMLAH</td>
+<td style={{padding:"8px 6px",border:"1px solid "+C.bdr,textAlign:"right",color:"white",fontWeight:900}}>{totalRow.doQty["5.5 kg"]}</td>
+<td style={{padding:"8px 6px",border:"1px solid "+C.bdr,textAlign:"right",color:"white",fontWeight:900}}>{totalRow.doQty["12 kg"]}</td>
+<td style={{padding:"8px 6px",border:"1px solid "+C.bdr,textAlign:"right",color:"white",fontWeight:900}}>{totalRow.doQty["50 kg"]}</td>
+<td style={{padding:"8px 6px",border:"1px solid "+C.bdr,textAlign:"right",color:"white",fontWeight:700,fontSize:9.5}}>{fR(totalRow.doNilai).replace("Rp ","")}</td>
+<td style={{padding:"8px 6px",border:"1px solid "+C.bdr,textAlign:"right",color:"white",fontWeight:900}}>{totalRow.penjQty["5.5 kg"]}</td>
+<td style={{padding:"8px 6px",border:"1px solid "+C.bdr,textAlign:"right",color:"white",fontWeight:900}}>{totalRow.penjQty["12 kg"]}</td>
+<td style={{padding:"8px 6px",border:"1px solid "+C.bdr,textAlign:"right",color:"white",fontWeight:900}}>{totalRow.penjQty["50 kg"]}</td>
+<td style={{padding:"8px 6px",border:"1px solid "+C.bdr,textAlign:"right",color:"white",fontWeight:900,fontSize:10}}>{fR(totalRow.totalPenjualan).replace("Rp ","")}</td>
+<td style={{padding:"8px 6px",border:"1px solid "+C.bdr,textAlign:"right",color:"white",fontWeight:900,fontSize:10}}>{fR(totalRow.marginKotor).replace("Rp ","")}</td>
+<td style={{padding:"8px 6px",border:"1px solid "+C.bdr,textAlign:"right",color:"white",fontWeight:700,fontSize:9.5}}>{fR(totalRow.kasTF).replace("Rp ","")}</td>
+<td style={{padding:"8px 6px",border:"1px solid "+C.bdr,textAlign:"right",color:"white",fontWeight:700,fontSize:9.5}}>{fR(totalRow.bonBaru).replace("Rp ","")}</td>
+<td style={{padding:"8px 6px",border:"1px solid "+C.bdr,textAlign:"right",color:"white",fontWeight:700,fontSize:9.5}}>{fR(totalRow.bayarBon).replace("Rp ","")}</td>
+<td style={{padding:"8px 6px",border:"1px solid "+C.bdr,textAlign:"right",color:"white",fontWeight:700,fontSize:9.5}}>{fR(totalRow.pengeluaranOps).replace("Rp ","")}</td>
+<td style={{padding:"8px 6px",border:"1px solid "+C.bdr,textAlign:"right",color:"white",fontWeight:900,fontSize:10.5}}>{fR(totalRow.labaBersih).replace("Rp ","")}</td>
+<td style={{padding:"8px 6px",border:"1px solid "+C.bdr,textAlign:"right",color:"white",fontWeight:700,fontSize:9.5}}>{fR(Math.round(totalRow.estimasiPPN)).replace("Rp ","")}</td>
+</tr>
+</tfoot>
+</table>
+</div>
+</Card>
+</>;
+})()}
 </div>}
 
 </div>;
