@@ -264,12 +264,24 @@ function buildStokHarian(data,bulan){
 
     // Tabung Masuk: DO diterima + Return/Pancung hari ini
     var doHari=(data.doList||[]).filter(function(d_){return d_.tanggal===tgl&&(d_.status||"diterima")==="diterima";});
+    // Gabungkan doTrip items yang diterima (multi-product DO)
+    var doTripHari=[];
+    (data.doTrip||[]).forEach(function(trip){
+      if(trip.tanggal!==tgl)return;
+      (trip.items||[]).forEach(function(it){
+        if((it.status||"diterima")==="diterima"){
+          doTripHari.push({ukuran:it.ukuran,qty:it.qty,tanggal:tgl,status:"diterima"});
+        }
+      });
+    });
     // Mutasi manual masuk (Return, Pancung, Beli Tabung)
     var mutasiMasuk=(data.stockLog||[]).filter(function(l){return l.tanggal===tgl&&l.sumber==="Manual"&&(l.jenis||"").includes("Masuk")||l.tanggal===tgl&&(l.jenis||"").includes("Return")||l.tanggal===tgl&&(l.jenis||"").includes("Pancung");});
 
     var masukIsi={};var masukTK={};
     SIZES.forEach(function(s){
       var doQty=doHari.filter(function(d_){return d_.ukuran===s;}).reduce(function(a,d_){return a+Number(d_.qty||0);},0);
+      var doTripQty=doTripHari.filter(function(d_){return d_.ukuran===s;}).reduce(function(a,d_){return a+Number(d_.qty||0);},0);
+      doQty+=doTripQty;
       // Return/Pancung: +isi dari kosong (kosong berkurang seperti DO)
       var retPancQty=mutasiMasuk.filter(function(l){return l.ukuran===s&&((l.jenis||"").includes("Return")||(l.jenis||"").includes("Pancung"));}).reduce(function(a,l){return a+Number(l.qty||0);},0);
       // Mutasi masuk lain (tidak termasuk Return/Pancung)
