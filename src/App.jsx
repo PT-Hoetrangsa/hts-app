@@ -126,7 +126,9 @@ async function pushAll(data,setSyncStatus){
     tasks.push(gasWrite("invoiceManual",data.invoiceManual||[]));
     tasks.push(gasWrite("setoranBank",data.setoranBank||[]));
     // stok & config sebagai object → wrap dalam array
-    tasks.push(gasWrite("stok",[{key:"stok",val:JSON.stringify({stock:data.stock,stokKosong:data.stokKosong,totalTabung:data.totalTabung,stokHarian:data.stokHarian,stockLog:data.stockLog,modalHistory:data.modalHistory,hetPrices:data.hetPrices,counters:data.counters,theme:data.theme,stokBatch:data.stokBatch,stokBatchInit:data.stokBatchInit,kas:data.kas||{},saldoAwalBank:data.saldoAwalBank||{}})}]));
+    tasks.push(gasWrite("stok",[{key:"stok",val:JSON.stringify({stock:data.stock,stokKosong:data.stokKosong,totalTabung:data.totalTabung,stokHarian:data.stokHarian,modalHistory:data.modalHistory,hetPrices:data.hetPrices,counters:data.counters,theme:data.theme,stokBatchInit:data.stokBatchInit,kas:data.kas||{},saldoAwalBank:data.saldoAwalBank||{}})}]));
+    tasks.push(gasWrite("stokBatch",Object.entries(data.stokBatch||{}).map(([k,v])=>({key:k,val:JSON.stringify(v)}))));
+    tasks.push(gasWrite("stockLog",data.stockLog||[]));
     tasks.push(gasWrite("config",[{key:"company",val:JSON.stringify(data.company||{})}]));
     await Promise.all(tasks);
     setSyncStatus("ok");
@@ -138,14 +140,19 @@ async function pushAll(data,setSyncStatus){
 async function pullAll(setSyncStatus){
   setSyncStatus("pulling");
   try{
-    var [penj,bon,pen,plg,emp,doL,abs,pay,amb,titip,setor,tb,stokRaw,confRaw,jualLain,kbTF,doT,invMan,setorBank]=await Promise.all([
+    var [penj,bon,pen,plg,emp,doL,abs,pay,amb,titip,setor,tb,stokRaw,confRaw,jualLain,kbTF,doT,invMan,setorBank,stokBatchRaw,stockLogRaw]=await Promise.all([
       gasRead("penjualan"),gasRead("bon"),gasRead("pengeluaran"),gasRead("pelanggan"),
       gasRead("employees"),gasRead("doList"),gasRead("absensi"),gasRead("payrollLog"),
       gasRead("ambilan"),gasRead("titipList"),gasRead("setoranLog"),gasRead("tutupBuku"),
-      gasRead("stok"),gasRead("config"),gasRead("jualanLain"),gasRead("kasBankTF"),gasRead("doTrip"),gasRead("invoiceManual"),gasRead("setoranBank")
+      gasRead("stok"),gasRead("config"),gasRead("jualanLain"),gasRead("kasBankTF"),gasRead("doTrip"),gasRead("invoiceManual"),gasRead("setoranBank"),gasRead("stokBatch"),gasRead("stockLog")
     ]);
     var stokMeta={};
     if(stokRaw&&stokRaw.length>0){try{stokMeta=JSON.parse(stokRaw[0].val);}catch(e){}}
+    // Restore stokBatch dari sheet tersendiri
+    var stokBatchParsed={};
+    if(stokBatchRaw&&stokBatchRaw.length>0){stokBatchRaw.forEach(function(r){try{stokBatchParsed[r.key]=JSON.parse(r.val);}catch(e){}});}
+    // Restore stockLog dari sheet tersendiri
+    var stockLogParsed=stockLogRaw&&stockLogRaw.length>0?stockLogRaw:[];
     var company={};
     if(confRaw&&confRaw.length>0){try{company=JSON.parse(confRaw[0].val);}catch(e){}}
     setSyncStatus("ok");
@@ -155,6 +162,8 @@ async function pullAll(setSyncStatus){
       titipList:titip,setoranLog:setor,tutupBuku:tb,
       jualanLain:jualLain,kasBankTF:kbTF,invoiceManual:invMan,setoranBank:setorBank,
       company,
+      stokBatch:Object.keys(stokBatchParsed).length>0?stokBatchParsed:(stokMeta.stokBatch||{}),
+      stockLog:stockLogParsed.length>0?stockLogParsed:(stokMeta.stockLog||[]),
       ...stokMeta};
   }catch(e){setSyncStatus("error");return null;}
 }
