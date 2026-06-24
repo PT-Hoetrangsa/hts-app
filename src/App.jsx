@@ -126,7 +126,7 @@ async function pushAll(data,setSyncStatus){
     tasks.push(gasWrite("invoiceManual",data.invoiceManual||[]));
     tasks.push(gasWrite("setoranBank",data.setoranBank||[]));
     // stok & config sebagai object → wrap dalam array
-    tasks.push(gasWrite("stok",[{key:"stok",val:JSON.stringify({stock:data.stock,stokKosong:data.stokKosong,totalTabung:data.totalTabung,stokHarian:data.stokHarian,stockLog:data.stockLog,modalHistory:data.modalHistory,hetPrices:data.hetPrices,counters:data.counters,theme:data.theme,stokBatch:data.stokBatch,stokBatchInit:data.stokBatchInit})}]));
+    tasks.push(gasWrite("stok",[{key:"stok",val:JSON.stringify({stock:data.stock,stokKosong:data.stokKosong,totalTabung:data.totalTabung,stokHarian:data.stokHarian,stockLog:data.stockLog,modalHistory:data.modalHistory,hetPrices:data.hetPrices,counters:data.counters,theme:data.theme,stokBatch:data.stokBatch,stokBatchInit:data.stokBatchInit,kas:data.kas||{},saldoAwalBank:data.saldoAwalBank||{}})}]));
     tasks.push(gasWrite("config",[{key:"company",val:JSON.stringify(data.company||{})}]));
     await Promise.all(tasks);
     setSyncStatus("ok");
@@ -746,7 +746,7 @@ return <div id="_inv_wrap" style={{position:"fixed",inset:0,background:"#cdd3db"
 {(inv.items||[]).map((it,i)=>{
 var prodLabel=it.jenis==="Tabung+Isi"?"Tbg + Isi":"Refill";
 // Untuk invoice gabungan, pakai tglDO per item; biasa pakai tanggal invoice
-var tglTampil=isGabunganInv&&it.tglDO?it.tglDO:inv.tanggal;
+var tglTampil=it.tglDO?it.tglDO:inv.tanggal;
 var tglHari=new Date(tglTampil+"T00:00:00");
 var HARI_SHORT=["Minggu","Senin","Selasa","Rabu","Kamis","Jumat","Sabtu"];
 return <tr key={i} style={{background:i%2===0?WHITE:G100}}>
