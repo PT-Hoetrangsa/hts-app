@@ -57,7 +57,7 @@ var LOGO_HTS_LIGHT="./assets/logo-hts-light-bg.png";// untuk latar terang (invoi
 var LOGO_PERTAMINA_DARK="./assets/logo-pertamina-dark-bg.png";// untuk latar gelap (header app)
 var LOGO_PERTAMINA_LIGHT="./assets/logo-pertamina-light-bg.png";// untuk latar terang (invoice/cetak)
 var GAS_SECRET="HTS2026";
-var SYNC_TABLES=["penjualan","bon","pengeluaran","pelanggan","employees","stok","doList","doTrip","absensi","payrollLog","ambilan","titipList","setoranLog","tutupBuku","config","jualanLain","kasBankTF","invoiceManual"];
+var SYNC_TABLES=["penjualan","bon","pengeluaran","pelanggan","employees","stok","doList","doTrip","absensi","payrollLog","ambilan","titipList","setoranLog","tutupBuku","config","jualanLain","kasBankTF","invoiceManual","setoranBank"];
 
 // CORS-safe: kirim via form POST ke GAS
 function gasPost(payload){
@@ -124,6 +124,7 @@ async function pushAll(data,setSyncStatus){
     tasks.push(gasWrite("jualanLain",data.jualanLain||[]));
     tasks.push(gasWrite("kasBankTF",data.kasBankTF||[]));
     tasks.push(gasWrite("invoiceManual",data.invoiceManual||[]));
+    tasks.push(gasWrite("setoranBank",data.setoranBank||[]));
     // stok & config sebagai object → wrap dalam array
     tasks.push(gasWrite("stok",[{key:"stok",val:JSON.stringify({stock:data.stock,stokKosong:data.stokKosong,totalTabung:data.totalTabung,stokHarian:data.stokHarian,stockLog:data.stockLog,modalHistory:data.modalHistory,hetPrices:data.hetPrices,counters:data.counters,theme:data.theme,stokBatch:data.stokBatch,stokBatchInit:data.stokBatchInit})}]));
     tasks.push(gasWrite("config",[{key:"company",val:JSON.stringify(data.company||{})}]));
@@ -137,11 +138,11 @@ async function pushAll(data,setSyncStatus){
 async function pullAll(setSyncStatus){
   setSyncStatus("pulling");
   try{
-    var [penj,bon,pen,plg,emp,doL,abs,pay,amb,titip,setor,tb,stokRaw,confRaw,jualLain,kbTF,doT,invMan]=await Promise.all([
+    var [penj,bon,pen,plg,emp,doL,abs,pay,amb,titip,setor,tb,stokRaw,confRaw,jualLain,kbTF,doT,invMan,setorBank]=await Promise.all([
       gasRead("penjualan"),gasRead("bon"),gasRead("pengeluaran"),gasRead("pelanggan"),
       gasRead("employees"),gasRead("doList"),gasRead("absensi"),gasRead("payrollLog"),
       gasRead("ambilan"),gasRead("titipList"),gasRead("setoranLog"),gasRead("tutupBuku"),
-      gasRead("stok"),gasRead("config"),gasRead("jualanLain"),gasRead("kasBankTF"),gasRead("doTrip"),gasRead("invoiceManual")
+      gasRead("stok"),gasRead("config"),gasRead("jualanLain"),gasRead("kasBankTF"),gasRead("doTrip"),gasRead("invoiceManual"),gasRead("setoranBank")
     ]);
     var stokMeta={};
     if(stokRaw&&stokRaw.length>0){try{stokMeta=JSON.parse(stokRaw[0].val);}catch(e){}}
@@ -152,7 +153,7 @@ async function pullAll(setSyncStatus){
       employees:emp.length>0?emp:null,
       doList:doL,doTrip:doT,absensi:abs,payrollLog:pay,ambilan:amb,
       titipList:titip,setoranLog:setor,tutupBuku:tb,
-      jualanLain:jualLain,kasBankTF:kbTF,invoiceManual:invMan,
+      jualanLain:jualLain,kasBankTF:kbTF,invoiceManual:invMan,setoranBank:setorBank,
       company,
       ...stokMeta};
   }catch(e){setSyncStatus("error");return null;}
@@ -3231,8 +3232,10 @@ x.bayar==="cash"?"💵 Cash":"🏦 TF",
 // ─── INVOICE MANUAL — form bebas, tidak terhubung Penjualan/BON/Piutang ──────
 function InvoiceManualMod({data,setData,setInv,user,toast}){
 var C=useTheme();
-var blankItem=()=>({id:uid(),tanggal:toDay(),produk:"",qty:"",price:""});
-var blankForm=()=>({noInv:"",tanggal:toDay(),konsumen:"",konsumenManual:"",kota:"",salesId:"",salesManual:"",status:"belum",totalDibayar:"",catatan:"",items:[blankItem()]});
+// blankItem inherits tanggal from caller so per-item date is independent
+var blankItem=(tgl)=>({id:uid(),tanggal:tgl||toDay(),produk:"",qty:"",price:""});
+var suggestNo=(tgl)=>{var t=tgl||toDay();var info=nextInvNo(data,t);return info.no;};
+var blankForm=()=>{var tgl=toDay();return{noInv:suggestNo(tgl),tanggal:tgl,konsumen:"",konsumenManual:"",kota:"",salesId:"",salesManual:"",status:"belum",totalDibayar:"",catatan:"",items:[blankItem(tgl)]};};
 var[f,setF]=useState(blankForm());
 var[editId,setEditId]=useState(null);
 var[delId,setDelId]=useState(null);
@@ -3241,9 +3244,18 @@ var[filterKons,setFilterKons]=useState("");
 var plgList=(data.pelanggan||[]).slice().sort((a,b)=>(a.nama||"").localeCompare(b.nama||""));
 var salesList=(data.employees||[]).filter(e=>e.aktif);
 
+// When header tanggal changes, update suggest no but keep item dates independent
+function onTglChange(v){setF(p=>({...p,tanggal:v,noInv:suggestNo(v)}));}
+
 function setItem(id,k,v){setF(p=>({...p,items:p.items.map(it=>it.id===id?{...it,[k]:v}:it)}));}
-function addItem(){setF(p=>({...p,items:[...p.items,blankItem()]}));}
+function addItem(){setF(p=>({...p,items:[...p.items,blankItem(p.tanggal)]}));}
 function delItem(id){setF(p=>({...p,items:p.items.filter(it=>it.id!==id)}));}
+
+// Quick-add product by size with HET auto-filled, editable
+function addProduk(ukuran){
+  var het=getHET(data,ukuran,"Isi");
+  setF(p=>({...p,items:[...p.items,{id:uid(),tanggal:p.tanggal,produk:ukuran,qty:"",price:String(het||"")}]}));
+}
 
 var validItems=f.items.filter(it=>it.produk&&Number(it.qty)>0);
 var totalForm=validItems.reduce((a,it)=>a+Number(it.qty||0)*Number(it.price||0),0);
@@ -3297,6 +3309,9 @@ setInv(inv);
 
 var rowsFiltered=(data.invoiceManual||[]).filter(r=>!filterKons||(r.konsumen||"").toLowerCase().includes(filterKons.toLowerCase())||(r.noInv||"").toLowerCase().includes(filterKons.toLowerCase()));
 
+// Quick-pick button style
+var qBtn=(active)=>({border:"1px solid "+C.bdr,borderRadius:8,padding:"7px 14px",cursor:"pointer",fontWeight:700,fontSize:12,background:active?C.blt:"transparent",color:active?"#fff":C.gl2,transition:"all .15s"});
+
 return <div>
 <STitle icon="🧾" children="Invoice Manual"/>
 <div style={{fontSize:11,color:C.gl2,marginBottom:12,marginTop:-8}}>Form invoice bebas — diisi & disesuaikan sendiri (no. invoice, konsumen, sales, tanggal, produk, qty). Tidak memengaruhi data Penjualan, BON, Piutang, stok, atau laporan apapun. Murni dokumen tampilan/cetak.</div>
@@ -3308,8 +3323,18 @@ return <div>
 
 <Card style={{border:editId?"1px solid #f59e0b":undefined,width:"fit-content",maxWidth:"100%",minWidth:660}}>
 <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(170px,220px))",gap:10}}>
-<Inp label="No. Invoice" value={f.noInv} onChange={v=>setF(p=>({...p,noInv:v}))} placeholder="#HTS/INV/VI.26/001"/>
-<Inp label="Tanggal" type="date" value={f.tanggal} onChange={v=>setF(p=>({...p,tanggal:v}))}/>
+
+{/* No. Invoice — auto-suggest, langsung editable */}
+<div style={{marginBottom:10}}>
+  <label style={{display:"block",fontSize:11,color:C.gl2,marginBottom:3,fontWeight:600}}>No. Invoice</label>
+  <input value={f.noInv} onChange={e=>setF(p=>({...p,noInv:e.target.value}))} placeholder="#HTS/INV/VI.26/001"
+    style={{width:"100%",border:"1px solid "+C.bdr,borderRadius:8,padding:"9px 11px",color:C.wht,fontSize:12,outline:"none",background:C.nav,boxSizing:"border-box",fontFamily:"monospace"}}/>
+  {!editId&&<div style={{fontSize:10,color:C.gl2,marginTop:3,cursor:"pointer"}} onClick={()=>setF(p=>({...p,noInv:suggestNo(p.tanggal)}))}>
+    🔄 Suggest: <span style={{color:C.blt,fontFamily:"monospace"}}>{suggestNo(f.tanggal)}</span>
+  </div>}
+</div>
+
+<Inp label="Tanggal" type="date" value={f.tanggal} onChange={onTglChange}/>
 <div style={{marginBottom:10}}>
 <label style={{display:"block",fontSize:11,color:C.gl2,marginBottom:3,fontWeight:600}}>Konsumen (pilih atau ketik manual)</label>
 <select value={f.konsumen||""} onChange={e=>setF(p=>({...p,konsumen:e.target.value}))} style={{width:"100%",border:"1px solid "+C.bdr,borderRadius:8,padding:"9px 11px",color:C.wht,fontSize:13,outline:"none",background:C.nav,boxSizing:"border-box",marginBottom:6}}>
@@ -3331,16 +3356,37 @@ return <div>
 {f.status==="sebagian"&&<Inp label="Telah Dibayar (Rp)" type="number" value={f.totalDibayar} onChange={v=>setF(p=>({...p,totalDibayar:v}))}/>}
 </div>
 
-<div style={{fontSize:11,fontWeight:700,color:C.gl2,marginTop:6,marginBottom:8}}>📦 Detail Produk</div>
-<div style={{fontSize:10,color:C.gl2,marginBottom:8,fontStyle:"italic"}}>Kolom "Produk" bebas diisi (mis. "12 kg", "5.5 kg", "Jasa Antar", "Aksesoris") — tampil sebagai badge di invoice.</div>
-{f.items.map((it,i)=><div key={it.id} style={{display:"grid",gridTemplateColumns:"130px 1.4fr 90px 140px 28px",gap:6,marginBottom:6,alignItems:"flex-end"}}>
-<Inp label={i===0?"Tanggal":""} type="date" value={it.tanggal} onChange={v=>setItem(it.id,"tanggal",v)} style={{marginBottom:0}}/>
-<Inp label={i===0?"Produk":""} value={it.produk} onChange={v=>setItem(it.id,"produk",v)} placeholder="mis. 12 kg" style={{marginBottom:0}}/>
-<Inp label={i===0?"Qty":""} type="number" value={it.qty} onChange={v=>setItem(it.id,"qty",v)} style={{marginBottom:0}}/>
-<Inp label={i===0?"Harga Satuan":""} type="number" value={it.price} onChange={v=>setItem(it.id,"price",v)} style={{marginBottom:0}}/>
-<button onClick={()=>delItem(it.id)} style={{background:C.inHvE,border:"none",borderRadius:6,color:C.rlt,cursor:"pointer",fontSize:13,padding:"9px 6px"}} title="Hapus baris">✕</button>
+{/* Quick-pick produk */}
+<div style={{marginTop:4,marginBottom:12}}>
+  <div style={{fontSize:11,fontWeight:700,color:C.gl2,marginBottom:6}}>📦 Tambah Produk Cepat</div>
+  <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+    {SIZES.map(s=>{
+      var het=getHET(data,s,"Isi");
+      return <button key={s} onClick={()=>addProduk(s)} style={qBtn(false)}>
+        <span style={{fontSize:13}}>➕ {s}</span>
+        <span style={{display:"block",fontSize:10,color:C.gl2,fontWeight:400,marginTop:1}}>HET {fR(het)}</span>
+      </button>;
+    })}
+    <button onClick={addItem} style={{...qBtn(false),color:C.gl2,fontSize:11,padding:"7px 12px"}}>+ Baris Bebas</button>
+  </div>
+</div>
+
+{/* Header kolom */}
+{f.items.length>0&&<div style={{display:"grid",gridTemplateColumns:"130px 1.4fr 80px 145px 28px",gap:6,marginBottom:4}}>
+  {["Tanggal","Produk","Qty","Harga Satuan",""].map((h,i)=><div key={i} style={{fontSize:10,color:C.gl2,fontWeight:700,paddingLeft:2}}>{h}</div>)}
+</div>}
+
+{f.items.map((it)=><div key={it.id} style={{display:"grid",gridTemplateColumns:"130px 1.4fr 80px 145px 28px",gap:6,marginBottom:6,alignItems:"center"}}>
+  <input type="date" value={it.tanggal} onChange={e=>setItem(it.id,"tanggal",e.target.value)}
+    style={{border:"1px solid "+C.bdr,borderRadius:8,padding:"8px 8px",color:C.wht,fontSize:12,outline:"none",background:C.nav,width:"100%",boxSizing:"border-box"}}/>
+  <input value={it.produk} onChange={e=>setItem(it.id,"produk",e.target.value)} placeholder="mis. 12 kg / Jasa Antar"
+    style={{border:"1px solid "+C.bdr,borderRadius:8,padding:"8px 10px",color:C.wht,fontSize:12,outline:"none",background:C.nav,width:"100%",boxSizing:"border-box"}}/>
+  <input type="number" value={it.qty} onChange={e=>setItem(it.id,"qty",e.target.value)} placeholder="0"
+    style={{border:"1px solid "+C.bdr,borderRadius:8,padding:"8px 8px",color:C.wht,fontSize:12,outline:"none",background:C.nav,width:"100%",boxSizing:"border-box",textAlign:"right"}}/>
+  <input type="number" value={it.price} onChange={e=>setItem(it.id,"price",e.target.value)} placeholder="0"
+    style={{border:"1px solid "+C.bdr,borderRadius:8,padding:"8px 10px",color:C.wht,fontSize:12,outline:"none",background:C.nav,width:"100%",boxSizing:"border-box",textAlign:"right"}}/>
+  <button onClick={()=>delItem(it.id)} style={{background:C.inHvE,border:"none",borderRadius:6,color:C.rlt,cursor:"pointer",fontSize:13,padding:"8px 6px"}} title="Hapus baris">✕</button>
 </div>)}
-<Btn sm color="blue" onClick={addItem}>+ Tambah Baris</Btn>
 
 <div style={{marginTop:14,marginBottom:10}}><Inp label="Catatan (opsional)" value={f.catatan} onChange={v=>setF(p=>({...p,catatan:v}))}/></div>
 
@@ -4129,7 +4175,7 @@ var[pecah,setPecah]=useState(()=>{var o={};DENOMS.forEach(d=>{o[d]="";});return 
 var[jadikanPinjaman,setJadikanPinjaman]=useState(false);
 var[viewTB,setViewTB]=useState(null);// modal lihat
 var[editTB,setEditTB]=useState(null);// record yang sedang diedit
-useEffect(()=>{if(editTB){setTgl(editTB.tanggal);setCashLaci(String(editTB.cashLaci||""));setRekBSI(String(editTB.rekBSI||""));setRekBCA(String(editTB.rekBCA||""));setPemasukanLain(String(editTB.pemasukanLain||""));}else{setTgl(toDay());setCashLaci("");setRekBSI("");setRekBCA("");}},[editTB]);
+useEffect(()=>{if(editTB){setTgl(editTB.tanggal);setCashLaci(String(editTB.cashLaci||""));setRekBSI(String(editTB.rekBSI||""));setRekBCA(String(editTB.rekBCA||""));setPemasukanLain(String(editTB.pemasukanLain||""));var p={};DENOMS.forEach(function(d){p[d]=(editTB.pecah||{})[d]||(editTB.pecah||{})[String(d)]||"";});setPecah(p);}else{setTgl(toDay());setCashLaci("");setRekBSI("");setRekBCA("");setPecah(function(){var o={};DENOMS.forEach(function(d){o[d]="";});return o;});}},[editTB]);
 
 // Harian P&L
 var pHari=(data.penjualan||[]).filter(e=>e.tanggal===tgl);
@@ -5755,7 +5801,7 @@ for(var di=1;di<=dim;di++){
 );
   var wajibSetor=0;
   if(tb){
-    var cashPenj=(data.penjualan||[]).filter(p=>p.tanggal===tglD&&(p.bayar||"").toLowerCase()==="cash").reduce((a,p)=>a+(p.total||0),0);
+    var cashPenj=(data.penjualan||[]).filter(p=>p.tanggal===tglD&&(p.bayar||"").toLowerCase()==="cash").reduce((a,p)=>a+(p.total||0),0)+(data.penjualan||[]).filter(p=>p.tanggal===tglD&&(p.bayar||"").toLowerCase()==="split").reduce((a,p)=>a+Number((p.splitDetail||{}).cash||0),0);
     var bonCashD=(data.bon||[]).reduce((a,b)=>{var px=(b.pembayaran||[]).filter(p=>p.tanggal===tglD&&(p.metode||"cash").toLowerCase()==="cash");return a+px.reduce((s,p)=>s+Number(p.jumlah||p.nominal||0),0);},0);
     var penCashD=(data.pengeluaran||[]).filter(p=>p.tanggal===tglD&&(p.metode||"cash").toLowerCase()==="cash").reduce((a,p)=>a+Number(p.nominal||0),0);
     var kurangSetorD=(data.ambilan||[]).filter(a=>a.tanggal===tglD&&(a.ket||"").toLowerCase().includes("kurang setor")).reduce((a,x)=>a+Number(x.nominal||0),0);
