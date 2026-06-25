@@ -431,6 +431,28 @@ var hppPerUnit=qty>0?hppTotal/qty:0;
 return{data:{...data,stokBatch:sb},hppTotal,hppPerUnit,detail,qtyKurang};
 }
 
+// Kembalikan qty ke batch FIFO (reverse consume) — dipakai saat hapus DO/item
+// Strategi: tambahkan kembali ke batch paling akhir yang cocok sumber-nya, atau buat entry baru
+function reverseBatch(data,ukuran,qty,sumber,harga){
+qty=Number(qty)||0;if(qty<=0)return data;
+var sb={...(data.stokBatch||{})};
+var arr=(sb[ukuran]||[]).map(b=>({...b}));
+// Cari batch yang cocok sumbernya (paling baru) dan tambah qtySisa-nya kembali
+var reversed=false;
+for(var i=arr.length-1;i>=0;i--){
+  if(arr[i].sumber&&sumber&&arr[i].sumber===sumber){
+    arr[i].qtySisa=Math.min(arr[i].qty,(arr[i].qtySisa||0)+qty);
+    reversed=true;break;
+  }
+}
+// Kalau tidak ketemu batch yang cocok, tambah entry baru
+if(!reversed){
+  arr.push({id:uid(),tanggal:toDay(),qty,qtySisa:qty,harga:Number(harga)||0,sumber:(sumber||"")+" (Reverse)"});
+}
+sb[ukuran]=arr;
+return{...data,stokBatch:sb};
+}
+
 // Hitung nilai stok saat ini berdasarkan SISA batch FIFO (bukan qty x harga terakhir)
 function calcNilaiStokFIFO(data){
 return SIZES.reduce((a,s)=>{
@@ -783,13 +805,29 @@ return <tr key={i} style={{background:i%2===0?WHITE:G100}}>
 <div style={{display:"flex",alignItems:"stretch",borderTop:"2px solid "+G200}}>
 <div style={{flex:1,padding:"13px 14px",background:TEAL_LIGHT}}>
 <div style={{fontSize:8,fontWeight:700,letterSpacing:1,textTransform:"uppercase",color:G600,marginBottom:4}}>Terbilang</div>
-<div style={{fontSize:11.5,fontWeight:500,fontStyle:"italic",color:NAVY,lineHeight:1.5}}># {terbilang(total)} #</div>
+<div style={{fontSize:11.5,fontWeight:500,fontStyle:"italic",color:NAVY,lineHeight:1.5}}># {terbilang(inv.isBon?(inv.sisaTagihan||0):total)} #</div>
 {/* Split payment detail */}
 {isSplitInv&&<div style={{marginTop:8,borderTop:"1px dashed #00acc1",paddingTop:6}}>
 <div style={{fontSize:8,fontWeight:700,letterSpacing:1,color:G600,marginBottom:4,textTransform:"uppercase"}}>Rincian Pembayaran</div>
 {[["💵 Cash",sdInv.cash||0,"#065F46"],["🏦 Transfer "+(inv.splitBank||""),sdInv.tf||0,"#1e3a8a"],["📃 BON (Piutang)",sdInv.bon||0,"#991B1B"]].filter(x=>Number(x[1])>0).map(x=><div key={x[0]} style={{display:"flex",justifyContent:"space-between",fontSize:10,fontWeight:600,marginBottom:2}}>
 <span style={{color:G600}}>{x[0]}</span><span style={{color:x[2]}}>Rp {Number(x[1]).toLocaleString("id-ID")}</span>
 </div>)}
+</div>}
+{inv.isBon&&inv.totalBelanja&&<div style={{marginTop:8,borderTop:"1px dashed #dc2626",paddingTop:6}}>
+<div style={{fontSize:8,fontWeight:700,letterSpacing:1,color:G600,marginBottom:5,textTransform:"uppercase"}}>Rincian Piutang</div>
+<div style={{display:"flex",justifyContent:"space-between",fontSize:10,fontWeight:600,marginBottom:3}}>
+<span style={{color:G600}}>Total Belanja</span><span style={{color:NAVY}}>Rp {Number(inv.totalBelanja).toLocaleString("id-ID")}</span>
+</div>
+{(inv.riwayatBayar||[]).map((p,i)=><div key={i} style={{display:"flex",justifyContent:"space-between",fontSize:10,fontWeight:600,marginBottom:2}}>
+<span style={{color:"#059669"}}>✓ Bayar {p.tgl?new Date(p.tgl).toLocaleDateString("id-ID",{day:"numeric",month:"short"}):""} {p.metode?"("+p.metode+")":""}</span>
+<span style={{color:"#059669"}}>Rp {Number(p.nominal||0).toLocaleString("id-ID")}</span>
+</div>)}
+{inv.totalDibayar>0&&<div style={{display:"flex",justifyContent:"space-between",fontSize:10,fontWeight:700,marginTop:3,paddingTop:3,borderTop:"1px dashed "+G200}}>
+<span style={{color:"#059669"}}>Total Dibayar</span><span style={{color:"#059669"}}>Rp {Number(inv.totalDibayar).toLocaleString("id-ID")}</span>
+</div>}
+<div style={{display:"flex",justifyContent:"space-between",fontSize:11,fontWeight:800,marginTop:4,paddingTop:4,borderTop:"2px solid #dc2626"}}>
+<span style={{color:"#dc2626"}}>Sisa Tagihan</span><span style={{color:"#dc2626"}}>Rp {Number(inv.sisaTagihan||0).toLocaleString("id-ID")}</span>
+</div>
 </div>}
 </div>
 {/* Stempel LUNAS di antara terbilang & grand total */}
@@ -809,10 +847,10 @@ return <tr key={i} style={{background:i%2===0?WHITE:G100}}>
 <span style={{fontSize:11,fontWeight:700,color:RED}}>Rp {Number(inv.sisaTagihan||0).toLocaleString("id-ID")}</span>
 </div>
 </div>}
-<div style={{fontSize:8,fontWeight:700,letterSpacing:1,textTransform:"uppercase",color:G400,marginBottom:4}}>Grand Total</div>
+<div style={{fontSize:8,fontWeight:700,letterSpacing:1,textTransform:"uppercase",color:inv.isBon?"#dc2626":G400,marginBottom:4}}>{inv.isBon?"Sisa Tagihan":"Grand Total"}</div>
 <div style={{display:"flex",alignItems:"baseline",gap:4}}>
-<span style={{fontSize:13,fontWeight:600,color:G400}}>Rp</span>
-<span style={{fontSize:24,fontWeight:800,color:NAVY,letterSpacing:.3}}>{Number(total).toLocaleString("id-ID")}</span>
+<span style={{fontSize:13,fontWeight:600,color:inv.isBon?"#dc2626":G400}}>Rp</span>
+<span style={{fontSize:24,fontWeight:800,color:inv.isBon?"#dc2626":NAVY,letterSpacing:.3}}>{Number(inv.isBon?inv.sisaTagihan:total).toLocaleString("id-ID")}</span>
 </div>
 </div>
 </div>
@@ -2087,6 +2125,44 @@ var[ft,setFt]=useState(()=>({tanggal:toDay(),trip:"Trip 1",sppbe:"SPPBE KCR",dib
          "12 kg":{qty:"",hppUnit:String(data.company?.hppFixedSPPBE?.["SPPBE KCR"]?.["12 kg"]||"")},
          "50 kg":{qty:"",hppUnit:String(data.company?.hppFixedSPPBE?.["SPPBE KCR"]?.["50 kg"]||"")}}}));
 var[editTripId,setEditTripId]=useState(null);
+var[editItemDO,setEditItemDO]=useState(null);// {trip, item, newQty}
+var[editItemQty,setEditItemQty]=useState("");
+function mulaiEditItemDO(trip,item){
+  setEditItemDO({trip,item});
+  setEditItemQty(String(item.qty));
+  toast("✏️ Edit qty "+item.ukuran+" — masukkan qty baru lalu klik Simpan");
+}
+function simpanEditItemDO(){
+  if(!editItemDO)return;
+  var{trip,item}=editItemDO;
+  var qtyBaru=Number(editItemQty)||0;
+  if(qtyBaru<=0){toast("⚠️ Qty harus > 0","error");return;}
+  if(qtyBaru===item.qty){setEditItemDO(null);setEditItemQty("");return;}
+  var selisih=qtyBaru-item.qty;// positif = tambah, negatif = kurang
+  var sumberBatch="DO "+trip.trip+" ("+trip.sppbe+")";
+  setData(d=>{
+    var ns={...(d.stock||{})};var nk={...(d.stokKosong||{})};
+    var dCur=d;
+    if(selisih>0){
+      // Tambah qty: +stok, +addBatch
+      ns[item.ukuran]=(ns[item.ukuran]||0)+selisih;
+      nk[item.ukuran]=Math.max(0,(nk[item.ukuran]||0)-selisih);
+      dCur=addBatch(dCur,item.ukuran,selisih,item.hppUnit||0,sumberBatch,trip.tanggal);
+    } else {
+      // Kurangi qty: -stok, consumeFIFO dari kepala antrian
+      var qKurang=Math.abs(selisih);
+      ns[item.ukuran]=Math.max(0,(ns[item.ukuran]||0)-qKurang);
+      nk[item.ukuran]=(nk[item.ukuran]||0)+qKurang;
+      var res=consumeFIFO(dCur,item.ukuran,qKurang);
+      dCur=res.data;
+    }
+    var log={id:uid(),tanggal:trip.tanggal,ukuran:item.ukuran,jenis:"Edit Qty DO "+trip.trip,qty:Math.abs(selisih),ket:"Qty diubah "+item.qty+"→"+qtyBaru+(selisih>0?" (+tambah)":" (-kurang)"),sumber:"Edit DO",user:user?.nama||""};
+    var updatedTrip={...trip,items:trip.items.map(it=>it.id===item.id?{...it,qty:qtyBaru,totalHPP:qtyBaru*(it.hppUnit||0)}:it)};
+    return{...dCur,doTrip:(d.doTrip||[]).map(x=>x.id===trip.id?updatedTrip:x),stock:ns,stokKosong:nk,stockLog:[log,...(d.stockLog||[])].slice(0,500)};
+  });
+  setEditItemDO(null);setEditItemQty("");
+  toast("✓ Qty "+item.ukuran+" diperbarui: "+item.qty+" → "+qtyBaru);
+}
 var isFixedSPPBE=ft.sppbe==="SPPBE KCR"||ft.sppbe==="SPPBE MGL";
 function onSppbeT(v){
 var fixed=data.company?.hppFixedSPPBE?.[v]||null;
@@ -2166,13 +2242,15 @@ if(item.status==="diterima"){
   nk[item.ukuran]=(nk[item.ukuran]||0)+item.qty;
 }
 var sisaItems=trip.items.filter(it=>it.id!==item.id);
+var sumberBatch="DO "+trip.trip+" ("+trip.sppbe+")";
 setData(d=>{
   var logs=item.status==="diterima"?[{id:uid(),tanggal:trip.tanggal,ukuran:item.ukuran,jenis:"Reverse Hapus Item DO "+(trip.trip||""),qty:item.qty,ket:"Stok dikembalikan karena item DO dihapus",sumber:"Hapus DO Trip",user:user?.nama||""},...(d.stockLog||[])].slice(0,500):(d.stockLog||[]);
+  // Reverse FIFO batch jika item sudah diterima
+  var dRev=item.status==="diterima"?reverseBatch(d,item.ukuran,item.qty,sumberBatch,item.hppUnit||0):d;
   if(sisaItems.length===0){
-    // Trip kosong, hapus trip sepenuhnya
-    return{...d,doTrip:(d.doTrip||[]).filter(x=>x.id!==trip.id),stock:ns,stokKosong:nk,stockLog:logs};
+    return{...dRev,doTrip:(d.doTrip||[]).filter(x=>x.id!==trip.id),stock:ns,stokKosong:nk,stockLog:logs};
   }
-  return{...d,doTrip:(d.doTrip||[]).map(x=>x.id===trip.id?{...x,items:sisaItems}:x),stock:ns,stokKosong:nk,stockLog:logs};
+  return{...dRev,doTrip:(d.doTrip||[]).map(x=>x.id===trip.id?{...x,items:sisaItems}:x),stock:ns,stokKosong:nk,stockLog:logs};
 });
 toast("✓ Item "+item.ukuran+" dihapus dari trip.");
 }
@@ -2360,6 +2438,7 @@ return <tr key={r._id} style={{background:ri%2===0?C.bg:C.nav}}>
 {trip.items.map(it=><div key={it.id} style={{display:"flex",gap:3,justifyContent:"center"}}>
 {it.status==="gantung"&&<><button onClick={()=>terimaTripItem(trip,it)} title={it.ukuran+" Terima"} style={{background:"#15803D",border:"none",borderRadius:4,padding:"3px 5px",color:"white",fontSize:11,cursor:"pointer"}}>✅</button><button onClick={()=>sangkutTripItem(trip,it)} title={it.ukuran+" Sangkut"} style={{background:"#B45309",border:"none",borderRadius:4,padding:"3px 5px",color:"white",fontSize:11,cursor:"pointer"}}>⚠️</button></>}
 {it.status==="sangkut"&&<button onClick={()=>releaseTripItem(trip,it)} title={it.ukuran+" Release"} style={{background:"#1D4ED8",border:"none",borderRadius:4,padding:"3px 5px",color:"white",fontSize:11,cursor:"pointer"}}>🔓</button>}
+{it.status==="diterima"&&<button onClick={()=>mulaiEditItemDO(trip,it)} title={it.ukuran+" Edit Qty"} style={{background:editItemDO?.item?.id===it.id?"#B45309":"#1D4ED8",border:"none",borderRadius:4,padding:"3px 5px",color:"white",fontSize:11,cursor:"pointer"}}>✏️</button>}
 <button onClick={()=>hapusTripItem(trip,it)} title={it.ukuran+" Hapus"} style={{background:"#991B1B",border:"none",borderRadius:4,padding:"3px 5px",color:"white",fontSize:11,cursor:"pointer"}}>🗑️</button>
 </div>)}
 </div>
@@ -2410,6 +2489,25 @@ return <tr style={{background:C.olt}}>
 </tfoot>
 </table>
 </Card>
+{editItemDO&&<div style={{position:"fixed",top:0,left:0,right:0,bottom:0,background:"rgba(0,0,0,.6)",zIndex:2000,display:"flex",alignItems:"center",justifyContent:"center"}} onClick={()=>setEditItemDO(null)}>
+<div style={{background:"#1e293b",border:"1px solid #f59e0b",borderRadius:14,padding:"24px 28px",minWidth:320,maxWidth:420}} onClick={e=>e.stopPropagation()}>
+<div style={{fontWeight:800,fontSize:15,color:"#fcd34d",marginBottom:4}}>✏️ Edit Qty Item DO</div>
+<div style={{fontSize:12,color:"#94a3b8",marginBottom:16}}>Trip: {editItemDO.trip.trip} — {editItemDO.item.ukuran} — {editItemDO.trip.sppbe}</div>
+<div style={{fontSize:11,color:"#94a3b8",marginBottom:6}}>Qty saat ini: <b style={{color:"#fff"}}>{editItemDO.item.qty}</b></div>
+<input type="number" value={editItemQty} onChange={e=>setEditItemQty(e.target.value)} placeholder="Qty baru"
+  style={{width:"100%",border:"1px solid #f59e0b",borderRadius:8,padding:"10px 12px",color:"#fff",fontSize:14,outline:"none",background:"#0f172a",boxSizing:"border-box",marginBottom:8}}
+  autoFocus/>
+<div style={{fontSize:10,color:"#94a3b8",marginBottom:16}}>
+{Number(editItemQty)>0&&Number(editItemQty)!==editItemDO.item.qty&&<span style={{color:Number(editItemQty)>editItemDO.item.qty?"#34d399":"#f87171"}}>
+  {Number(editItemQty)>editItemDO.item.qty?"+ Tambah":"- Kurang"} {Math.abs(Number(editItemQty)-editItemDO.item.qty)} tabung → stok & FIFO batch akan disesuaikan otomatis
+</span>}
+</div>
+<div style={{display:"flex",gap:8}}>
+<button onClick={simpanEditItemDO} style={{flex:1,background:"#b45309",border:"1px solid #f59e0b",borderRadius:8,padding:"10px",color:"#fcd34d",fontWeight:800,fontSize:13,cursor:"pointer"}}>💾 Simpan</button>
+<button onClick={()=>setEditItemDO(null)} style={{background:"#334155",border:"none",borderRadius:8,padding:"10px 16px",color:"#94a3b8",cursor:"pointer",fontSize:13}}>✕ Batal</button>
+</div>
+</div>
+</div>}
 {delId&&<ConfirmDel msg={"Hapus DO "+(delId.trip||"")+"? Stok akan dikembalikan otomatis."} onCancel={()=>setDelId(null)} onConfirm={()=>{
 var st=delId.status||"diterima";
 var qty=Number(delId.qty||0);var uk=delId.ukuran;
@@ -2419,7 +2517,10 @@ if(st==="diterima"){
   nk[uk]=(nk[uk]||0)+qty;
 }
 var logs=st==="diterima"?[{id:uid(),tanggal:delId.tanggal,ukuran:uk,jenis:"Reverse Hapus DO "+(delId.trip||""),qty,ket:"Stok dikembalikan karena DO dihapus",sumber:"Hapus DO",user:user?.nama||""},...(data.stockLog||[])].slice(0,500):(data.stockLog||[]);
-setData(d=>({...d,doList:(d.doList||[]).filter(x=>x.id!==delId.id),stock:ns,stokKosong:nk,stockLog:logs}));
+setData(d=>{
+  var dRev=st==="diterima"?reverseBatch(d,uk,qty,"DO "+(delId.trip||"")+" ("+(delId.sppbe||"")+")",delId.hppUnit||0):d;
+  return{...dRev,doList:(d.doList||[]).filter(x=>x.id!==delId.id),stock:ns,stokKosong:nk,stockLog:logs};
+});
 if(editId===delId.id)resetForm();
 setDelId(null);
 toast(st==="diterima"?"✓ DO dihapus & stok dikembalikan!":"✓ DO dihapus.");
@@ -2440,7 +2541,7 @@ var[gabungKons,setGabungKons]=useState("");// filter konsumen untuk gabung
 var[tabBon,setTabBon]=useState("aktif");// aktif | lunas
 var salesList=sortEmp((data.employees||[]).filter(e=>e.aktif));
 
-function makeBonInvObj(b){var plg=(data.pelanggan||[]).find(x=>x.id===b.konsumenId);var emp=(data.employees||[]).find(x=>x.id===b.salesId);var totalDibayar=(b.pembayaran||[]).reduce((a,p)=>a+Number(p.nominal||0),0);return{noInv:b.noInv||"#HTS/INV/-/-",tanggal:b.tanggal,konsumen:b.konsumen,kota:plg?.alamat?.split(",").pop()?.trim()||"Banda Aceh",salesNama:emp?.nama||"",items:(b.items||[]).map(it=>({ukuran:it.ukuran,jenis:it.jenis,qty:Number(it.qty),price:Number(it.price),tglDO:it.tglDO||b.tanggal})),total:b.total,metodeBayar:b.status==="lunas"?"BON (LUNAS)":"BON",isBon:b.status!=="lunas",isGabungan:b.isGabungan||false,catatan:b.ket||"",bonLunas:b.status==="lunas",bonSebagian:b.status==="sebagian",totalDibayar,sisaTagihan:b.status==="lunas"?0:(b.sisaTagihan!=null?b.sisaTagihan:b.total-totalDibayar)};}
+function makeBonInvObj(b){var plg=(data.pelanggan||[]).find(x=>x.id===b.konsumenId);var emp=(data.employees||[]).find(x=>x.id===b.salesId);var totalDibayar=(b.pembayaran||[]).reduce((a,p)=>a+Number(p.nominal||0),0);var sisaTagihan=b.status==="lunas"?0:(b.sisaTagihan!=null?b.sisaTagihan:b.total-totalDibayar);return{noInv:b.noInv||"#HTS/INV/-/-",tanggal:b.tanggal,konsumen:b.konsumen,kota:plg?.alamat?.split(",").pop()?.trim()||"Banda Aceh",salesNama:emp?.nama||"",items:(b.items||[]).map(it=>({ukuran:it.ukuran,jenis:it.jenis,qty:Number(it.qty),price:Number(it.price),tglDO:it.tglDO||b.tanggal})),total:sisaTagihan,totalBelanja:b.total,metodeBayar:b.status==="lunas"?"BON (LUNAS)":"BON",isBon:b.status!=="lunas",isGabungan:b.isGabungan||false,catatan:b.ket||"",bonLunas:b.status==="lunas",bonSebagian:b.status==="sebagian",totalDibayar,sisaTagihan,riwayatBayar:(b.pembayaran||[])};}
 
 // ── Invoice Gabungan Object ──
 function makeGabungInvObj(bons,noInvBaru){
