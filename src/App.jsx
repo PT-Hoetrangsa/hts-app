@@ -2168,13 +2168,13 @@ setFt({tanggal:toDay(),trip:"Trip 1",sppbe:"SPPBE KCR",dibuatOleh:user?.id||"",k
 setEditTripId(null);
 }
 function mulaiEditTrip(trip){
-if(!trip.items.every(it=>it.status==="gantung")){toast("⚠️ Trip yang sudah ada item Diterima/Sangkut tidak bisa diedit penuh — hapus item tersebut satu per satu jika perlu.","error");return;}
 var empDO=(data.employees||[]).find(e=>e.id===trip.dibuatOlehId)||(data.employees||[]).find(e=>e.nama===trip.dibuatOleh);
 var itemsMap=Object.fromEntries(SIZES.map(s=>{var it=trip.items.find(x=>x.ukuran===s);return[s,{qty:it?String(it.qty):"",hppUnit:it?String(it.hppUnit):""}];}));
 setFt({tanggal:trip.tanggal,trip:trip.trip,sppbe:trip.sppbe,dibuatOleh:empDO?.id||"",ket:trip.ket||"",items:itemsMap});
 setEditTripId(trip.id);
+var adaDiterima=trip.items.some(it=>it.status==="diterima");
 setTimeout(()=>{if(formRef.current)formRef.current.scrollIntoView({behavior:"smooth",block:"start"});},100);
-toast("✏️ Mode edit Trip "+(trip.trip||"")+" — ubah data lalu klik Simpan Perubahan");
+toast("✏️ Mode edit Trip "+(trip.trip||"")+(adaDiterima?" — ⚠️ ada item diterima, qty yg diubah akan reverse+re-consume FIFO otomatis":""+" — ubah data lalu klik Simpan Perubahan"));
 }
 function saveTrip(){
 var activeSizes=SIZES.filter(s=>Number(ft.items[s].qty)>0);
@@ -2182,9 +2182,45 @@ if(!ft.trip||activeSizes.length===0){toast("⚠️ Isi minimal 1 qty produk","er
 var empDO=(data.employees||[]).find(e=>e.id===ft.dibuatOleh);
 var itemsArr=activeSizes.map(s=>({ukuran:s,qty:Number(ft.items[s].qty),hppUnit:Number(ft.items[s].hppUnit)||0,totalHPP:Number(ft.items[s].qty)*(Number(ft.items[s].hppUnit)||0),status:"gantung"}));
 if(editTripId){
-  setData(d=>({...d,doTrip:(d.doTrip||[]).map(x=>x.id===editTripId?{...x,tanggal:ft.tanggal,trip:ft.trip,sppbe:ft.sppbe,dibuatOleh:empDO?.nama||user?.nama||"",dibuatOlehId:ft.dibuatOleh,ket:ft.ket,items:itemsArr}:x)}));
+  var tripLama=(data.doTrip||[]).find(x=>x.id===editTripId);
+  setData(d=>{
+    var dCur=d;
+    var ns={...(d.stock||{})};var nk={...(d.stokKosong||{})};
+    var newItems=[];
+    SIZES.forEach(s=>{
+      var qtyBaru=Number(ft.items[s].qty)||0;
+      var hpp=Number(ft.items[s].hppUnit)||0;
+      var itemLama=(tripLama?.items||[]).find(it=>it.ukuran===s);
+      var qtyLama=itemLama?Number(itemLama.qty||0):0;
+      var statusLama=itemLama?.status||"gantung";
+      if(qtyBaru<=0&&qtyLama<=0)return;// item tidak ada di kedua versi
+      if(statusLama==="diterima"&&qtyLama>0){
+        // Reverse batch lama
+        var sumberBatch="DO "+tripLama.trip+" ("+tripLama.sppbe+")";
+        dCur=reverseBatch(dCur,s,qtyLama,sumberBatch,itemLama.hppUnit||0);
+        ns[s]=Math.max(0,(ns[s]||0)-qtyLama);
+        nk[s]=(nk[s]||0)+qtyLama;
+      }
+      if(qtyBaru>0){
+        var sumberBaru="DO "+ft.trip+" ("+ft.sppbe+")";
+        if(statusLama==="diterima"){
+          // Re-consume batch dengan qty baru
+          dCur=addBatch(dCur,s,qtyBaru,hpp,sumberBaru,ft.tanggal);
+          ns[s]=(ns[s]||0)+qtyBaru;
+          nk[s]=Math.max(0,(nk[s]||0)-qtyBaru);
+        }
+        newItems.push({id:itemLama?.id||uid(),ukuran:s,qty:qtyBaru,hppUnit:hpp,totalHPP:qtyBaru*hpp,status:statusLama||"gantung"});
+      }
+    });
+    var log={id:uid(),tanggal:ft.tanggal,ukuran:"Multiple",jenis:"Edit DO "+ft.trip,qty:0,ket:"Trip DO diedit — qty/sppbe/tanggal diperbarui",sumber:"Edit DO",user:user?.nama||""};
+    return{...dCur,
+      doTrip:(d.doTrip||[]).map(x=>x.id===editTripId?{...x,tanggal:ft.tanggal,trip:ft.trip,sppbe:ft.sppbe,dibuatOleh:empDO?.nama||user?.nama||"",dibuatOlehId:ft.dibuatOleh,ket:ft.ket,items:newItems}:x),
+      stock:ns,stokKosong:nk,
+      stockLog:[log,...(d.stockLog||[])].slice(0,500)
+    };
+  });
   resetFormT();
-  toast("✓ Trip DO diperbarui!");
+  toast("✓ Trip DO diperbarui! FIFO batch disesuaikan otomatis.");
   return;
 }
 var tripRec={id:uid(),tanggal:ft.tanggal,trip:ft.trip,sppbe:ft.sppbe,dibuatOleh:empDO?.nama||user?.nama||"",dibuatOlehId:ft.dibuatOleh,ket:ft.ket,items:itemsArr.map(it=>({...it,id:uid()}))};
@@ -2322,13 +2358,15 @@ return <div ref={formRef}>
 </div>)}
 </div>
 </div>
-{editTripId&&<div style={{background:"linear-gradient(90deg,#92400e,#b45309)",border:"1px solid #f59e0b",borderRadius:10,padding:"10px 16px",marginBottom:12,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+{editTripId&&(()=>{var tripEdit=(data.doTrip||[]).find(x=>x.id===editTripId);var adaDiterima=tripEdit?.items?.some(it=>it.status==="diterima");return(<><div style={{background:"linear-gradient(90deg,#92400e,#b45309)",border:"1px solid #f59e0b",borderRadius:10,padding:"10px 16px",marginBottom:adaDiterima?6:12,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
 <div>
 <div style={{color:"#fef3c7",fontWeight:800,fontSize:13}}>✏️ Mode Edit Trip DO</div>
 <div style={{color:"#fde68a",fontSize:11,marginTop:2}}>Data trip dimuat ke form di bawah. Ubah data lalu klik <b>Simpan Perubahan</b>.</div>
 </div>
 <button onClick={resetFormT} style={{background:"rgba(0,0,0,.25)",border:"1px solid #f59e0b",borderRadius:7,padding:"6px 12px",color:"#fef3c7",cursor:"pointer",fontWeight:700,fontSize:11,flexShrink:0}}>✕ Batal Edit</button>
-</div>}
+</div>{adaDiterima&&<div style={{background:"rgba(220,38,38,.15)",border:"1px solid #dc2626",borderRadius:8,padding:"8px 14px",marginBottom:12,fontSize:11,color:"#fca5a5"}}>
+⚠️ Trip ini ada item <b>Diterima</b> — jika qty diubah, FIFO batch akan di-reverse dan di-recalculate otomatis. Perubahan tanggal/SPPBE/driver aman dilakukan kapan saja.
+</div>}</>);})()}
 <Card style={{border:editTripId?"1px solid #f59e0b":undefined,width:"fit-content",maxWidth:"100%",minWidth:660}}>
 <div style={{fontWeight:700,color:C.gl2,marginBottom:10,fontSize:13}}>🚚 Input DO — 1 Trip, Multi Produk</div>
 <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(150px,210px))",gap:10}}>
@@ -2425,7 +2463,7 @@ return <tr key={r._id} style={{background:ri%2===0?C.bg:C.nav}}>
 </td>
 <td style={{padding:"6px 4px",border:"1px solid "+C.bdr}}>
 <div style={{display:"flex",flexDirection:"column",gap:3,alignItems:"center"}}>
-{allGantung&&<button onClick={()=>mulaiEditTrip(trip)} title="Edit Trip" style={{background:editTripId===trip.id?"#B45309":"#1D4ED8",border:"none",borderRadius:5,padding:"4px 6px",color:"white",fontSize:11,fontWeight:700,cursor:"pointer",width:"100%"}}>✏️</button>}
+<button onClick={()=>mulaiEditTrip(trip)} title="Edit Trip" style={{background:editTripId===trip.id?"#B45309":"#1D4ED8",border:"none",borderRadius:5,padding:"4px 6px",color:"white",fontSize:11,fontWeight:700,cursor:"pointer",width:"100%"}}>✏️{!allGantung&&" ⚠️"}</button>
 {trip.items.map(it=><div key={it.id} style={{display:"flex",gap:3,justifyContent:"center"}}>
 {it.status==="gantung"&&<><button onClick={()=>terimaTripItem(trip,it)} title={it.ukuran+" Terima"} style={{background:"#15803D",border:"none",borderRadius:4,padding:"3px 5px",color:"white",fontSize:11,cursor:"pointer"}}>✅</button><button onClick={()=>sangkutTripItem(trip,it)} title={it.ukuran+" Sangkut"} style={{background:"#B45309",border:"none",borderRadius:4,padding:"3px 5px",color:"white",fontSize:11,cursor:"pointer"}}>⚠️</button></>}
 {it.status==="sangkut"&&<button onClick={()=>releaseTripItem(trip,it)} title={it.ukuran+" Release"} style={{background:"#1D4ED8",border:"none",borderRadius:4,padding:"3px 5px",color:"white",fontSize:11,cursor:"pointer"}}>🔓</button>}
