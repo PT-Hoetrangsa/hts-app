@@ -818,12 +818,12 @@ return <tr key={i} style={{background:i%2===0?WHITE:G100}}>
 <div style={{display:"flex",justifyContent:"space-between",fontSize:10,fontWeight:600,marginBottom:3}}>
 <span style={{color:G600}}>Total Belanja</span><span style={{color:NAVY}}>Rp {Number(inv.totalBelanja).toLocaleString("id-ID")}</span>
 </div>
-{(inv.riwayatBayar||[]).map((p,i)=>{var tglBayar=p.tanggal||p.tgl;var nom=Number(p.jumlah||p.nominal||0);if(nom<=0)return null;return<div key={i} style={{display:"flex",justifyContent:"space-between",fontSize:10,fontWeight:600,marginBottom:2}}>
+{inv.tfDibayar>0&&<div style={{display:"flex",justifyContent:"space-between",fontSize:10,fontWeight:600,marginBottom:2}}><span style={{color:"#059669"}}>✓ Transfer {inv.splitBank||"BSI"}</span><span style={{color:"#059669"}}>Rp {Number(inv.tfDibayar).toLocaleString("id-ID")}</span></div>}{(inv.riwayatBayar||[]).map((p,i)=>{var tglBayar=p.tanggal||p.tgl;var nom=Number(p.jumlah||p.nominal||0);if(nom<=0)return null;return<div key={i} style={{display:"flex",justifyContent:"space-between",fontSize:10,fontWeight:600,marginBottom:2}}>
 <span style={{color:"#059669"}}>✓ Bayar {tglBayar?new Date(tglBayar).toLocaleDateString("id-ID",{day:"numeric",month:"short"}):""} {p.metode?"("+p.metode+")":""}</span>
 <span style={{color:"#059669"}}>Rp {nom.toLocaleString("id-ID")}</span>
 </div>;})}
-{inv.totalDibayar>0&&<div style={{display:"flex",justifyContent:"space-between",fontSize:10,fontWeight:700,marginTop:3,paddingTop:3,borderTop:"1px dashed "+G200}}>
-<span style={{color:"#059669"}}>Total Dibayar</span><span style={{color:"#059669"}}>Rp {Number(inv.totalDibayar).toLocaleString("id-ID")}</span>
+{(inv.totalDibayar>0||inv.tfDibayar>0)&&<div style={{display:"flex",justifyContent:"space-between",fontSize:10,fontWeight:700,marginTop:3,paddingTop:3,borderTop:"1px dashed "+G200}}>
+<span style={{color:"#059669"}}>Total Dibayar</span><span style={{color:"#059669"}}>Rp {(Number(inv.totalDibayar||0)+Number(inv.tfDibayar||0)).toLocaleString("id-ID")}</span>
 </div>}
 <div style={{display:"flex",justifyContent:"space-between",fontSize:11,fontWeight:800,marginTop:4,paddingTop:4,borderTop:"2px solid #dc2626"}}>
 <span style={{color:"#dc2626"}}>Sisa Tagihan</span><span style={{color:"#dc2626"}}>Rp {Number(inv.sisaTagihan||0).toLocaleString("id-ID")}</span>
@@ -1496,7 +1496,7 @@ toast("✓ Excel detail produk didownload!");
 </div>
 {(barFilter.from||barFilter.to||barFilter.salesId||barFilter.konsumen||barFilter.bayar)&&<div style={{marginTop:8}}><Btn sm color="gray" onClick={()=>setBarFilter({from:"",to:"",salesId:"",konsumen:"",bayar:""})}>✕ Reset Bar Filter</Btn></div>}
 </div>
-<FilterTbl columns={cols} data={rows} empty="Belum ada penjualan" maxRows={150}/>
+<FilterTbl columns={cols} data={rows} empty="Belum ada penjualan" maxRows={1000}/>
 </Card>
 
 {editInv&&(()=>{
@@ -2532,7 +2532,7 @@ var[gabungKons,setGabungKons]=useState("");// filter konsumen untuk gabung
 var[tabBon,setTabBon]=useState("aktif");// aktif | lunas
 var salesList=sortEmp((data.employees||[]).filter(e=>e.aktif));
 
-function makeBonInvObj(b){var plg=(data.pelanggan||[]).find(x=>x.id===b.konsumenId);var emp=(data.employees||[]).find(x=>x.id===b.salesId);var totalDibayar=(b.pembayaran||[]).reduce((a,p)=>a+Number(p.nominal||0),0);var sisaTagihan=b.status==="lunas"?0:(b.sisaTagihan!=null?b.sisaTagihan:b.total-totalDibayar);return{noInv:b.noInv||"#HTS/INV/-/-",tanggal:b.tanggal,konsumen:b.konsumen,kota:plg?.alamat?.split(",").pop()?.trim()||"Banda Aceh",salesNama:emp?.nama||"",items:(b.items||[]).map(it=>({ukuran:it.ukuran,jenis:it.jenis,qty:Number(it.qty),price:Number(it.price),tglDO:it.tglDO||b.tanggal})),total:sisaTagihan,totalBelanja:b.total,metodeBayar:b.status==="lunas"?"BON (LUNAS)":"BON",isBon:b.status!=="lunas",isGabungan:b.isGabungan||false,catatan:b.ket||"",bonLunas:b.status==="lunas",bonSebagian:b.status==="sebagian",totalDibayar,sisaTagihan,riwayatBayar:(b.pembayaran||[])};}
+function makeBonInvObj(b){var plg=(data.pelanggan||[]).find(x=>x.id===b.konsumenId);var emp=(data.employees||[]).find(x=>x.id===b.salesId);var totalDibayar=(b.pembayaran||[]).reduce((a,p)=>a+Number(p.jumlah||p.nominal||0),0);var sisaTagihan=b.status==="lunas"?0:(b.sisaTagihan!=null?b.sisaTagihan:b.total-totalDibayar);var noInvAsli=(b.noInv||"").replace(/\(BON\)$/,"");var penjAsli=(data.penjualan||[]).find(x=>x.noInv===noInvAsli&&x.konsumenId===b.konsumenId);var totalBelanja=penjAsli?penjAsli.total:b.total;var tfDibayar=penjAsli&&penjAsli.splitDetail?Number(penjAsli.splitDetail.tf||0):0;var splitBankAsli=penjAsli?penjAsli.splitBank||"":"";return{noInv:b.noInv||"#HTS/INV/-/-",tanggal:b.tanggal,konsumen:b.konsumen,kota:plg?.alamat?.split(",").pop()?.trim()||"Banda Aceh",salesNama:emp?.nama||"",items:(b.items||[]).map(it=>({ukuran:it.ukuran,jenis:it.jenis,qty:Number(it.qty),price:Number(it.price),tglDO:it.tglDO||b.tanggal})),total:sisaTagihan,totalBelanja,tfDibayar,splitBank:splitBankAsli,metodeBayar:b.status==="lunas"?"BON (LUNAS)":"BON",isBon:b.status!=="lunas",isGabungan:b.isGabungan||false,catatan:b.ket||"",bonLunas:b.status==="lunas",bonSebagian:b.status==="sebagian",totalDibayar,sisaTagihan,riwayatBayar:(b.pembayaran||[])};}
 
 // ── Invoice Gabungan Object ──
 function makeGabungInvObj(bons,noInvBaru){
