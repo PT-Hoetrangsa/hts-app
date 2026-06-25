@@ -818,10 +818,10 @@ return <tr key={i} style={{background:i%2===0?WHITE:G100}}>
 <div style={{display:"flex",justifyContent:"space-between",fontSize:10,fontWeight:600,marginBottom:3}}>
 <span style={{color:G600}}>Total Belanja</span><span style={{color:NAVY}}>Rp {Number(inv.totalBelanja).toLocaleString("id-ID")}</span>
 </div>
-{(inv.riwayatBayar||[]).map((p,i)=><div key={i} style={{display:"flex",justifyContent:"space-between",fontSize:10,fontWeight:600,marginBottom:2}}>
-<span style={{color:"#059669"}}>✓ Bayar {p.tgl?new Date(p.tgl).toLocaleDateString("id-ID",{day:"numeric",month:"short"}):""} {p.metode?"("+p.metode+")":""}</span>
-<span style={{color:"#059669"}}>Rp {Number(p.nominal||0).toLocaleString("id-ID")}</span>
-</div>)}
+{(inv.riwayatBayar||[]).map((p,i)=>{var tglBayar=p.tanggal||p.tgl;var nom=Number(p.jumlah||p.nominal||0);if(nom<=0)return null;return<div key={i} style={{display:"flex",justifyContent:"space-between",fontSize:10,fontWeight:600,marginBottom:2}}>
+<span style={{color:"#059669"}}>✓ Bayar {tglBayar?new Date(tglBayar).toLocaleDateString("id-ID",{day:"numeric",month:"short"}):""} {p.metode?"("+p.metode+")":""}</span>
+<span style={{color:"#059669"}}>Rp {nom.toLocaleString("id-ID")}</span>
+</div>;})}
 {inv.totalDibayar>0&&<div style={{display:"flex",justifyContent:"space-between",fontSize:10,fontWeight:700,marginTop:3,paddingTop:3,borderTop:"1px dashed "+G200}}>
 <span style={{color:"#059669"}}>Total Dibayar</span><span style={{color:"#059669"}}>Rp {Number(inv.totalDibayar).toLocaleString("id-ID")}</span>
 </div>}
@@ -837,16 +837,7 @@ return <tr key={i} style={{background:i%2===0?WHITE:G100}}>
 :<div style={{fontSize:13,fontWeight:800,color:RED,border:"2px solid "+RED,padding:"5px 11px",borderRadius:3,letterSpacing:4,opacity:.88,transform:"rotate(-5deg)",whiteSpace:"nowrap"}}>L U N A S</div>)}
 </div>
 <div style={{minWidth:190,padding:"13px 16px",background:WHITE,borderLeft:"2px solid "+G200,display:"flex",flexDirection:"column",justifyContent:"center",alignItems:"flex-end"}}>
-{inv.bonSebagian&&<div style={{width:"100%",marginBottom:8,paddingBottom:8,borderBottom:"1px dashed "+G200}}>
-<div style={{display:"flex",justifyContent:"space-between",gap:10,marginBottom:3}}>
-<span style={{fontSize:9,fontWeight:600,color:G600}}>Telah Dibayar</span>
-<span style={{fontSize:11,fontWeight:700,color:"#059669"}}>Rp {Number(inv.totalDibayar||0).toLocaleString("id-ID")}</span>
-</div>
-<div style={{display:"flex",justifyContent:"space-between",gap:10}}>
-<span style={{fontSize:9,fontWeight:600,color:G600}}>Sisa</span>
-<span style={{fontSize:11,fontWeight:700,color:RED}}>Rp {Number(inv.sisaTagihan||0).toLocaleString("id-ID")}</span>
-</div>
-</div>}
+
 <div style={{fontSize:8,fontWeight:700,letterSpacing:1,textTransform:"uppercase",color:inv.isBon?"#dc2626":G400,marginBottom:4}}>{inv.isBon?"Sisa Tagihan":"Grand Total"}</div>
 <div style={{display:"flex",alignItems:"baseline",gap:4}}>
 <span style={{fontSize:13,fontWeight:600,color:inv.isBon?"#dc2626":G400}}>Rp</span>
@@ -4369,9 +4360,10 @@ var totalOutB=penB.reduce((a,e)=>a+Number(e.nominal||0),0);
 var labaBersihB=marginB-totalOutB;
 var dim=daysInMonth(bln);
 var doBln=(data.doList||[]).filter(e=>(e.tanggal||"").startsWith(bln)&&(e.status||"diterima")==="diterima");
-var hppBln=doBln.reduce((a,e)=>a+Number(e.totalHPP||0),0);
+var doTripBln=[];(data.doTrip||[]).filter(t=>(t.tanggal||"").startsWith(bln)).forEach(function(trip){(trip.items||[]).forEach(function(it){if((it.status||"diterima")==="diterima"){doTripBln.push({tanggal:trip.tanggal,totalHPP:Number(it.qty||0)*Number(it.hppUnit||0)});}});});
+var hppBln=doBln.reduce((a,e)=>a+Number(e.totalHPP||0),0)+doTripBln.reduce((a,e)=>a+Number(e.totalHPP||0),0);
 var cashFlowKumul=0;
-var chartDataB=[];for(var d=1;d<=dim;d++){var ds=bln+"-"+String(d).padStart(2,"0");var pp=pBln.filter(x=>x.tanggal===ds);var oz=pp.reduce((a,x)=>a+(x.total||0),0);var mg=pp.reduce((a,x)=>a+(x.margin||0),0);var pn=penB.filter(x=>x.tanggal===ds).reduce((a,x)=>a+Number(x.nominal||0),0);var hpp=doBln.filter(x=>x.tanggal===ds).reduce((a,x)=>a+Number(x.totalHPP||0),0);var labaBersih=mg-pn;cashFlowKumul+=labaBersih;chartDataB.push({hari:String(d),omzet:oz,hpp,marginKotor:mg,pengeluaran:pn,labaBersih,cashFlow:cashFlowKumul});}
+var chartDataB=[];for(var d=1;d<=dim;d++){var ds=bln+"-"+String(d).padStart(2,"0");var pp=pBln.filter(x=>x.tanggal===ds);var oz=pp.reduce((a,x)=>a+(x.total||0),0);var mg=pp.reduce((a,x)=>a+(x.margin||0),0);var pn=penB.filter(x=>x.tanggal===ds).reduce((a,x)=>a+Number(x.nominal||0),0);var hpp=doBln.filter(x=>x.tanggal===ds).reduce((a,x)=>a+Number(x.totalHPP||0),0)+doTripBln.filter(x=>x.tanggal===ds).reduce((a,x)=>a+Number(x.totalHPP||0),0);var labaBersih=mg-pn;cashFlowKumul+=labaBersih;chartDataB.push({hari:String(d),omzet:oz,hpp,marginKotor:mg,pengeluaran:pn,labaBersih,cashFlow:cashFlowKumul});}
 // Top 5 hari omzet
 var top5=chartDataB.slice().sort((a,b)=>b.omzet-a.omzet).slice(0,5);
 // Pengeluaran per kategori bulanan
@@ -4904,13 +4896,23 @@ if(mode==="bulanan"){
   var dim2=daysInMonth(bln);
   var cfKumul=0;
   var doBlnLap=(data.doList||[]).filter(e=>(e.tanggal||"").startsWith(bln)&&(e.status||"diterima")==="diterima");
+  // Gabungkan doTrip items yang diterima untuk HPP
+  var doTripBlnLap=[];
+  (data.doTrip||[]).filter(t=>(t.tanggal||"").startsWith(bln)).forEach(function(trip){
+    (trip.items||[]).forEach(function(it){
+      if((it.status||"diterima")==="diterima"){
+        doTripBlnLap.push({tanggal:trip.tanggal,totalHPP:Number(it.qty||0)*Number(it.hppUnit||0)});
+      }
+    });
+  });
   for(var d=1;d<=dim2;d++){
     var ds=bln+"-"+String(d).padStart(2,"0");
     var pp=penjAll.filter(x=>x.tanggal===ds);
     var oz=pp.reduce((a,x)=>a+(x.total||0),0);
     var mg=pp.reduce((a,x)=>a+(x.margin||0),0);
     var pn=(data.pengeluaran||[]).filter(x=>x.tanggal===ds).reduce((a,x)=>a+Number(x.nominal||0),0);
-    var hpp=doBlnLap.filter(x=>x.tanggal===ds).reduce((a,x)=>a+Number(x.totalHPP||0),0);
+    var hpp=doBlnLap.filter(x=>x.tanggal===ds).reduce((a,x)=>a+Number(x.totalHPP||0),0)
+           +doTripBlnLap.filter(x=>x.tanggal===ds).reduce((a,x)=>a+Number(x.totalHPP||0),0);
     var lb=mg-pn;
     cfKumul+=lb;
     chartData.push({tgl:String(d),omzet:oz,hpp,marginKotor:mg,pengeluaran:pn,labaBersih:lb,cashFlow:cfKumul});
@@ -5353,7 +5355,7 @@ p.karyawanNama||"-",
 
 {/* Ringkasan bulanan */}
 <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(140px,1fr))",gap:8,marginBottom:14}}>
-{[["Total Omzet",omzet,C.wht,"📈"],["HPP/Modal DO",doBlnLap.reduce((a,d)=>a+Number(d.totalHPP||0),0),C.olt,"🏭"],["Margin Kotor",margin,C.blt,"💹"],["Pengeluaran Ops",pengeluaran,C.rlt,"💸"],["Laba Bersih",labaBersih,labaBersih>=0?C.glt:C.rlt,"🏆"],["Cash Flow Akhir",chartData[chartData.length-1]?.cashFlow||0,(chartData[chartData.length-1]?.cashFlow||0)>=0?C.glt:C.rlt,"💰"]].map(x=><div key={x[0]} style={{background:C.card,borderRadius:8,padding:"10px 12px",border:"1px solid "+C.bdr}}><div style={{fontSize:9,color:C.gl2,marginBottom:2}}>{x[3]} {x[0]}</div><div style={{fontSize:13,fontWeight:800,color:x[2]}}>{fR(x[1])}</div></div>)}
+{[["Total Omzet",omzet,C.wht,"📈"],["HPP/Modal DO",doBlnLap.reduce((a,d)=>a+Number(d.totalHPP||0),0)+doTripBlnLap.reduce((a,d)=>a+Number(d.totalHPP||0),0),C.olt,"🏭"],["Margin Kotor",margin,C.blt,"💹"],["Pengeluaran Ops",pengeluaran,C.rlt,"💸"],["Laba Bersih",labaBersih,labaBersih>=0?C.glt:C.rlt,"🏆"],["Cash Flow Akhir",chartData[chartData.length-1]?.cashFlow||0,(chartData[chartData.length-1]?.cashFlow||0)>=0?C.glt:C.rlt,"💰"]].map(x=><div key={x[0]} style={{background:C.card,borderRadius:8,padding:"10px 12px",border:"1px solid "+C.bdr}}><div style={{fontSize:9,color:C.gl2,marginBottom:2}}>{x[3]} {x[0]}</div><div style={{fontSize:13,fontWeight:800,color:x[2]}}>{fR(x[1])}</div></div>)}
 </div>
 
 {/* Grafik 1: Omzet & HPP */}
