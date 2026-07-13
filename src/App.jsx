@@ -813,7 +813,7 @@ return <tr key={i} style={{background:i%2===0?WHITE:G100}}>
 <span style={{color:G600}}>{x[0]}</span><span style={{color:x[2]}}>Rp {Number(x[1]).toLocaleString("id-ID")}</span>
 </div>)}
 </div>}
-{inv.isBon&&inv.totalBelanja&&<div style={{marginTop:8,borderTop:"1px dashed #dc2626",paddingTop:6}}>
+{inv.isBon&&inv.totalBelanja&&((inv.riwayatBayar&&inv.riwayatBayar.length>0)||inv.tfDibayar>0||(inv.totalBelanja!==inv.sisaTagihan))&&<div style={{marginTop:8,borderTop:"1px dashed #dc2626",paddingTop:6}}>
 <div style={{fontSize:8,fontWeight:700,letterSpacing:1,color:G600,marginBottom:5,textTransform:"uppercase"}}>Rincian Piutang</div>
 <div style={{display:"flex",justifyContent:"space-between",fontSize:10,fontWeight:600,marginBottom:3}}>
 <span style={{color:G600}}>Total Belanja</span><span style={{color:NAVY}}>Rp {Number(inv.totalBelanja).toLocaleString("id-ID")}</span>
@@ -1213,7 +1213,7 @@ var plg=(data.pelanggan||[]).find(x=>x.id===entry.konsumenId);
 var sd=entry.splitDetail||{};
 var metodeBayar=entry.bayar==="bon"?"BON":entry.bayar==="transfer"?"Transfer "+(entry.bank||""):entry.bayar==="split"?"Split":"Cash";
 var splitLabel=entry.bayar==="split"?[Number(sd.cash)>0?"Cash":null,Number(sd.tf)>0?"TF":null,Number(sd.bon)>0?"BON":null].filter(Boolean).join("+"):"";
-return{noInv:entry.noInv,tanggal:entry.tanggal,konsumen:entry.konsumen,kota:plg?.alamat?.split(",").pop()?.trim()||"Banda Aceh",salesNama:emp?.nama||"",items:(entry.items||[]).map(it=>({ukuran:it.ukuran,jenis:it.jenis,qty:Number(it.qty),price:Number(it.price)})),total:entry.total,metodeBayar:entry.bayar==="split"?splitLabel:metodeBayar,isBon:entry.bayar==="bon"||(entry.bayar==="split"&&Number(sd.bon)>0&&Number(sd.cash)===0&&Number(sd.tf)===0),splitDetail:entry.splitDetail,splitBank:entry.splitBank||"",catatan:entry.ket||""};
+var isBon=entry.bayar==="bon"||(entry.bayar==="split"&&Number(sd.bon)>0&&Number(sd.cash)===0&&Number(sd.tf)===0);return{noInv:entry.noInv,tanggal:entry.tanggal,konsumen:entry.konsumen,kota:plg?.alamat?.split(",").pop()?.trim()||"Banda Aceh",salesNama:emp?.nama||"",items:(entry.items||[]).map(it=>({ukuran:it.ukuran,jenis:it.jenis,qty:Number(it.qty),price:Number(it.price)})),total:entry.total,sisaTagihan:entry.total,totalBelanja:entry.total,metodeBayar:entry.bayar==="split"?splitLabel:metodeBayar,isBon,splitDetail:entry.splitDetail,splitBank:entry.splitBank||"",catatan:entry.ket||""};
 }
 function doSave(withPrint){
 if(!valid.length||!f.konsumen)return;
