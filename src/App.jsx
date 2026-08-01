@@ -960,6 +960,8 @@ return <div id="_slip_wrap" style={{position:"fixed",inset:0,background:"#cdd3db
 <div><b style={{minWidth:64,display:"inline-block"}}>Alamat</b> : {slip.alamat||"-"}</div>
 <div><b style={{minWidth:64,display:"inline-block"}}>Jabatan</b> : {slip.posisi}</div>
 <div><b style={{minWidth:64,display:"inline-block"}}>Telepon</b> : {slip.telepon||"-"}</div>
+<div><b style={{minWidth:64,display:"inline-block"}}>No. Rek.</b> : {slip.noRekeningTujuan?slip.noRekeningTujuan+" ("+(slip.bankTujuan||"-")+")":"-"}</div>
+<div><b style={{minWidth:64,display:"inline-block"}}>Bayar</b> : {slip.metodeBayar?(slip.metodeBayar==="transfer"?"🏦 Transfer "+(slip.bankTujuan||""):"💵 Cash"):"-"}</div>
 </div>
 <div style={{padding:"8px 18px",display:"flex",justifyContent:"space-between",borderTop:"1px solid #aaa",borderBottom:"1px solid #aaa",fontSize:13,background:"#FAF5E8"}}>
 <span>Total Hari Kerja: <b>{slip.totalHariKerja}</b></span>
@@ -2948,6 +2950,7 @@ var C=useTheme();
 var[bulan,setBulan]=useState(toMonth());
 var[viewSlip,setViewSlip]=useState(null);
 var[editSlip,setEditSlip]=useState(null);
+var[payConfirm,setPayConfirm]=useState(null);
 var emps=sortEmp((data.employees||[]).filter(e=>e.aktif));
 
 function buildSlipRows(emp){
@@ -2965,6 +2968,8 @@ rows.push({id:uid(),section:"penghasilan",label:"Uang Do SPBBE",qty:r.spbbeCount
 // ── Potongan ──
 var potAbsen=r.absen>0?Math.round(r.gajiPokok/r.totalHariKerja)*r.absen:0;
 rows.push({id:uid(),section:"potongan",label:"Potongan Absensi",qty:r.absen,ket:fR(r.absen>0?Math.round(r.gajiPokok/r.totalHariKerja):0)+"/hari",jumlah:potAbsen});
+rows.push({id:uid(),section:"potongan",label:"BPJS Kesehatan",qty:1,ket:"",jumlah:58000});
+rows.push({id:uid(),section:"potongan",label:"BPJS Ketenagakerjaan",qty:1,ket:"",jumlah:54000});
 rows.push({id:uid(),section:"potongan",label:"Total Pinjaman Berjalan",qty:1,ket:"saldo s/d bulan ini",jumlah:r.pinjamanSaldo,kind:"info"});
 rows.push({id:uid(),section:"potongan",label:"Potongan Pinjaman",qty:1,ket:"cicilan bulan ini",jumlah:0});
 // ── Yang sudah diterima ──
@@ -3049,6 +3054,36 @@ return <div key={r.id} style={{display:"grid",gridTemplateColumns:"2fr 70px 1.5f
 </Modal>;
 }
 
+function PayConfirmModal({info,onClose,onConfirm}){
+var emp=info.emp;
+var[metode,setMetode]=useState("cash");
+var[bank,setBank]=useState(emp?.bankRekening||"BSI");
+function rR(n){return"Rp "+Number(n||0).toLocaleString("id-ID");}
+return <Modal title={"💳 Konfirmasi Pembayaran — "+info.rec.nama} onClose={onClose} width={480} saveLabel="✅ Konfirmasi & Simpan" onSave={()=>onConfirm(metode,metode==="transfer"?bank:"")}>
+<div style={{background:"#0f1f0f",borderRadius:10,padding:"12px 14px",border:"1px solid #22c55e",marginBottom:14}}>
+<div style={{display:"flex",justifyContent:"space-between"}}><span style={{color:"#64748b",fontSize:12}}>Total Diterima</span><b style={{color:"#22c55e",fontSize:16}}>{rR(info.rec.totalDiterima)}</b></div>
+<div style={{fontSize:11,color:"#64748b",marginTop:3}}>No. Slip: {info.rec.noSlip} • Bulan {info.rec.bulan}</div>
+</div>
+<div style={{fontSize:11,color:"#94a3b8",marginBottom:8,fontWeight:700}}>Metode Pembayaran Gaji</div>
+<div style={{display:"flex",gap:8,marginBottom:12}}>
+{["cash","transfer"].map(m=><button key={m} onClick={()=>setMetode(m)} style={{flex:1,background:metode===m?"#1D4ED8":"#1e293b",color:"#fff",border:"1px solid "+(metode===m?"#3B82F6":"#334155"),borderRadius:8,padding:"10px 14px",fontWeight:700,fontSize:13,cursor:"pointer"}}>{m==="cash"?"💵 Cash":"🏦 Transfer"}</button>)}
+</div>
+{metode==="transfer"&&<div style={{marginBottom:6}}>
+<div style={{fontSize:11,color:"#94a3b8",marginBottom:6,fontWeight:700}}>Bank Tujuan</div>
+<div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:10}}>
+{["BSI","BCA","Mandiri","BRI","BNI","Lainnya"].map(b=><button key={b} onClick={()=>setBank(b)} style={{background:bank===b?"#1D4ED8":"#1e293b",color:"#fff",border:"2px solid "+(bank===b?"#3B82F6":"#334155"),borderRadius:8,padding:"6px 12px",fontWeight:700,fontSize:12,cursor:"pointer"}}>{b}</button>)}
+</div>
+<div style={{background:"#1e293b",borderRadius:8,padding:"10px 12px",fontSize:12}}>
+{emp?.noRekening?<>
+<div style={{color:"#94a3b8",marginBottom:2}}>No. Rekening Karyawan ({emp.bankRekening||"-"})</div>
+<div style={{color:"#e2e8f0",fontWeight:800,fontSize:14,fontFamily:"monospace"}}>{emp.noRekening}</div>
+</>:<div style={{color:"#f59e0b",fontStyle:"italic"}}>⚠️ No. rekening karyawan belum diisi di data Karyawan.</div>}
+</div>
+</div>}
+<div style={{fontSize:10,color:"#64748b",fontStyle:"italic",marginTop:6}}>Setelah dikonfirmasi, gaji akan otomatis tercatat sebagai Pengeluaran kategori "Gaji" atas nama {info.rec.nama}.</div>
+</Modal>;
+}
+
 return <div>
 <STitle icon="💼" children="Payroll & Kwitansi Slip Gaji"/>
 <Card><MonthPicker label="Pilih Bulan Payroll" value={bulan} onChange={setBulan}/></Card>
@@ -3056,9 +3091,10 @@ return <div>
 <div style={{fontWeight:700,color:C.gl2,marginBottom:10,fontSize:13}}>Karyawan — {bulan}</div>
 <RTbl headers={["Nama","Posisi","Hadir","Pinjaman","Aksi"]} widths={[200,160,110,150,150]} rows={emps.map(e=>{var r=calcPayrollFull(e,bulan,data);return[<b style={{color:C.wht}}>{e.nama}</b>,e.posisi,<Bdg color="blue">{r.hariHadir}/{r.totalHariKerja}</Bdg>,<b style={{color:r.pinjamanSaldo>0?C.olt:C.gl2,whiteSpace:"nowrap"}}>{fR(r.pinjamanSaldo)}</b>,<Btn sm color="blue" onClick={()=>setEditSlip(buildSlipRows(e))}>📝 Buat Slip</Btn>];})}/>
 </Card>
-{(data.payrollLog||[]).length>0&&<Card><div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}><div style={{fontWeight:700,color:C.gl2,fontSize:13}}>📜 Riwayat Slip</div><div style={{display:"flex",gap:6}}><Bdg color="green">Aktif: {(data.payrollLog||[]).filter(p=>!p.arsip).length}</Bdg><Bdg color="gray">Arsip: {(data.payrollLog||[]).filter(p=>p.arsip).length}</Bdg></div></div><RTbl headers={["Bulan","Nama","No.Slip","Total","Status","Aksi"]} widths={[90,160,140,150,100,220]} rows={(data.payrollLog||[]).map(p=>[
+{(data.payrollLog||[]).length>0&&<Card><div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}><div style={{fontWeight:700,color:C.gl2,fontSize:13}}>📜 Riwayat Slip</div><div style={{display:"flex",gap:6}}><Bdg color="green">Aktif: {(data.payrollLog||[]).filter(p=>!p.arsip).length}</Bdg><Bdg color="gray">Arsip: {(data.payrollLog||[]).filter(p=>p.arsip).length}</Bdg></div></div><RTbl headers={["Bulan","Nama","No.Slip","Total","Bayar","Status","Aksi"]} widths={[90,160,140,150,110,100,220]} rows={(data.payrollLog||[]).map(p=>[
 p.bulan,p.nama,p.noSlip,
 <b style={{color:C.glt,whiteSpace:"nowrap"}}>{fR(p.totalDiterima)}</b>,
+p.metodeBayar?<Bdg color={p.metodeBayar==="transfer"?"blue":"green"}>{p.metodeBayar==="transfer"?"🏦 "+(p.bankTujuan||"TF"):"💵 Cash"}</Bdg>:<Bdg color="gray">-</Bdg>,
 p.arsip?<Bdg color="gray">Diarsip</Bdg>:<Bdg color="green">Aktif</Bdg>,
 <div style={{display:"flex",gap:5}}>
 <Btn sm color="blue" onClick={()=>setViewSlip(p)}>🖨️ Cetak</Btn>
@@ -3074,9 +3110,16 @@ var totPgh=s.rows.filter(r=>r.section==="penghasilan").reduce((a,r)=>a+Number(r.
 var totPot=s.rows.filter(r=>r.section==="potongan"&&r.kind!=="info").reduce((a,r)=>a+Number(r.jumlah||0),0);
 var totYdt=s.rows.filter(r=>r.section==="ydt").reduce((a,r)=>a+Number(r.jumlah||0),0);
 var totalDiterima=totPgh-totPot-totYdt;
+var emp=(data.employees||[]).find(e=>e.id===s.empId);
 var rec={id:uid(),noSlip:sgInfo.no,empId:s.empId,nama:s.nama,posisi:s.posisi,alamat:s.alamat,telepon:s.telepon,bulan:s.bulan,tanggal:s.tanggal,hariHadir:s.hariHadir,totalHariKerja:s.totalHariKerja,absen:s.absen,totalPinjaman:s.totalPinjaman,potonganPinjaman:s.potonganPinjaman,rows:s.rows,totalDiterima};
-setData(d=>({...d,payrollLog:[rec,...(d.payrollLog||[])],counters:newCounters}));
-setEditSlip(null);setViewSlip(rec);toast("✓ Slip "+sgInfo.no+" tersimpan!");
+setEditSlip(null);
+setPayConfirm({rec,newCounters,emp});
+}}/>}
+{payConfirm&&<PayConfirmModal info={payConfirm} onClose={()=>setPayConfirm(null)} onConfirm={(metode,bank)=>{
+var rec={...payConfirm.rec,metodeBayar:metode,bankTujuan:metode==="transfer"?bank:"",noRekeningTujuan:metode==="transfer"?(payConfirm.emp?.noRekening||""):""};
+var pengRec={id:uid(),tanggal:rec.tanggal,kategori:"Gaji",keperluan:rec.empId,karyawanId:rec.empId,karyawanNama:rec.nama,ket:"Gaji "+rec.bulan+" — Slip "+rec.noSlip,nominal:rec.totalDiterima,metode:metode,bank:metode==="transfer"?bank:""};
+setData(d=>({...d,payrollLog:[rec,...(d.payrollLog||[])],pengeluaran:[pengRec,...(d.pengeluaran||[])],counters:payConfirm.newCounters}));
+setPayConfirm(null);setViewSlip(rec);toast("✓ Slip "+rec.noSlip+" tersimpan & gaji "+rec.nama+" tercatat di Pengeluaran ("+(metode==="cash"?"Cash":"Transfer "+bank)+")!");
 }}/>}
 {viewSlip&&<SlipGajiView slip={viewSlip} company={data.company} onClose={()=>setViewSlip(null)}/>}
 </div>;
@@ -5578,17 +5621,18 @@ return <>
 // ─── KARYAWAN & AMBILAN ───────────────────────────────────────────────────────
 function KaryawanMod({data,setData,toast}){
 var C=useTheme();
-var blk={username:"",password:"",role:"sales_driver",nama:"",posisi:"Sales Driver",telepon:"",alamat:"",gajiPokok:"",uangMakan:"15000",uangMakanMode:"harian",aktif:true};
+var blk={username:"",password:"",role:"sales_driver",nama:"",posisi:"Sales Driver",telepon:"",alamat:"",gajiPokok:"",uangMakan:"15000",uangMakanMode:"harian",bankRekening:"BSI",noRekening:"",aktif:true};
 var[f,setF]=useState({...blk});var[edit,setEdit]=useState(null);var[delId,setDelId]=useState(null);
 var posOpts=["Owner/Komisaris","Manajer","Admin","Kasir/Akuntan","Sales Driver","Sales Freelance","Sales Marketing","Checker","Driver Truck SPBE","Helper"];
+var bankOpts=["BSI","BCA","Mandiri","BRI","BNI","Lainnya"];
 function save(){if(!f.nama||!f.username)return;if(edit){setData(d=>({...d,employees:(d.employees||[]).map(e=>e.id===edit.id?{...e,...f,gajiPokok:Number(f.gajiPokok||0),uangMakan:Number(f.uangMakan||15000)}:e)}));setEdit(null);}else setData(d=>({...d,employees:[{id:uid(),...f,gajiPokok:Number(f.gajiPokok||0),uangMakan:Number(f.uangMakan||15000)},...(d.employees||[])]}));setF({...blk});toast("✓ Karyawan disimpan!");}
 return <div>
 <STitle icon="👤" children="Karyawan & Akun"/>
-<Card style={{width:"fit-content",maxWidth:"100%",minWidth:660}}><div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(155px,210px))",gap:10}}><Inp label="Nama" value={f.nama} onChange={v=>setF(p=>({...p,nama:v}))}/><Sel label="Posisi" value={f.posisi} onChange={v=>setF(p=>({...p,posisi:v}))} opts={posOpts}/><Sel label="Role" value={f.role} onChange={v=>setF(p=>({...p,role:v}))} opts={Object.keys(ROLE_LBL).map(k=>({v:k,l:ROLE_LBL[k]}))}/><Inp label="Username" value={f.username} onChange={v=>setF(p=>({...p,username:v}))}/><Inp label="Password" type="password" value={f.password} onChange={v=>setF(p=>({...p,password:v}))}/><Inp label="Telepon" value={f.telepon} onChange={v=>setF(p=>({...p,telepon:v}))}/><Inp label="Alamat" value={f.alamat} onChange={v=>setF(p=>({...p,alamat:v}))}/><Inp label="Gaji Pokok" type="number" value={f.gajiPokok} onChange={v=>setF(p=>({...p,gajiPokok:v}))}/><Inp label="Uang Makan/Hari" type="number" value={f.uangMakan} onChange={v=>setF(p=>({...p,uangMakan:v}))}/><Sel label="Mode Uang Makan" value={f.uangMakanMode} onChange={v=>setF(p=>({...p,uangMakanMode:v}))} opts={[{v:"harian",l:"💰 Harian"},{v:"akhir_bulan",l:"📅 Akhir Bulan"}]}/></div><Btn color="green" onClick={save} dis={!f.nama||!f.username}>➕ Tambah Karyawan</Btn></Card>
-<Card><RTbl headers={["Nama","Posisi","Role","Status","Absensi","Aksi"]} widths={[190,150,130,100,90,180]} rows={(data.employees||[]).map(e=>[<div><b style={{color:C.wht}}>{e.nama}</b><div style={{fontSize:11,color:C.gl2}}>{e.telepon}</div></div>,e.posisi,<Bdg color={["admin","owner"].includes(e.role)?"red":"blue"}>{ROLE_LBL[e.role]||e.role}</Bdg>,e.aktif?<Bdg color="green">Aktif</Bdg>:<Bdg color="gray">Non-aktif</Bdg>,<div style={{display:"flex",gap:5}}><button onClick={()=>setData(d=>({...d,employees:(d.employees||[]).map(x=>x.id===e.id?{...x,aktif:!x.aktif}:x)}))} style={{background:C.nav,border:"1px solid "+C.bdr,borderRadius:7,padding:"5px 9px",color:C.gl2,cursor:"pointer",fontSize:12}}>{e.aktif?"🔒":"🔓"}</button><button onClick={()=>setData(d=>({...d,employees:(d.employees||[]).map(x=>x.id===e.id?{...x,ikutAbsensi:!x.ikutAbsensi}:x)}))} title="Toggle Absensi" style={{background:e.ikutAbsensi?C.grn:C.nav,border:"1px solid "+(e.ikutAbsensi?C.glt:C.bdr),borderRadius:7,padding:"5px 9px",color:e.ikutAbsensi?C.glt:C.gl2,cursor:"pointer",fontSize:11,fontWeight:700}}>{e.ikutAbsensi?"📅":"—"}</button>
-<ActBtns onEdit={()=>{setEdit(e);setF({...e,gajiPokok:String(e.gajiPokok||""),uangMakan:String(e.uangMakan||15000)});}} onDel={()=>setDelId(e)}/></div>])}/></Card>
+<Card style={{width:"fit-content",maxWidth:"100%",minWidth:660}}><div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(155px,210px))",gap:10}}><Inp label="Nama" value={f.nama} onChange={v=>setF(p=>({...p,nama:v}))}/><Sel label="Posisi" value={f.posisi} onChange={v=>setF(p=>({...p,posisi:v}))} opts={posOpts}/><Sel label="Role" value={f.role} onChange={v=>setF(p=>({...p,role:v}))} opts={Object.keys(ROLE_LBL).map(k=>({v:k,l:ROLE_LBL[k]}))}/><Inp label="Username" value={f.username} onChange={v=>setF(p=>({...p,username:v}))}/><Inp label="Password" type="password" value={f.password} onChange={v=>setF(p=>({...p,password:v}))}/><Inp label="Telepon" value={f.telepon} onChange={v=>setF(p=>({...p,telepon:v}))}/><Inp label="Alamat" value={f.alamat} onChange={v=>setF(p=>({...p,alamat:v}))}/><Inp label="Gaji Pokok" type="number" value={f.gajiPokok} onChange={v=>setF(p=>({...p,gajiPokok:v}))}/><Inp label="Uang Makan/Hari" type="number" value={f.uangMakan} onChange={v=>setF(p=>({...p,uangMakan:v}))}/><Sel label="Mode Uang Makan" value={f.uangMakanMode} onChange={v=>setF(p=>({...p,uangMakanMode:v}))} opts={[{v:"harian",l:"💰 Harian"},{v:"akhir_bulan",l:"📅 Akhir Bulan"}]}/><Sel label="Bank Rekening" value={f.bankRekening} onChange={v=>setF(p=>({...p,bankRekening:v}))} opts={bankOpts}/><Inp label="No. Rekening" value={f.noRekening} onChange={v=>setF(p=>({...p,noRekening:v}))} placeholder="untuk transfer gaji"/></div><Btn color="green" onClick={save} dis={!f.nama||!f.username}>➕ Tambah Karyawan</Btn></Card>
+<Card><RTbl headers={["Nama","Posisi","Role","Rekening","Status","Absensi","Aksi"]} widths={[190,140,120,180,100,90,180]} rows={(data.employees||[]).map(e=>[<div><b style={{color:C.wht}}>{e.nama}</b><div style={{fontSize:11,color:C.gl2}}>{e.telepon}</div></div>,e.posisi,<Bdg color={["admin","owner"].includes(e.role)?"red":"blue"}>{ROLE_LBL[e.role]||e.role}</Bdg>,e.noRekening?<div style={{fontSize:11}}><b style={{color:C.wht}}>{e.bankRekening||"-"}</b><div style={{color:C.gl2}}>{e.noRekening}</div></div>:<span style={{color:C.gl2,fontSize:11,fontStyle:"italic"}}>belum diisi</span>,e.aktif?<Bdg color="green">Aktif</Bdg>:<Bdg color="gray">Non-aktif</Bdg>,<div style={{display:"flex",gap:5}}><button onClick={()=>setData(d=>({...d,employees:(d.employees||[]).map(x=>x.id===e.id?{...x,aktif:!x.aktif}:x)}))} style={{background:C.nav,border:"1px solid "+C.bdr,borderRadius:7,padding:"5px 9px",color:C.gl2,cursor:"pointer",fontSize:12}}>{e.aktif?"🔒":"🔓"}</button><button onClick={()=>setData(d=>({...d,employees:(d.employees||[]).map(x=>x.id===e.id?{...x,ikutAbsensi:!x.ikutAbsensi}:x)}))} title="Toggle Absensi" style={{background:e.ikutAbsensi?C.grn:C.nav,border:"1px solid "+(e.ikutAbsensi?C.glt:C.bdr),borderRadius:7,padding:"5px 9px",color:e.ikutAbsensi?C.glt:C.gl2,cursor:"pointer",fontSize:11,fontWeight:700}}>{e.ikutAbsensi?"📅":"—"}</button>
+<ActBtns onEdit={()=>{setEdit(e);setF({...blk,...e,gajiPokok:String(e.gajiPokok||""),uangMakan:String(e.uangMakan||15000)});}} onDel={()=>setDelId(e)}/></div>])}/></Card>
 
-{edit&&<Modal title={"Edit: "+edit.nama} onSave={save} onClose={()=>{setEdit(null);setF({...blk});}}><div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}><Inp label="Nama" value={f.nama} onChange={v=>setF(p=>({...p,nama:v}))}/><Sel label="Posisi" value={f.posisi} onChange={v=>setF(p=>({...p,posisi:v}))} opts={posOpts}/><Sel label="Role" value={f.role} onChange={v=>setF(p=>({...p,role:v}))} opts={Object.keys(ROLE_LBL).map(k=>({v:k,l:ROLE_LBL[k]}))}/><Inp label="Username" value={f.username} onChange={v=>setF(p=>({...p,username:v}))}/><Inp label="Password" type="password" value={f.password} onChange={v=>setF(p=>({...p,password:v}))}/><Inp label="Gaji Pokok" type="number" value={f.gajiPokok} onChange={v=>setF(p=>({...p,gajiPokok:v}))}/><Inp label="Uang Makan" type="number" value={f.uangMakan} onChange={v=>setF(p=>({...p,uangMakan:v}))}/><Inp label="Alamat" value={f.alamat} onChange={v=>setF(p=>({...p,alamat:v}))}/></div><Sel label="Mode Uang Makan" value={f.uangMakanMode} onChange={v=>setF(p=>({...p,uangMakanMode:v}))} opts={[{v:"harian",l:"💰 Harian"},{v:"akhir_bulan",l:"📅 Akhir Bulan"}]}/></Modal>}
+{edit&&<Modal title={"Edit: "+edit.nama} onSave={save} onClose={()=>{setEdit(null);setF({...blk});}}><div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}><Inp label="Nama" value={f.nama} onChange={v=>setF(p=>({...p,nama:v}))}/><Sel label="Posisi" value={f.posisi} onChange={v=>setF(p=>({...p,posisi:v}))} opts={posOpts}/><Sel label="Role" value={f.role} onChange={v=>setF(p=>({...p,role:v}))} opts={Object.keys(ROLE_LBL).map(k=>({v:k,l:ROLE_LBL[k]}))}/><Inp label="Username" value={f.username} onChange={v=>setF(p=>({...p,username:v}))}/><Inp label="Password" type="password" value={f.password} onChange={v=>setF(p=>({...p,password:v}))}/><Inp label="Gaji Pokok" type="number" value={f.gajiPokok} onChange={v=>setF(p=>({...p,gajiPokok:v}))}/><Inp label="Uang Makan" type="number" value={f.uangMakan} onChange={v=>setF(p=>({...p,uangMakan:v}))}/><Inp label="Alamat" value={f.alamat} onChange={v=>setF(p=>({...p,alamat:v}))}/><Sel label="Bank Rekening" value={f.bankRekening} onChange={v=>setF(p=>({...p,bankRekening:v}))} opts={bankOpts}/><Inp label="No. Rekening" value={f.noRekening} onChange={v=>setF(p=>({...p,noRekening:v}))} placeholder="untuk transfer gaji"/></div><Sel label="Mode Uang Makan" value={f.uangMakanMode} onChange={v=>setF(p=>({...p,uangMakanMode:v}))} opts={[{v:"harian",l:"💰 Harian"},{v:"akhir_bulan",l:"📅 Akhir Bulan"}]}/></Modal>}
 {delId&&<ConfirmDel msg={"Hapus \""+delId.nama+"\"?"} onCancel={()=>setDelId(null)} onConfirm={()=>{setData(d=>({...d,employees:(d.employees||[]).filter(x=>x.id!==delId.id)}));setDelId(null);}}/>}
 </div>;
 }
