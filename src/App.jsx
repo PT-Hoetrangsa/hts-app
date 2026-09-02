@@ -2978,6 +2978,7 @@ return{empId:emp.id,nama:emp.nama,posisi:emp.posisi,alamat:emp.alamat||"",telepo
 }
 
 function SlipEditor({slip,onClose,onSave}){
+var isEdit=!!slip.id;
 var[s,setS]=useState(JSON.parse(JSON.stringify(slip)));
 function rR(n){return"Rp "+Number(n||0).toLocaleString("id-ID");}
 var totPgh=s.rows.filter(r=>r.section==="penghasilan").reduce((a,r)=>a+Number(r.jumlah||0),0);
@@ -2998,7 +2999,8 @@ function addRow(section){setS(p=>({...p,rows:[...p.rows,{id:uid(),section,label:
 function delRow(id){setS(p=>({...p,rows:p.rows.filter(r=>r.id!==id)}));}
 function updPotPinjaman(v){var n=Number(v)||0;setS(p=>({...p,potonganPinjaman:n,rows:p.rows.map(r=>r.label==="Potongan Pinjaman"?{...r,jumlah:n}:r)}));}
 var iStyle={background:"transparent",border:"1px solid",borderRadius:6,padding:"4px 7px",color:"inherit",fontSize:11,outline:"none",width:"100%",boxSizing:"border-box"};
-return <Modal title={"✏️ Edit Kwitansi — "+s.nama} onClose={onClose} width={860} saveLabel="💾 Simpan & Cetak" onSave={()=>onSave({...s})}>
+return <Modal title={(isEdit?"✏️ Edit Rincian Gaji Tersimpan — ":"✏️ Edit Kwitansi — ")+s.nama} onClose={onClose} width={860} saveLabel={isEdit?"💾 Simpan Perubahan":"💾 Simpan & Cetak"} onSave={()=>onSave({...s})}>
+{isEdit&&<div style={{background:"#1c2333",border:"1px solid #3B82F6",borderRadius:8,padding:"8px 12px",marginBottom:12,fontSize:11,color:"#93c5fd"}}>ℹ️ Mengedit slip <b>{s.noSlip}</b> yang sudah tersimpan. Perubahan pada "Potongan Pinjaman" akan otomatis disinkron ke saldo pinjaman karyawan, dan nominal Total Diterima akan disinkron ke catatan Pengeluaran.</div>}
 <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:10,marginBottom:12}}>
 <Inp label="Total Hari Kerja" type="number" value={s.totalHariKerja} onChange={v=>setS(p=>({...p,totalHariKerja:Number(v)}))}/>
 <Inp label="Hadir (dari Absensi)" type="number" value={s.hariHadir} onChange={v=>setS(p=>({...p,hariHadir:Number(v)}))}/>
@@ -3091,33 +3093,48 @@ return <div>
 <div style={{fontWeight:700,color:C.gl2,marginBottom:10,fontSize:13}}>Karyawan — {bulan}</div>
 <RTbl headers={["Nama","Posisi","Hadir","Pinjaman","Aksi"]} widths={[200,160,110,150,150]} rows={emps.map(e=>{var r=calcPayrollFull(e,bulan,data);return[<b style={{color:C.wht}}>{e.nama}</b>,e.posisi,<Bdg color="blue">{r.hariHadir}/{r.totalHariKerja}</Bdg>,<b style={{color:r.pinjamanSaldo>0?C.olt:C.gl2,whiteSpace:"nowrap"}}>{fR(r.pinjamanSaldo)}</b>,<Btn sm color="blue" onClick={()=>setEditSlip(buildSlipRows(e))}>📝 Buat Slip</Btn>];})}/>
 </Card>
-{(data.payrollLog||[]).length>0&&<Card><div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}><div style={{fontWeight:700,color:C.gl2,fontSize:13}}>📜 Riwayat Slip</div><div style={{display:"flex",gap:6}}><Bdg color="green">Aktif: {(data.payrollLog||[]).filter(p=>!p.arsip).length}</Bdg><Bdg color="gray">Arsip: {(data.payrollLog||[]).filter(p=>p.arsip).length}</Bdg></div></div><RTbl headers={["Bulan","Nama","No.Slip","Total","Bayar","Status","Aksi"]} widths={[90,160,140,150,110,100,220]} rows={(data.payrollLog||[]).map(p=>[
+{(data.payrollLog||[]).length>0&&<Card><div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}><div style={{fontWeight:700,color:C.gl2,fontSize:13}}>📜 Riwayat Slip</div><div style={{display:"flex",gap:6}}><Bdg color="green">Aktif: {(data.payrollLog||[]).filter(p=>!p.arsip).length}</Bdg><Bdg color="gray">Arsip: {(data.payrollLog||[]).filter(p=>p.arsip).length}</Bdg></div></div><RTbl headers={["Bulan","Nama","No.Slip","Total","Bayar","Status","Aksi"]} widths={[90,160,140,150,110,100,280]} rows={(data.payrollLog||[]).map(p=>[
 p.bulan,p.nama,p.noSlip,
 <b style={{color:C.glt,whiteSpace:"nowrap"}}>{fR(p.totalDiterima)}</b>,
 p.metodeBayar?<Bdg color={p.metodeBayar==="transfer"?"blue":"green"}>{p.metodeBayar==="transfer"?"🏦 "+(p.bankTujuan||"TF"):"💵 Cash"}</Bdg>:<Bdg color="gray">-</Bdg>,
 p.arsip?<Bdg color="gray">Diarsip</Bdg>:<Bdg color="green">Aktif</Bdg>,
 <div style={{display:"flex",gap:5}}>
 <Btn sm color="blue" onClick={()=>setViewSlip(p)}>🖨️ Cetak</Btn>
+<Btn sm color="orange" onClick={()=>setEditSlip({...p})}>✏️ Edit</Btn>
 {!p.arsip
 ?<Btn sm color="gray" onClick={()=>setData(d=>({...d,payrollLog:(d.payrollLog||[]).map(x=>x.id===p.id?{...x,arsip:true}:x)}))}>📦 Arsip</Btn>
 :<Btn sm color="green" onClick={()=>setData(d=>({...d,payrollLog:(d.payrollLog||[]).map(x=>x.id===p.id?{...x,arsip:false}:x)}))}>↩️ Restore</Btn>}
 </div>
 ])}/></Card>}
 {editSlip&&<SlipEditor slip={editSlip} onClose={()=>setEditSlip(null)} onSave={s=>{
-var sgInfo=nextSGNo(data,s.bulan);
-var newCounters={...(data.counters||{inv:{},sg:{},reg:0})};if(!newCounters.sg)newCounters.sg={};newCounters.sg[sgInfo.key]=sgInfo.n;
 var totPgh=s.rows.filter(r=>r.section==="penghasilan").reduce((a,r)=>a+Number(r.jumlah||0),0);
 var totPot=s.rows.filter(r=>r.section==="potongan"&&r.kind!=="info").reduce((a,r)=>a+Number(r.jumlah||0),0);
 var totYdt=s.rows.filter(r=>r.section==="ydt").reduce((a,r)=>a+Number(r.jumlah||0),0);
 var totalDiterima=totPgh-totPot-totYdt;
-var emp=(data.employees||[]).find(e=>e.id===s.empId);
-var rec={id:uid(),noSlip:sgInfo.no,empId:s.empId,nama:s.nama,posisi:s.posisi,alamat:s.alamat,telepon:s.telepon,bulan:s.bulan,tanggal:s.tanggal,hariHadir:s.hariHadir,totalHariKerja:s.totalHariKerja,absen:s.absen,totalPinjaman:s.totalPinjaman,potonganPinjaman:s.potonganPinjaman,rows:s.rows,totalDiterima};
-setEditSlip(null);
-setPayConfirm({rec,newCounters,emp});
+if(s.id){
+  // ── EDIT SLIP TERSIMPAN — update in-place, no noSlip/counter baru ──
+  var updatedRec={...s,totalDiterima};
+  setData(d=>({...d,
+    payrollLog:(d.payrollLog||[]).map(x=>x.id===s.id?updatedRec:x),
+    pengeluaran:updatedRec.pengeluaranId?(d.pengeluaran||[]).map(x=>x.id===updatedRec.pengeluaranId?{...x,nominal:totalDiterima,karyawanId:updatedRec.empId,karyawanNama:updatedRec.nama,ket:"Gaji "+updatedRec.bulan+" — Slip "+updatedRec.noSlip}:x):(d.pengeluaran||[])
+  }));
+  setEditSlip(null);
+  setViewSlip(updatedRec);
+  toast("✓ Slip "+updatedRec.noSlip+" diperbarui! Pinjaman & Pengeluaran otomatis disinkron.");
+}else{
+  // ── SLIP BARU — generate noSlip baru, lanjut ke konfirmasi pembayaran ──
+  var sgInfo=nextSGNo(data,s.bulan);
+  var newCounters={...(data.counters||{inv:{},sg:{},reg:0})};if(!newCounters.sg)newCounters.sg={};newCounters.sg[sgInfo.key]=sgInfo.n;
+  var emp=(data.employees||[]).find(e=>e.id===s.empId);
+  var rec={id:uid(),noSlip:sgInfo.no,empId:s.empId,nama:s.nama,posisi:s.posisi,alamat:s.alamat,telepon:s.telepon,bulan:s.bulan,tanggal:s.tanggal,hariHadir:s.hariHadir,totalHariKerja:s.totalHariKerja,absen:s.absen,totalPinjaman:s.totalPinjaman,potonganPinjaman:s.potonganPinjaman,rows:s.rows,totalDiterima};
+  setEditSlip(null);
+  setPayConfirm({rec,newCounters,emp});
+}
 }}/>}
 {payConfirm&&<PayConfirmModal info={payConfirm} onClose={()=>setPayConfirm(null)} onConfirm={(metode,bank)=>{
-var rec={...payConfirm.rec,metodeBayar:metode,bankTujuan:metode==="transfer"?bank:"",noRekeningTujuan:metode==="transfer"?(payConfirm.emp?.noRekening||""):""};
-var pengRec={id:uid(),tanggal:rec.tanggal,kategori:"Gaji",keperluan:rec.empId,karyawanId:rec.empId,karyawanNama:rec.nama,ket:"Gaji "+rec.bulan+" — Slip "+rec.noSlip,nominal:rec.totalDiterima,metode:metode,bank:metode==="transfer"?bank:""};
+var pengId=uid();
+var rec={...payConfirm.rec,metodeBayar:metode,bankTujuan:metode==="transfer"?bank:"",noRekeningTujuan:metode==="transfer"?(payConfirm.emp?.noRekening||""):"",pengeluaranId:pengId};
+var pengRec={id:pengId,tanggal:rec.tanggal,kategori:"Gaji",keperluan:rec.empId,karyawanId:rec.empId,karyawanNama:rec.nama,ket:"Gaji "+rec.bulan+" — Slip "+rec.noSlip,nominal:rec.totalDiterima,metode:metode,bank:metode==="transfer"?bank:""};
 setData(d=>({...d,payrollLog:[rec,...(d.payrollLog||[])],pengeluaran:[pengRec,...(d.pengeluaran||[])],counters:payConfirm.newCounters}));
 setPayConfirm(null);setViewSlip(rec);toast("✓ Slip "+rec.noSlip+" tersimpan & gaji "+rec.nama+" tercatat di Pengeluaran ("+(metode==="cash"?"Cash":"Transfer "+bank)+")!");
 }}/>}
