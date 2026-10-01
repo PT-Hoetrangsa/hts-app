@@ -4974,7 +4974,7 @@ var skMap={};penjFilt.forEach(p=>{var emp=(data.employees||[]).find(e=>e.id===p.
 var skArr=Object.values(skMap);
 
 // Detail flat
-var detailRows=penjFilt.map(p=>{var emp=(data.employees||[]).find(e=>e.id===p.salesId);return{...p,salesNama:emp?.nama||"-",detail:(p.items||[]).map(it=>it.qty+"×"+it.ukuran).join(", ")};});
+var detailRows=penjFilt.map(p=>{var emp=(data.employees||[]).find(e=>e.id===p.salesId);var items=p.items||[];var q55=items.filter(it=>it.ukuran==="5.5 kg").reduce((a,it)=>a+Number(it.qty||0),0);var q12=items.filter(it=>it.ukuran==="12 kg").reduce((a,it)=>a+Number(it.qty||0),0);var q50=items.filter(it=>it.ukuran==="50 kg").reduce((a,it)=>a+Number(it.qty||0),0);return{...p,salesNama:emp?.nama||"-",detail:items.map(it=>it.qty+"×"+it.ukuran).join(", "),q55,q12,q50};});
 
 // Chart (hanya bulanan)
 // Rekap pengeluaran per kategori bulan ini
@@ -5060,7 +5060,34 @@ var salesCols=[{key:"nama",label:"Sales",filterable:true},{key:"omzet",label:"Om
 var katCols=[{key:"kategori",label:"Kategori",filterable:true},{key:"omzet",label:"Omzet",render:r=><b style={{color:C.blt}}>{fR(r.omzet)}</b>,sortVal:r=>r.omzet,filterable:false},{key:"unik",label:"Plg Unik",sortVal:r=>r.unik,filterable:false},{key:"trx",label:"Trx",sortVal:r=>r.trx,filterable:false},{key:"pct",label:"% Omzet",render:r=><span style={{color:C.gl2}}>{omzet>0?(r.omzet/omzet*100).toFixed(1):0}%</span>,filterable:false}];
 var plgCols=[{key:"nama",label:"Pelanggan",filterable:true},{key:"regNo",label:"Reg",filterable:true},{key:"kategori",label:"Kategori",filterable:true},{key:"omzet",label:"Omzet",render:r=><b style={{color:C.blt}}>{fR(r.omzet)}</b>,sortVal:r=>r.omzet,filterable:false},{key:"trx",label:"Trx",sortVal:r=>r.trx,filterable:false}];
 var skCols=[{key:"sales",label:"Sales",filterable:true},{key:"kategori",label:"Kategori",filterable:true},{key:"omzet",label:"Omzet",render:r=><b style={{color:C.blt}}>{fR(r.omzet)}</b>,sortVal:r=>r.omzet,filterable:false},{key:"trx",label:"Trx",sortVal:r=>r.trx,filterable:false}];
-var detCols=[{key:"tanggal",label:"Tgl",render:r=>fDs(r.tanggal),sortVal:r=>r.tanggal,filterable:true},{key:"noInv",label:"Invoice",render:r=><span style={{fontSize:11,color:C.blt}}>{r.noInv||"-"}</span>,filterable:true},{key:"konsumen",label:"Konsumen",filterable:true},{key:"salesNama",label:"Sales",filterable:true},{key:"detail",label:"Produk",filterable:true},{key:"total",label:"Total",render:r=><b style={{color:C.wht}}>{fR(r.total)}</b>,sortVal:r=>r.total,filterable:false},{key:"bayar",label:"Bayar",render:r=>r.bayar==="bon"?<Bdg color="red">BON</Bdg>:r.bayar==="transfer"?<Bdg color="blue">TF</Bdg>:<Bdg color="green">Cash</Bdg>,filterable:true,filterType:"select",options:[{v:"cash",l:"Cash"},{v:"transfer",l:"Transfer"},{v:"bon",l:"BON"}]}];
+var detCols=[
+{key:"tanggal",label:"Tgl",width:95,render:r=>fDs(r.tanggal),sortVal:r=>r.tanggal,filterable:true},
+{key:"noInv",label:"Invoice",width:130,render:r=><span style={{fontSize:11,color:C.blt}}>{r.noInv||"-"}</span>,filterable:true},
+{key:"konsumen",label:"Konsumen",width:170,filterable:true},
+{key:"salesNama",label:"Sales",width:140,filterable:true},
+{key:"q55",label:"5.5 kg",width:75,render:r=>r.q55>0?<span style={{color:C.wht,fontWeight:600}}>{r.q55}</span>:<span style={{color:C.gry}}>-</span>,sortVal:r=>r.q55,filterable:false},
+{key:"q12",label:"12 kg",width:75,render:r=>r.q12>0?<span style={{color:C.wht,fontWeight:600}}>{r.q12}</span>:<span style={{color:C.gry}}>-</span>,sortVal:r=>r.q12,filterable:false},
+{key:"q50",label:"50 kg",width:75,render:r=>r.q50>0?<span style={{color:C.wht,fontWeight:600}}>{r.q50}</span>:<span style={{color:C.gry}}>-</span>,sortVal:r=>r.q50,filterable:false},
+{key:"total",label:"Total",width:135,render:r=><b style={{color:C.wht}}>{fR(r.total)}</b>,sortVal:r=>r.total,filterable:false},
+{key:"bayar",label:"Bayar",width:85,render:r=>r.bayar==="bon"?<Bdg color="red">BON</Bdg>:r.bayar==="transfer"?<Bdg color="blue">TF</Bdg>:<Bdg color="green">Cash</Bdg>,filterable:true,filterType:"select",options:[{v:"cash",l:"Cash"},{v:"transfer",l:"Transfer"},{v:"bon",l:"BON"}]},
+{key:"margin",label:"Margin",width:120,render:r=><b style={{color:C.glt}}>{fR(r.margin||0)}</b>,sortVal:r=>r.margin||0,filterable:false}
+];
+function detFooter(sortedRows){
+var tQ55=sortedRows.reduce((a,r)=>a+(r.q55||0),0);
+var tQ12=sortedRows.reduce((a,r)=>a+(r.q12||0),0);
+var tQ50=sortedRows.reduce((a,r)=>a+(r.q50||0),0);
+var tTotal=sortedRows.reduce((a,r)=>a+(r.total||0),0);
+var tMargin=sortedRows.reduce((a,r)=>a+(r.margin||0),0);
+return <tr style={{background:C.nav,borderTop:"2px solid "+C.bdr}}>
+<td colSpan={4} style={{padding:"9px 11px",fontWeight:800,color:C.gl2,fontSize:12}}>TOTAL ({sortedRows.length} transaksi)</td>
+<td style={{padding:"9px 11px",fontWeight:800,color:C.wht}}>{tQ55||"-"}</td>
+<td style={{padding:"9px 11px",fontWeight:800,color:C.wht}}>{tQ12||"-"}</td>
+<td style={{padding:"9px 11px",fontWeight:800,color:C.wht}}>{tQ50||"-"}</td>
+<td style={{padding:"9px 11px",fontWeight:800,color:C.blt}}>{fR(tTotal)}</td>
+<td style={{padding:"9px 11px"}}></td>
+<td style={{padding:"9px 11px",fontWeight:800,color:C.glt}}>{fR(tMargin)}</td>
+</tr>;
+}
 
 return <div>
 <STitle icon="📊" children="Laporan"/>
@@ -5380,7 +5407,7 @@ return <tr style={{background:"#0a1f44",color:"white",fontWeight:700}}>
 {tab==="produk"&&<Card><div style={{fontWeight:700,color:C.gl2,marginBottom:10,fontSize:13}}>📦 Per Produk</div><RTbl headers={["Ukuran","Qty","Omzet","% Omzet"]} rows={prodArr.map(p=>[<b style={{color:C.wht}}>{p.ukuran}</b>,<b style={{color:C.glt}}>{p.qty} tab</b>,<b style={{color:C.blt}}>{fR(p.omzet)}</b>,(omzet>0?(p.omzet/omzet*100).toFixed(1):0)+"%"])}/></Card>}
 {tab==="pelanggan"&&<Card><div style={{fontWeight:700,color:C.gl2,marginBottom:10,fontSize:13}}>👥 Ranking Pelanggan per Omzet</div><FilterTbl columns={plgCols} data={plgArr} empty="Tidak ada data"/></Card>}
 {tab==="matrix"&&<Card><div style={{fontWeight:700,color:C.gl2,marginBottom:10,fontSize:13}}>📋 Sales × Kategori</div><FilterTbl columns={skCols} data={skArr} empty="Tidak ada data"/></Card>}
-{tab==="detail"&&<Card><div style={{fontWeight:700,color:C.gl2,marginBottom:10,fontSize:13}}>🔍 Detail Penjualan ({penjFilt.length})</div><FilterTbl columns={detCols} data={detailRows} empty="Tidak ada data" maxRows={300}/></Card>}
+{tab==="detail"&&<Card><div style={{fontWeight:700,color:C.gl2,marginBottom:10,fontSize:13}}>🔍 Detail Penjualan ({penjFilt.length})</div><FilterTbl columns={detCols} data={detailRows} empty="Tidak ada data" maxRows={300} footerRow={detFooter}/></Card>}
 
 {tab==="stok"&&<div>
 <Card>
