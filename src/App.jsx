@@ -485,7 +485,18 @@ function nextInvNo(data,tanggal){var d=new Date(tanggal+"T00:00:00");var m=d.get
 function nextSGNo(data,bulan){var[y,m]=bulan.split("-").map(Number);var ctr=(data.counters?.sg||{})[bulan]||0;var n=ctr+1;return{no:String(n).padStart(3,"0")+"/HTS/SG/"+ROMAN[m-1]+"/"+y,key:bulan,n};}
 function nextRegNo(data){var ctr=(data.counters?.reg||0)+1;return{no:"HTS/CST/"+String(ctr).padStart(3,"0"),n:ctr};}
 
-function calcBonusSales(empId,bulan,data){var penj=(data.penjualan||[]).filter(p=>p.salesId===empId&&(p.tanggal||"").startsWith(bulan));var q55=0,q12=0;penj.forEach(p=>(p.items||[]).forEach(it=>{if(it.ukuran==="5.5 kg")q55+=Number(it.qty||0);else if(it.ukuran==="12 kg")q12+=Number(it.qty||0);}));var r55=q55<500?500:q55;var b55=q55*r55;var r12=q12<500?500:q12;var b12=q12*r12;return{q55,r55,b55,q12,r12,b12,total:b55+b12};}
+var BONUS50_RATE=20000;
+var BONUS50_POOL=["e04","e08"]; // USNI SIREGAR + BUNYAMIN: total 50kg digabung, bonus dibagi sama rata
+function calcBonusSales(empId,bulan,data){
+var penjBln=(data.penjualan||[]).filter(p=>(p.tanggal||"").startsWith(bulan));
+function qtyOf(id,uk){var q=0;penjBln.filter(p=>p.salesId===id).forEach(p=>(p.items||[]).forEach(it=>{if(it.ukuran===uk)q+=Number(it.qty||0);}));return q;}
+var q12=qtyOf(empId,"12 kg");var r12=q12<500?500:q12;var b12=q12*r12;
+var pool=BONUS50_POOL.includes(empId);
+var q50Own=qtyOf(empId,"50 kg");
+var q50Pool=pool?BONUS50_POOL.reduce((a,id)=>a+qtyOf(id,"50 kg"),0):q50Own;
+var q50=pool?q50Pool/BONUS50_POOL.length:q50Own;
+var r50=BONUS50_RATE;var b50=Math.round(q50*r50);
+return{q12,r12,b12,q50,q50Own,q50Pool,pool,r50,b50,total:b12+b50};}
 
 function getBiayaOpsAuto(empId,bulan,data){return(data.pengeluaran||[]).filter(p=>p.karyawanId===empId&&(p.tanggal||"").startsWith(bulan)&&KAT_OPS.includes(p.kategori)).map(p=>({id:p.id,label:p.kategori+(p.ket?" - "+p.ket:""),nominal:Number(p.nominal||0),kategori:p.kategori}));}
 
@@ -515,7 +526,7 @@ return Math.max(0,s1+s2-dipotong);
 // Alias untuk backward compatibility (bulan param diabaikan — pinjaman berjalan tidak dibatasi bulan)
 function getPinjamanSaldo(empId,bulan,data){return getTotalAmbilanKaryawan(empId,data);}
 
-function calcPayrollFull(emp,bulan,data){var abs=(data.absensi||[]).filter(a=>a.karyawanId===emp.id&&(a.tanggal||"").startsWith(bulan));var hariHadir=abs.filter(a=>a.status==="H").length;var totalHariKerja=daysInMonth(bulan);var absen=abs.filter(a=>a.status==="A").length;var isSales=["sales_driver","sales_freelance"].includes(emp.role);var bonus=isSales?calcBonusSales(emp.id,bulan,data):{q55:0,r55:500,b55:0,q12:0,r12:500,b12:0,total:0};var mode=emp.uangMakanMode||"harian";var makanAuto=(data.pengeluaran||[]).filter(p=>p.karyawanId===emp.id&&["Uang Makan Karyawan","Uang Makan","Makan Karyawan"].includes(p.kategori)&&(p.tanggal||"").startsWith(bulan)).reduce((a,p)=>a+Number(p.nominal||0),0);var uangMakanRate=emp.uangMakan||UANG_MAKAN_DEFAULT;var uangMakan=mode==="harian"?makanAuto:hariHadir*uangMakanRate;var ops=getBiayaOpsAuto(emp.id,bulan,data).filter(x=>!["Uang Makan","Makan Karyawan"].some(k=>x.label.startsWith(k)));var bongkarTotal=ops.filter(x=>x.kategori==="Uang Bongkar DO").reduce((a,x)=>a+x.nominal,0);var spbbeTotal=ops.filter(x=>x.kategori==="Uang Jalan SPBE").reduce((a,x)=>a+x.nominal,0);var bongkarCount=ops.filter(x=>x.kategori==="Uang Bongkar DO").length;var spbbeCount=ops.filter(x=>x.kategori==="Uang Jalan SPBE").length;var pinjamanSaldo=getPinjamanSaldo(emp.id,bulan,data);return{hariHadir,totalHariKerja,absen,gajiPokok:emp.gajiPokok||0,bonus,uangMakanMode:mode,uangMakan,bongkarTotal,spbbeTotal,bongkarCount,spbbeCount,pinjamanSaldo};}
+function calcPayrollFull(emp,bulan,data){var abs=(data.absensi||[]).filter(a=>a.karyawanId===emp.id&&(a.tanggal||"").startsWith(bulan));var hariHadir=abs.filter(a=>a.status==="H").length;var totalHariKerja=daysInMonth(bulan);var absen=abs.filter(a=>a.status==="A").length;var isSales=["sales_driver","sales_freelance"].includes(emp.role);var bonus=isSales?calcBonusSales(emp.id,bulan,data):{q12:0,r12:500,b12:0,q50:0,q50Own:0,q50Pool:0,pool:false,r50:BONUS50_RATE,b50:0,total:0};var mode=emp.uangMakanMode||"harian";var makanAuto=(data.pengeluaran||[]).filter(p=>p.karyawanId===emp.id&&["Uang Makan Karyawan","Uang Makan","Makan Karyawan"].includes(p.kategori)&&(p.tanggal||"").startsWith(bulan)).reduce((a,p)=>a+Number(p.nominal||0),0);var uangMakanRate=emp.uangMakan||UANG_MAKAN_DEFAULT;var uangMakan=mode==="harian"?makanAuto:hariHadir*uangMakanRate;var ops=getBiayaOpsAuto(emp.id,bulan,data).filter(x=>!["Uang Makan","Makan Karyawan"].some(k=>x.label.startsWith(k)));var bongkarTotal=ops.filter(x=>x.kategori==="Uang Bongkar DO").reduce((a,x)=>a+x.nominal,0);var spbbeTotal=ops.filter(x=>x.kategori==="Uang Jalan SPBE").reduce((a,x)=>a+x.nominal,0);var bongkarCount=ops.filter(x=>x.kategori==="Uang Bongkar DO").length;var spbbeCount=ops.filter(x=>x.kategori==="Uang Jalan SPBE").length;var pinjamanSaldo=getPinjamanSaldo(emp.id,bulan,data);return{hariHadir,totalHariKerja,absen,gajiPokok:emp.gajiPokok||0,bonus,uangMakanMode:mode,uangMakan,bongkarTotal,spbbeTotal,bongkarCount,spbbeCount,pinjamanSaldo};}
 
 function calcNilaiStok(data){return SIZES.reduce((a,s)=>{var qty=(data.stock||{})[s]||0;var modal=getModal(data,s,"Isi");return a+qty*modal;},0);}
 function calcPinjamanKaryawan(data){
@@ -2959,8 +2970,8 @@ var uangMakanRate=emp.uangMakan||UANG_MAKAN_DEFAULT;
 var rows=[];
 // ── Penghasilan ──
 rows.push({id:uid(),section:"penghasilan",label:"Gaji Pokok",qty:1,ket:"",jumlah:r.gajiPokok});
-rows.push({id:uid(),section:"penghasilan",label:"Intensif 12kg",qty:r.bonus.q12,ket:fR(r.bonus.r12)+"/tabung",jumlah:r.bonus.b12});
-rows.push({id:uid(),section:"penghasilan",label:"Intensif 5,5kg",qty:r.bonus.q55,ket:fR(r.bonus.r55)+"/tabung",jumlah:r.bonus.b55});
+rows.push({id:uid(),section:"penghasilan",label:"Intensif 12kg",qty:r.bonus.q12,tarif:r.bonus.r12,ket:fR(r.bonus.r12)+"/tabung",jumlah:r.bonus.b12});
+rows.push({id:uid(),section:"penghasilan",label:"Intensif 50kg",qty:r.bonus.q50,tarif:r.bonus.r50,ket:fR(r.bonus.r50)+"/tabung"+(r.bonus.pool?" • gabungan "+r.bonus.q50Pool+" tabung ÷ "+BONUS50_POOL.length:""),jumlah:r.bonus.b50});
 rows.push({id:uid(),section:"penghasilan",label:"Bonus",qty:1,ket:"",jumlah:0});
 rows.push({id:uid(),section:"penghasilan",label:"Uang Makan",qty:r.hariHadir,ket:fR(uangMakanRate)+"/hari (dari absen)",jumlah:r.uangMakan});
 rows.push({id:uid(),section:"penghasilan",label:"Uang Bongkar DO",qty:r.bongkarCount,ket:"Rp 50.000/DO",jumlah:r.bongkarTotal});
@@ -2979,7 +2990,7 @@ return{empId:emp.id,nama:emp.nama,posisi:emp.posisi,alamat:emp.alamat||"",telepo
 
 function SlipEditor({slip,onClose,onSave}){
 var isEdit=!!slip.id;
-var[s,setS]=useState(JSON.parse(JSON.stringify(slip)));
+var[s,setS]=useState(()=>{var c=JSON.parse(JSON.stringify(slip));c.rows=c.rows.map(r=>r.tarif!=null?r:{...r,tarif:Number(r.qty)?Number(r.jumlah||0)/Number(r.qty):Number(r.jumlah||0)});return c;});
 function rR(n){return"Rp "+Number(n||0).toLocaleString("id-ID");}
 var totPgh=s.rows.filter(r=>r.section==="penghasilan").reduce((a,r)=>a+Number(r.jumlah||0),0);
 var totPot=s.rows.filter(r=>r.section==="potongan"&&r.kind!=="info").reduce((a,r)=>a+Number(r.jumlah||0),0);
@@ -2987,17 +2998,25 @@ var totYdt=s.rows.filter(r=>r.section==="ydt").reduce((a,r)=>a+Number(r.jumlah||
 var sisaPinjaman=Math.max(0,Number(s.totalPinjaman||0)-Number(s.potonganPinjaman||0));
 var totDiterima=totPgh-totPot-totYdt;
 function updRow(id,k,v){setS(p=>{
-  var newRows=p.rows.map(r=>r.id===id?{...r,[k]:v}:r);
+  var newRows=p.rows.map(r=>{
+    if(r.id!==id)return r;
+    var n={...r,[k]:v};
+    // Rumus otomatis seperti Excel: Jumlah = Qty × Tarif
+    if(k==="qty"||k==="tarif"){
+      n.jumlah=Math.round(Number(n.qty||0)*Number(n.tarif||0));
+      if(k==="tarif"&&/Rp\s*[\d.,]+\s*\/tabung/.test(n.ket||""))n.ket=n.ket.replace(/Rp\s*[\d.,]+\s*\/tabung/,fR(v)+"/tabung");
+    }
+    return n;
+  });
   var editedRow=p.rows.find(r=>r.id===id);
-  // Jika yang diedit adalah baris "Potongan Pinjaman" kolom jumlah, sync balik ke s.potonganPinjaman
   if(editedRow&&editedRow.label==="Potongan Pinjaman"&&k==="jumlah"){
     return{...p,rows:newRows,potonganPinjaman:Number(v)||0};
   }
   return{...p,rows:newRows};
 });}
-function addRow(section){setS(p=>({...p,rows:[...p.rows,{id:uid(),section,label:"Item baru",qty:1,ket:"",jumlah:0}]}));}
+function addRow(section){setS(p=>({...p,rows:[...p.rows,{id:uid(),section,label:"Item baru",qty:1,tarif:0,ket:"",jumlah:0}]}));}
 function delRow(id){setS(p=>({...p,rows:p.rows.filter(r=>r.id!==id)}));}
-function updPotPinjaman(v){var n=Number(v)||0;setS(p=>({...p,potonganPinjaman:n,rows:p.rows.map(r=>r.label==="Potongan Pinjaman"?{...r,jumlah:n}:r)}));}
+function updPotPinjaman(v){var n=Number(v)||0;setS(p=>({...p,potonganPinjaman:n,rows:p.rows.map(r=>r.label==="Potongan Pinjaman"?{...r,jumlah:n,tarif:n}:r)}));}
 var iStyle={background:"transparent",border:"1px solid",borderRadius:6,padding:"4px 7px",color:"inherit",fontSize:11,outline:"none",width:"100%",boxSizing:"border-box"};
 return <Modal title={(isEdit?"✏️ Edit Rincian Gaji Tersimpan — ":"✏️ Edit Kwitansi — ")+s.nama} onClose={onClose} width={860} saveLabel={isEdit?"💾 Simpan Perubahan":"💾 Simpan & Cetak"} onSave={()=>onSave({...s})}>
 {isEdit&&<div style={{background:"#1c2333",border:"1px solid #3B82F6",borderRadius:8,padding:"8px 12px",marginBottom:12,fontSize:11,color:"#93c5fd"}}>ℹ️ Mengedit slip <b>{s.noSlip}</b> yang sudah tersimpan. Perubahan pada "Potongan Pinjaman" akan otomatis disinkron ke saldo pinjaman karyawan, dan nominal Total Diterima akan disinkron ke catatan Pengeluaran.</div>}
@@ -3012,18 +3031,19 @@ return <Modal title={(isEdit?"✏️ Edit Rincian Gaji Tersimpan — ":"✏️ E
 <Btn sm color="blue" onClick={()=>addRow(sec)}>+ Baris</Btn>
 </div>
 {/* header kolom */}
-<div style={{display:"grid",gridTemplateColumns:"2fr 70px 1.5fr 110px 28px",gap:4,padding:"4px 10px",background:"#0f172a"}}>
-{["Label","Qty","Keterangan","Jumlah (Rp)",""].map((h,i)=><span key={i} style={{fontSize:9,color:"#64748b",fontWeight:700,textAlign:i===3?"right":"left"}}>{h}</span>)}
+<div style={{display:"grid",gridTemplateColumns:"2fr 62px 96px 1.5fr 110px 28px",gap:4,padding:"4px 10px",background:"#0f172a"}}>
+{["Label","Qty","× Tarif (Rp)","Keterangan","= Jumlah (Rp)",""].map((h,i)=><span key={i} style={{fontSize:9,color:"#64748b",fontWeight:700,textAlign:i===4?"right":"left"}}>{h}</span>)}
 </div>
 {s.rows.filter(r=>r.section===sec).length===0&&<div style={{padding:10,color:"#475569",fontSize:11,textAlign:"center"}}>Belum ada baris</div>}
 {s.rows.filter(r=>r.section===sec).map(r=>{
 var isPinjamanRow=r.label==="Potongan Pinjaman";
 var lockField=r.kind==="info"||isPinjamanRow;
-return <div key={r.id} style={{display:"grid",gridTemplateColumns:"2fr 70px 1.5fr 110px 28px",gap:4,padding:"5px 10px",borderTop:"1px solid #1e293b",alignItems:"center",background:r.kind==="info"?"#1e1a09":isPinjamanRow?"#1a1f2e":"transparent"}}>
+return <div key={r.id} style={{display:"grid",gridTemplateColumns:"2fr 62px 96px 1.5fr 110px 28px",gap:4,padding:"5px 10px",borderTop:"1px solid #1e293b",alignItems:"center",background:r.kind==="info"?"#1e1a09":isPinjamanRow?"#1a1f2e":"transparent"}}>
 <input value={r.label} onChange={e=>updRow(r.id,"label",e.target.value)} style={{...iStyle,borderColor:"#334155",color:isPinjamanRow?"#94a3b8":"#e2e8f0"}} readOnly={isPinjamanRow}/>
-<input type="number" value={r.qty??1} onChange={e=>updRow(r.id,"qty",Number(e.target.value))} style={{...iStyle,borderColor:"#334155",color:"#94a3b8",textAlign:"center"}} disabled={lockField}/>
+<input type="number" step="any" value={r.qty??1} onChange={e=>updRow(r.id,"qty",Number(e.target.value))} style={{...iStyle,borderColor:"#334155",color:"#94a3b8",textAlign:"center"}} disabled={lockField}/>
+<input type="number" step="any" value={lockField?"":Math.round(Number(r.tarif||0)*100)/100} onChange={e=>updRow(r.id,"tarif",Number(e.target.value))} placeholder={lockField?"—":"0"} title="Tarif per satuan. Jumlah = Qty × Tarif" style={{...iStyle,borderColor:"#334155",color:"#cbd5e1",textAlign:"right"}} disabled={lockField}/>
 <input value={isPinjamanRow?"⬇️ isi di kotak bawah":(r.ket||"")} onChange={e=>updRow(r.id,"ket",e.target.value)} placeholder="keterangan" style={{...iStyle,borderColor:"#334155",color:"#94a3b8",fontStyle:isPinjamanRow?"italic":"normal"}} disabled={lockField}/>
-<input type="number" value={r.jumlah||0} onChange={e=>updRow(r.id,"jumlah",Number(e.target.value))} title={isPinjamanRow?"Isi lewat kotak \"Cicilan/Potongan Bulan Ini\" di bawah":""} style={{...iStyle,borderColor:"transparent",color:r.kind==="info"?"#f59e0b":isPinjamanRow?"#94a3b8":col,textAlign:"right",fontWeight:700,background:"transparent",cursor:lockField?"not-allowed":"text"}} readOnly={lockField}/>
+<input type="number" value={r.jumlah||0} readOnly title={isPinjamanRow?"Isi lewat kotak \"Cicilan/Potongan Bulan Ini\" di bawah":r.kind==="info"?"":"Otomatis = Qty × Tarif"} style={{...iStyle,borderColor:"transparent",color:r.kind==="info"?"#f59e0b":isPinjamanRow?"#94a3b8":col,textAlign:"right",fontWeight:700,background:"transparent",cursor:"default"}}/>
 <button onClick={()=>delRow(r.id)} style={{background:"transparent",border:"none",color:"#ef4444",cursor:"pointer",fontSize:13,padding:0}} title="Hapus">✕</button>
 </div>;})}
 </div>)}
